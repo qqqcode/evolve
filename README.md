@@ -38,3 +38,5 @@ docker compose up -d --build
 docker compose logs -f
 docker compose down
 ```
+
+Cloud Agent test
