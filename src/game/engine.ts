@@ -45,7 +45,25 @@ function pendingMatches(save: GameSave, forKey: PendingBatchFor): boolean {
   return p.kind === forKey.kind && p.eraId === forKey.eraId && p.stepsInEra === forKey.stepsInEra;
 }
 
+/** 当前选项是否走出已缓存分支树（需要下一段 EventBatch） */
+function isPrefetchNeeded(save: GameSave): boolean {
+  if (save.mode === 'milestone' && save.eraId !== 'ending') {
+    return true;
+  }
+  if (save.mode === 'event' && save.event) {
+    const era = getEra(save.eraId);
+    const nextSteps = save.stepsInEra + 1;
+    // 本纪元已走完：叶节点点击只切到下一固有检查点，无需再生成分支树
+    if (nextSteps >= era.eventsBeforeNext) return false;
+    return save.event.choices.some(
+      (c) => !c.nextNodeId || !save.batch?.nodes[c.nextNodeId!],
+    );
+  }
+  return false;
+}
+
 function isPrefetchReady(save: GameSave): boolean {
+  if (!isPrefetchNeeded(save)) return false;
   if (save.mode === 'milestone' && save.eraId !== 'ending') {
     return pendingMatches(save, {
       kind: 'after_milestone',
@@ -54,13 +72,7 @@ function isPrefetchReady(save: GameSave): boolean {
     });
   }
   if (save.mode === 'event' && save.event) {
-    const era = getEra(save.eraId);
     const nextSteps = save.stepsInEra + 1;
-    if (nextSteps >= era.eventsBeforeNext) return false;
-    const hasLeaf = save.event.choices.some(
-      (c) => !c.nextNodeId || !save.batch?.nodes[c.nextNodeId!],
-    );
-    if (!hasLeaf) return false;
     return pendingMatches(save, {
       kind: 'after_path',
       eraId: save.eraId,
@@ -68,6 +80,14 @@ function isPrefetchReady(save: GameSave): boolean {
     });
   }
   return false;
+}
+
+function prefetchFlags(save: GameSave): { prefetchNeeded: boolean; prefetchReady: boolean } {
+  const prefetchNeeded = isPrefetchNeeded(save);
+  return {
+    prefetchNeeded,
+    prefetchReady: prefetchNeeded ? isPrefetchReady(save) : false,
+  };
 }
 
 function applyBatchNode(save: GameSave, batch: EventBatch, nodeId: string): GameSave {
@@ -130,6 +150,7 @@ function endingView(save: GameSave): GameStateView {
     isEnding: true,
     aiEnabled: isAiEnabled(),
     prefetchReady: false,
+    prefetchNeeded: false,
   };
 }
 
@@ -155,10 +176,12 @@ export function toStateView(save: GameSave): GameStateView {
       isEnding: false,
       aiEnabled: isAiEnabled(),
       prefetchReady: false,
+      prefetchNeeded: false,
     };
   }
 
   const era = getEra(save.eraId);
+  const flags = prefetchFlags(save);
 
   if (save.mode === 'event' && save.event) {
     return {
@@ -176,7 +199,7 @@ export function toStateView(save: GameSave): GameStateView {
       isEnding: false,
       aiEnabled: isAiEnabled(),
       batchInfo: batchProgressLabel(save),
-      prefetchReady: isPrefetchReady(save),
+      ...flags,
     };
   }
 
@@ -194,7 +217,7 @@ export function toStateView(save: GameSave): GameStateView {
     isDeath: false,
     isEnding: false,
     aiEnabled: isAiEnabled(),
-    prefetchReady: isPrefetchReady(save),
+    ...flags,
   };
 }
 

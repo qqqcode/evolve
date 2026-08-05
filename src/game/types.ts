@@ -115,4 +115,6 @@ export interface GameStateView {
   generating?: boolean;
   /** 下一段内容是否已预缓存，点击可瞬时进入 */
   prefetchReady?: boolean;
+  /** 当前页是否需要下一段分支树（离开检查点 / 走出本批叶节点） */
+  prefetchNeeded?: boolean;
 }

@@ -298,6 +298,19 @@ body {
   cursor: wait;
 }
 
+.choice-btn.caching {
+  opacity: 0.72;
+  border-style: dashed;
+}
+
+.choice-cache-tip {
+  display: block;
+  margin-top: 0.22rem;
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
 .choice-btn.danger {
   border-color: var(--danger-border);
   background: var(--danger-bg);

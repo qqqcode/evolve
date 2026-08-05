@@ -133,39 +133,42 @@ function sameScene(a, b) {
 
 function needsPrefetch(view) {
   if (!view || view.isDeath || view.isEnding) return false;
-  if (view.prefetchReady) return false;
-  if (view.isCheckpoint) return true;
-  if (view.save?.mode !== 'event' || !view.save.event) return false;
-  const eraSteps = view.save.stepsInEra + 1;
-  // 粗略：有叶选项且纪元未完时需要预取下一批
-  const hasLeaf = (view.choices || []).some((c) => {
-    const nextId = c.nextNodeId;
-    return !nextId || !view.save.batch?.nodes?.[nextId];
-  });
-  // eventsBeforeNext 默认 3，服务端会再判断
-  return hasLeaf && eraSteps < 99;
+  // 服务端标明需要下一段，且本地尚未缓存
+  if (view.prefetchNeeded) return !view.prefetchReady;
+  return false;
 }
 
 function updatePrefetchBadge() {
+  const needed = Boolean(state?.prefetchNeeded);
   const ready = Boolean(state?.prefetchReady);
-  const loading = Boolean(prefetchPromise) && !ready;
-  els.prefetchBadge.classList.toggle('hidden', !ready);
-  if (ready) {
-    els.prefetchBadge.textContent = '下一段已就绪';
+  const loading = Boolean(prefetchPromise) && needed && !ready;
+
+  els.prefetchBadge.classList.toggle('hidden', !(needed && ready));
+  if (needed && ready) {
+    els.prefetchBadge.textContent = '后续分支已缓存 · 点选瞬时';
   }
-  if (loading && !busy) {
-    setLoading(true, state?.isCheckpoint ? '正在预缓存本纪元分支…' : '正在预缓存下一段…');
+
+  if (loading) {
+    setLoading(
+      true,
+      state?.isCheckpoint ? '进入检查点：正在预载本纪元全部分支…' : '进入叶节点：正在预载后续分支…',
+    );
   } else if (!busy) {
     setLoading(false);
   }
 }
 
 /**
- * 进入检查点 / 叶节点时后台预取；不阻塞当前阅读。
- * 若用户抢先点击，onChoose 会 await 同一 promise。
+ * 进入检查点 / 叶节点时立刻后台预取整棵后续分支树；不阻塞阅读。
+ * 边界选项在缓存就绪前禁用，避免「点击后再等」。
  */
 function kickPrefetch() {
   if (!state || !needsPrefetch(state)) {
+    updatePrefetchBadge();
+    return;
+  }
+
+  if (prefetchPromise) {
     updatePrefetchBadge();
     return;
   }
@@ -178,19 +181,24 @@ function kickPrefetch() {
       const view = await api('/api/game/prefetch', { save: snapshot });
       if (token !== prefetchToken) return;
       if (!state || !sameScene(state.save, view.save)) return;
-      // 静默合并预缓存，避免重渲打断阅读
+      // 静默合并预缓存（pendingBatch），本地点选树已就绪
       state = {
         ...state,
         save: view.save,
         prefetchReady: view.prefetchReady,
+        prefetchNeeded: view.prefetchNeeded,
+        batchInfo: view.batchInfo,
       };
       persist(view.save);
+      render();
     } catch (err) {
       console.warn('[预取]', err.message || err);
+      showToast(err.message || '预载失败，将在点击时重试');
     } finally {
       if (token === prefetchToken) {
         prefetchPromise = null;
         updatePrefetchBadge();
+        if (!busy) render();
       }
     }
   })();
@@ -200,7 +208,7 @@ function kickPrefetch() {
 }
 
 async function waitPrefetchIfNeeded() {
-  if (state?.prefetchReady) return;
+  if (!state?.prefetchNeeded || state?.prefetchReady) return;
   if (!prefetchPromise) {
     kickPrefetch();
   }
@@ -246,11 +254,16 @@ function render() {
     return;
   }
 
+  const cachePending = Boolean(state.prefetchNeeded) && !state.prefetchReady;
+
   (state.choices || []).forEach((choice) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `choice-btn${choice.dangerHint ? ' danger' : ''}`;
-    btn.disabled = busy;
+    const isLocal = choiceIsLocalJump(choice.id);
+    // 走出缓存边界的选项：等进页预载完成；同批跳转始终可点
+    const boundaryLocked = !isLocal && cachePending;
+    btn.className = `choice-btn${choice.dangerHint ? ' danger' : ''}${boundaryLocked ? ' caching' : ''}`;
+    btn.disabled = busy || boundaryLocked;
 
     const main = document.createElement('span');
     main.className = 'choice-main';
@@ -263,6 +276,13 @@ function render() {
       const rate = choice.successRate != null ? `（成功率约 ${Math.round(choice.successRate * 100)}%）` : '';
       warn.textContent = `⚠ 危险：${choice.dangerHint}${rate}`;
       btn.appendChild(warn);
+    }
+
+    if (boundaryLocked) {
+      const tip = document.createElement('span');
+      tip.className = 'choice-cache-tip';
+      tip.textContent = '后续分支预载中…就绪后可点选';
+      btn.appendChild(tip);
     }
 
     btn.addEventListener('click', () => onChoose(choice.id));
@@ -285,7 +305,7 @@ async function applyState(view, options = {}) {
     showToast('固有进化检查点已保存');
   }
 
-  // 到达检查点 / 需要下一段时立刻后台初始化
+  // 进入页面立刻预载「选择 + 后续选择」整棵分支树
   kickPrefetch();
 }
 
@@ -331,16 +351,30 @@ function choiceIsLocalJump(choiceId) {
   return Boolean(nextId && state.save.batch?.nodes?.[nextId]);
 }
 
-function choiceNeedsServerWait(choiceId) {
+/** 是否走出当前本地缓存树（检查点离开 / 本批叶节点） */
+function choiceExitsCache(choiceId) {
   if (!state) return true;
   if (choiceIsLocalJump(choiceId)) return false;
-  // 检查点 / 叶节点：若已预缓存则 choose 瞬时；否则需等预取或即时生成
-  if (state.prefetchReady) return false;
-  return true;
+  return Boolean(state.prefetchNeeded);
+}
+
+function choiceNeedsServerWait(choiceId) {
+  if (!state) return true;
+  if (!choiceExitsCache(choiceId)) return false;
+  // 需要下一段：仅当缓存未就绪才等待（进页应已开始预载）
+  return !state.prefetchReady;
 }
 
 async function onChoose(choiceId) {
   if (busy || !state) return;
+
+  // 边界选项在缓存未就绪时不应可点；双保险
+  if (choiceNeedsServerWait(choiceId) && !state.prefetchReady) {
+    showToast('后续分支仍在预载，请稍候');
+    kickPrefetch();
+    return;
+  }
+
   busy = true;
   const needsWait = choiceNeedsServerWait(choiceId);
   render();
@@ -348,13 +382,12 @@ async function onChoose(choiceId) {
   if (needsWait) {
     setLoading(
       true,
-      state.isCheckpoint ? '正在预推演本纪元分支树…' : '分支末端，正在预推演下一段…',
+      state.isCheckpoint ? '等待预载本纪元分支树…' : '等待预载后续分支…',
     );
-    // 优先等后台预取完成，避免点击后再开一轮生成
     try {
       await waitPrefetchIfNeeded();
     } catch {
-      /* 预取失败则走 choose 即时生成 */
+      /* 预取失败则走 choose 即时生成兜底 */
     }
   }
 

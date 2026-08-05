@@ -14,13 +14,12 @@ export function isAiEnabled(): boolean {
   return true;
 }
 
-/** 本批沿路径事件数：剩余 1→1，2→2，其余 3~4 */
+/** 本批沿路径事件数：尽量一次吃完本纪元剩余，减少再次请求 */
 export function decideBatchDepth(remaining: number): number {
-  if (remaining <= 1) return 1;
-  if (remaining === 2) return 2;
-  if (remaining === 3) return 3;
-  return 4;
+  return Math.max(1, Math.min(remaining, 4));
 }
+
+const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS) || 28000;
 
 interface AiNodePayload {
   id: string;
@@ -60,22 +59,23 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function buildPrompt(era: EraDef, save: GameSave, depth: number): { system: string; user: string } {
-  const maxNodes = depth <= 2 ? depth * 3 : Math.min(10, 1 + depth * 2);
+  // 一次请求多分支多后续：节点略多，供本地点选缓存
+  const maxNodes = Math.min(14, Math.max(depth * 3, depth + 5));
 
   const system = `你是严谨的古生物学/进化史文字游戏叙事引擎。
 规则：
 1. 只输出合法 JSON，不要 markdown，不要解释。
-2. 一次生成一整棵「分支事件树」，玩家可沿不同选项走到不同后续事件。
+2. 一次生成一整棵「分支事件树」：玩家可在本地沿不同选项走到不同后续事件，中途不再请求你。
 3. 沿任意成功路径大约经历 ${depth} 次事件（depth=${depth}）。
-4. 节点总数控制在 ${Math.max(depth, 3)}~${maxNodes} 个；允许不同选项汇合到同一后续节点，避免指数爆炸。
+4. 节点总数控制在 ${Math.max(depth, 4)}~${maxNodes} 个；尽量让前几层有分叉，后段可汇合，避免指数爆炸。
 5. 事件必须符合当前地质年代与生物群，禁止时代错位。
 6. 每个节点 3~4 个选项；至少 1 个较安全，至少 1 个带 dangerHint 且 successRate 在 0.35~0.7。
 7. 叶节点（路径最后一层）的所有选项 next 必须为 null。
-8. 非叶节点的 next 必须指向已存在的节点 id。
+8. 非叶节点的每个选项 next 必须指向已存在的节点 id（即把后续选择也一并写进这棵树）。
 9. 文风简洁冷峻，每段叙述不超过 100 字。
 10. choices.id、节点 id 用短英文 snake_case。`;
 
-  const user = `请生成一段可本地点选的进化分支树（一次返回整批，不要只返回单事件）。
+  const user = `请一次性生成整棵可本地点选的进化分支树（含多条分支及其后续选择，不要只返回单事件）。
 
 当前状态：
 - 纪元：${era.label}
@@ -83,7 +83,7 @@ function buildPrompt(era: EraDef, save: GameSave, depth: number): { system: stri
 - 玩家形态：${era.form}
 - 适合度：${save.fitness}
 - 已有特性：${save.traits.join('、') || '无'}
-- 本纪元进度：${save.stepsInEra}/${era.eventsBeforeNext}（本批深度约 ${depth}）
+- 本纪元进度：${save.stepsInEra}/${era.eventsBeforeNext}（本批深度约 ${depth}，请覆盖这些后续选择）
 - 近期经历：${save.historySummary.slice(-5).join(' | ') || '无'}
 
 纪元基线环境：
@@ -134,7 +134,7 @@ ${JSON.stringify(era.baseEnvironment, null, 2)}
   ]
 }
 
-说明：叶层选项 next=null；非叶 next 指向后续节点 id。`;
+说明：叶层选项 next=null；非叶 next 指向后续节点 id。请把分叉后的后续选择也写入 nodes。`;
 
   return { system, user };
 }
@@ -223,24 +223,40 @@ export async function generateAiBatch(era: EraDef, save: GameSave, depth: number
   const started = Date.now();
 
   console.log(
-    `[DeepSeek] → 预推演分支树 | 模型=${MODEL} | 纪元=${era.label} | 深度=${depth} | 时间=${formatYearLabel(save.yearMa)} | 适应=${save.fitness}`,
+    `[DeepSeek] → 预推演分支树 | 模型=${MODEL} | 纪元=${era.label} | 深度=${depth} | 超时=${DEEPSEEK_TIMEOUT_MS}ms | 时间=${formatYearLabel(save.yearMa)} | 适应=${save.fitness}`,
   );
 
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0.85,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        temperature: 0.85,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      }),
+    });
+  } catch (err) {
+    const ms = Date.now() - started;
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.error(`[DeepSeek] ✖ 超时 | ${ms}ms | >${DEEPSEEK_TIMEOUT_MS}ms`);
+      throw new Error(`DeepSeek 请求超时 (${DEEPSEEK_TIMEOUT_MS}ms)`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const ms = Date.now() - started;
 
