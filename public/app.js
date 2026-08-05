@@ -30,6 +30,7 @@ const els = {
   envLife: document.getElementById('envLife'),
   envTraits: document.getElementById('envTraits'),
   envNotes: document.getElementById('envNotes'),
+  appVersion: document.getElementById('appVersion'),
 };
 
 let meta = null;
@@ -329,6 +330,9 @@ async function boot() {
   try {
     const metaRes = await fetch('/api/meta');
     meta = await metaRes.json();
+    if (els.appVersion && meta?.version) {
+      els.appVersion.textContent = `v${meta.version}`;
+    }
 
     const local = readLocalSave();
     if (local) {

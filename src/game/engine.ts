@@ -1,6 +1,7 @@
 import { STAGE_ORDER, formatYearLabel, getEra, isStageId, nextEraId } from './eras';
 import { decideBatchDepth, generateAiBatch, isAiEnabled } from './deepseek';
 import { generateProceduralBatch } from './procedural';
+import { APP_VERSION } from '../version';
 import type {
   Choice,
   EnvironmentInfo,
@@ -675,6 +676,7 @@ export function loadSave(raw: unknown): GameSave {
 
 export function getMeta() {
   return {
+    version: APP_VERSION,
     stages: STAGE_ORDER.filter((s) => s !== 'ending').map((id) => {
       const era = getEra(id);
       return { id, label: era.label, yearLabel: era.yearLabel };
