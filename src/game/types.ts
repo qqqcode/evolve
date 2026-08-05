@@ -69,6 +69,13 @@ export interface EraDef {
   choices: MilestoneChoice[];
 }
 
+/** 预缓存下一段分支树的匹配键 */
+export interface PendingBatchFor {
+  kind: 'after_milestone' | 'after_path';
+  eraId: StageId;
+  stepsInEra: number;
+}
+
 export interface GameSave {
   eraId: StageId;
   checkpointEraId: StageId;
@@ -84,6 +91,9 @@ export interface GameSave {
   deaths: number;
   historySummary: string[];
   environment: EnvironmentInfo;
+  /** 已预生成、待进入的下一段分支树 */
+  pendingBatch: EventBatch | null;
+  pendingFor: PendingBatchFor | null;
   updatedAt: string;
 }
 
@@ -103,4 +113,6 @@ export interface GameStateView {
   aiEnabled: boolean;
   batchInfo?: string;
   generating?: boolean;
+  /** 下一段内容是否已预缓存，点击可瞬时进入 */
+  prefetchReady?: boolean;
 }

@@ -7,7 +7,7 @@ import type {
   EventBatch,
   GameSave,
   GameStateView,
-  GeneratedEvent,
+  PendingBatchFor,
   StageId,
 } from './types';
 
@@ -35,6 +35,41 @@ function pushHistory(save: GameSave, line: string): string[] {
   return [...save.historySummary, line].slice(-12);
 }
 
+function clearPending(save: GameSave): GameSave {
+  return { ...save, pendingBatch: null, pendingFor: null };
+}
+
+function pendingMatches(save: GameSave, forKey: PendingBatchFor): boolean {
+  const p = save.pendingFor;
+  if (!save.pendingBatch || !p) return false;
+  return p.kind === forKey.kind && p.eraId === forKey.eraId && p.stepsInEra === forKey.stepsInEra;
+}
+
+function isPrefetchReady(save: GameSave): boolean {
+  if (save.mode === 'milestone' && save.eraId !== 'ending') {
+    return pendingMatches(save, {
+      kind: 'after_milestone',
+      eraId: save.eraId,
+      stepsInEra: 0,
+    });
+  }
+  if (save.mode === 'event' && save.event) {
+    const era = getEra(save.eraId);
+    const nextSteps = save.stepsInEra + 1;
+    if (nextSteps >= era.eventsBeforeNext) return false;
+    const hasLeaf = save.event.choices.some(
+      (c) => !c.nextNodeId || !save.batch?.nodes[c.nextNodeId!],
+    );
+    if (!hasLeaf) return false;
+    return pendingMatches(save, {
+      kind: 'after_path',
+      eraId: save.eraId,
+      stepsInEra: nextSteps,
+    });
+  }
+  return false;
+}
+
 function applyBatchNode(save: GameSave, batch: EventBatch, nodeId: string): GameSave {
   const node = batch.nodes[nodeId];
   if (!node) throw new Error(`分支节点不存在: ${nodeId}`);
@@ -53,8 +88,6 @@ function applyBatchNode(save: GameSave, batch: EventBatch, nodeId: string): Game
 function batchProgressLabel(save: GameSave): string | undefined {
   if (!save.batch || !save.batchNodeId) return undefined;
   const total = save.batch.depth;
-  // approximate: steps already done in era within this batch path isn't tracked separately;
-  // show remaining era steps + batch size
   return `预推演分支 · ${Object.keys(save.batch.nodes).length}节点 / 路径约${total}步 · 纪元 ${save.stepsInEra}/${getEra(save.eraId).eventsBeforeNext}`;
 }
 
@@ -75,6 +108,8 @@ export function createNewSave(): GameSave {
     deaths: 0,
     historySummary: [`抵达${era.label}`],
     environment: cloneEnv(era.baseEnvironment),
+    pendingBatch: null,
+    pendingFor: null,
     updatedAt: nowIso(),
   };
 }
@@ -94,6 +129,7 @@ function endingView(save: GameSave): GameStateView {
     isDeath: false,
     isEnding: true,
     aiEnabled: isAiEnabled(),
+    prefetchReady: false,
   };
 }
 
@@ -118,6 +154,7 @@ export function toStateView(save: GameSave): GameStateView {
       isDeath: true,
       isEnding: false,
       aiEnabled: isAiEnabled(),
+      prefetchReady: false,
     };
   }
 
@@ -139,6 +176,7 @@ export function toStateView(save: GameSave): GameStateView {
       isEnding: false,
       aiEnabled: isAiEnabled(),
       batchInfo: batchProgressLabel(save),
+      prefetchReady: isPrefetchReady(save),
     };
   }
 
@@ -156,6 +194,7 @@ export function toStateView(save: GameSave): GameStateView {
     isDeath: false,
     isEnding: false,
     aiEnabled: isAiEnabled(),
+    prefetchReady: isPrefetchReady(save),
   };
 }
 
@@ -179,9 +218,99 @@ async function createBatchFor(save: GameSave): Promise<EventBatch> {
 }
 
 async function enterBatch(save: GameSave): Promise<GameSave> {
+  // 优先消费预缓存：键匹配则瞬时进入，不再请求 DeepSeek
+  if (
+    save.pendingBatch &&
+    save.pendingFor &&
+    save.pendingFor.eraId === save.eraId &&
+    save.pendingFor.stepsInEra === save.stepsInEra &&
+    ((save.pendingFor.kind === 'after_milestone' && save.stepsInEra === 0) ||
+      save.pendingFor.kind === 'after_path')
+  ) {
+    console.log(`[游戏] 使用预缓存分支树 ${save.pendingBatch.id}（无等待）`);
+    const batch = save.pendingBatch;
+    return applyBatchNode(clearPending(save), batch, batch.startId);
+  }
+
   const batch = await createBatchFor(save);
-  console.log(`[游戏] 载入分支树 ${batch.id} | 本地可点选，走完叶节点才请求下一批`);
-  return applyBatchNode(save, batch, batch.startId);
+  console.log(`[游戏] 即时生成分支树 ${batch.id} | 建议在检查点预取以避免等待`);
+  return applyBatchNode(clearPending(save), batch, batch.startId);
+}
+
+/**
+ * 在检查点 / 叶节点提前生成下一段内容并写入 pendingBatch。
+ * 前端进入游戏、新游戏、到达固有节点时应调用。
+ */
+export async function prefetchContent(save: GameSave): Promise<GameStateView> {
+  if (save.mode === 'death' || save.mode === 'ending' || save.eraId === 'ending') {
+    return toStateView(save);
+  }
+
+  // 固有进化检查点：预生成离开后的第一批分支树
+  if (save.mode === 'milestone') {
+    const key: PendingBatchFor = {
+      kind: 'after_milestone',
+      eraId: save.eraId,
+      stepsInEra: 0,
+    };
+    if (pendingMatches(save, key)) {
+      console.log(`[预取] 已就绪 after_milestone | ${save.eraId}`);
+      return toStateView(save);
+    }
+
+    console.log(`[预取] 检查点预生成本纪元分支树… | ${save.eraId}`);
+    const batch = await createBatchFor({ ...save, stepsInEra: 0 });
+    const next: GameSave = {
+      ...save,
+      pendingBatch: batch,
+      pendingFor: key,
+      updatedAt: nowIso(),
+    };
+    console.log(`[预取] 完成 ${batch.id} | 节点=${Object.keys(batch.nodes).length}`);
+    return toStateView(next);
+  }
+
+  // 事件叶节点：预生成下一批（若纪元未完）
+  if (save.mode === 'event' && save.event) {
+    const era = getEra(save.eraId);
+    const nextSteps = save.stepsInEra + 1;
+    const hasLeaf = save.event.choices.some(
+      (c) => !c.nextNodeId || !save.batch?.nodes[c.nextNodeId!],
+    );
+
+    if (!hasLeaf || nextSteps >= era.eventsBeforeNext) {
+      return toStateView(save);
+    }
+
+    const key: PendingBatchFor = {
+      kind: 'after_path',
+      eraId: save.eraId,
+      stepsInEra: nextSteps,
+    };
+    if (pendingMatches(save, key)) {
+      console.log(`[预取] 已就绪 after_path | ${save.eraId} steps=${nextSteps}`);
+      return toStateView(save);
+    }
+
+    console.log(`[预取] 叶节点预生成下一段… | 进度将至 ${nextSteps}/${era.eventsBeforeNext}`);
+    const batch = await createBatchFor({
+      ...save,
+      stepsInEra: nextSteps,
+      batch: null,
+      batchNodeId: null,
+      event: null,
+    });
+    const next: GameSave = {
+      ...save,
+      pendingBatch: batch,
+      pendingFor: key,
+      updatedAt: nowIso(),
+    };
+    console.log(`[预取] 完成 ${batch.id} | 节点=${Object.keys(batch.nodes).length}`);
+    return toStateView(next);
+  }
+
+  return toStateView(save);
 }
 
 function applySuccess(save: GameSave, choice: Choice, summary: string): GameSave {
@@ -210,7 +339,7 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
     const nextId = nextEraId(era.id);
     if (nextId === 'ending') {
       return {
-        ...save,
+        ...clearPending(save),
         eraId: 'ending',
         mode: 'ending',
         event: null,
@@ -227,7 +356,7 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
     const next = getEra(nextId);
     console.log(`[游戏] 纪元完成，进入固有进化：${next.label}`);
     return {
-      ...save,
+      ...clearPending(save),
       eraId: next.id,
       checkpointEraId: next.id,
       mode: 'milestone',
@@ -244,8 +373,7 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
     };
   }
 
-  // 本批结束且纪元未完 → 请求下一批
-  console.log(`[游戏] 到达分支末尾，请求下一段预推演 | 进度 ${steps}/${era.eventsBeforeNext}`);
+  console.log(`[游戏] 到达分支末尾，载入下一段预推演 | 进度 ${steps}/${era.eventsBeforeNext}`);
   return enterBatch({
     ...save,
     stepsInEra: steps,
@@ -257,7 +385,7 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
 
 function die(save: GameSave, title: string, text: string): GameSave {
   return {
-    ...save,
+    ...clearPending(save),
     mode: 'death',
     event: null,
     batch: null,
@@ -297,11 +425,12 @@ export async function chooseOption(save: GameSave, choiceId: string): Promise<Ga
       batch: null,
       batchNodeId: null,
       event: null,
+      // 保留 pendingBatch：enterBatch 会消费 after_milestone 缓存
     };
     if (choice.successText) {
       next.historySummary = pushHistory(next, choice.successText);
     }
-    console.log(`[游戏] 离开固有节点，预推演本纪元分支树…`);
+    console.log(`[游戏] 离开固有节点，进入预推演分支…`);
     next = await enterBatch(next);
     return toStateView(next);
   }
@@ -344,7 +473,7 @@ export async function chooseOption(save: GameSave, choiceId: string): Promise<Ga
     if (next.stepsInEra >= eraNow.eventsBeforeNext) {
       console.log(`[游戏] 路径中已达纪元进度，结束分支并进入固有进化`);
       next = {
-        ...next,
+        ...clearPending(next),
         batch: null,
         batchNodeId: null,
         event: null,
@@ -383,10 +512,29 @@ export function respawnFromCheckpoint(save: GameSave): GameStateView {
     yearMa: era.yearMa,
     fitness: Math.max(40, Math.min(save.fitness, 70)),
     environment: cloneEnv(era.baseEnvironment),
+    pendingBatch: null,
+    pendingFor: null,
     historySummary: pushHistory(save, `从检查点重生：${era.label}`),
     updatedAt: nowIso(),
   };
   return toStateView(next);
+}
+
+function normalizePending(
+  data: Partial<GameSave>,
+): { pendingBatch: EventBatch | null; pendingFor: PendingBatchFor | null } {
+  const pendingBatch = (data.pendingBatch as EventBatch | null) ?? null;
+  const pendingFor = (data.pendingFor as PendingBatchFor | null) ?? null;
+  if (
+    pendingBatch &&
+    pendingFor &&
+    pendingBatch.startId &&
+    pendingBatch.nodes?.[pendingBatch.startId] &&
+    (pendingFor.kind === 'after_milestone' || pendingFor.kind === 'after_path')
+  ) {
+    return { pendingBatch, pendingFor };
+  }
+  return { pendingBatch: null, pendingFor: null };
 }
 
 export function loadSave(raw: unknown): GameSave {
@@ -419,6 +567,8 @@ export function loadSave(raw: unknown): GameSave {
         ? data.historySummary.filter((x) => typeof x === 'string')
         : [],
       environment: createNewSave().environment,
+      pendingBatch: null,
+      pendingFor: null,
       updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : nowIso(),
     };
   }
@@ -428,6 +578,7 @@ export function loadSave(raw: unknown): GameSave {
   let batch = (data.batch as EventBatch | null) ?? null;
   let batchNodeId = typeof data.batchNodeId === 'string' ? data.batchNodeId : null;
   let event = data.event ?? null;
+  const { pendingBatch, pendingFor } = normalizePending(data);
 
   // 若有批次，以批次节点为准
   if (batch && batchNodeId && batch.nodes?.[batchNodeId]) {
@@ -480,6 +631,8 @@ export function loadSave(raw: unknown): GameSave {
               : era.baseEnvironment.notes,
           }
         : cloneEnv(era.baseEnvironment),
+    pendingBatch,
+    pendingFor,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : nowIso(),
   };
 }

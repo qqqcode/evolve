@@ -6,6 +6,7 @@ import {
   createNewSave,
   getMeta,
   loadSave,
+  prefetchContent,
   respawnFromCheckpoint,
   toStateView,
 } from './game/engine';
@@ -15,7 +16,7 @@ import type { GameSave } from './game/types';
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/meta', (_req, res) => {
@@ -33,6 +34,19 @@ app.post('/api/game/load', (req, res) => {
     res.json(toStateView(save));
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : '读取失败' });
+  }
+});
+
+/** 后台预取下一段分支树，写入 save.pendingBatch */
+app.post('/api/game/prefetch', async (req, res) => {
+  try {
+    const save = loadSave(req.body?.save) as GameSave;
+    console.log(`[预取] 请求 | 纪元=${save.eraId} | mode=${save.mode}`);
+    const view = await prefetchContent(save);
+    res.json(view);
+  } catch (err) {
+    console.error('[预取] 失败:', err instanceof Error ? err.message : err);
+    res.status(400).json({ error: err instanceof Error ? err.message : '预取失败' });
   }
 });
 
@@ -66,8 +80,11 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`进化史已启动: http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`进化史已启动: http://${HOST}:${PORT}`);
+  console.log(`本机局域网可访问: http://<你的IP>:${PORT}`);
   console.log(
     isAiEnabled()
       ? 'DeepSeek：已启用（中间事件由大模型生成）'

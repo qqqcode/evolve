@@ -8,6 +8,7 @@ const els = {
   checkpointBadge: document.getElementById('checkpointBadge'),
   batchBadge: document.getElementById('batchBadge'),
   loadingBadge: document.getElementById('loadingBadge'),
+  prefetchBadge: document.getElementById('prefetchBadge'),
   nodeTitle: document.getElementById('nodeTitle'),
   nodeText: document.getElementById('nodeText'),
   choices: document.getElementById('choices'),
@@ -34,6 +35,9 @@ const els = {
 let meta = null;
 let state = null;
 let busy = false;
+/** 当前后台预取任务；点击时可 await 以避免重复生成 */
+let prefetchPromise = null;
+let prefetchToken = 0;
 
 function showToast(message) {
   els.toast.textContent = message;
@@ -112,8 +116,97 @@ function renderStages() {
   els.stageLabel.textContent = `${state.stageLabel} · ${state.yearLabel}`;
 }
 
-function setLoading(on) {
+function setLoading(on, text) {
   els.loadingBadge.classList.toggle('hidden', !on);
+  if (on && text) els.loadingBadge.textContent = text;
+}
+
+function sameScene(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.eraId === b.eraId &&
+    a.mode === b.mode &&
+    a.batchNodeId === b.batchNodeId &&
+    a.stepsInEra === b.stepsInEra
+  );
+}
+
+function needsPrefetch(view) {
+  if (!view || view.isDeath || view.isEnding) return false;
+  if (view.prefetchReady) return false;
+  if (view.isCheckpoint) return true;
+  if (view.save?.mode !== 'event' || !view.save.event) return false;
+  const eraSteps = view.save.stepsInEra + 1;
+  // 粗略：有叶选项且纪元未完时需要预取下一批
+  const hasLeaf = (view.choices || []).some((c) => {
+    const nextId = c.nextNodeId;
+    return !nextId || !view.save.batch?.nodes?.[nextId];
+  });
+  // eventsBeforeNext 默认 3，服务端会再判断
+  return hasLeaf && eraSteps < 99;
+}
+
+function updatePrefetchBadge() {
+  const ready = Boolean(state?.prefetchReady);
+  const loading = Boolean(prefetchPromise) && !ready;
+  els.prefetchBadge.classList.toggle('hidden', !ready);
+  if (ready) {
+    els.prefetchBadge.textContent = '下一段已就绪';
+  }
+  if (loading && !busy) {
+    setLoading(true, state?.isCheckpoint ? '正在预缓存本纪元分支…' : '正在预缓存下一段…');
+  } else if (!busy) {
+    setLoading(false);
+  }
+}
+
+/**
+ * 进入检查点 / 叶节点时后台预取；不阻塞当前阅读。
+ * 若用户抢先点击，onChoose 会 await 同一 promise。
+ */
+function kickPrefetch() {
+  if (!state || !needsPrefetch(state)) {
+    updatePrefetchBadge();
+    return;
+  }
+
+  const token = ++prefetchToken;
+  const snapshot = state.save;
+
+  const run = (async () => {
+    try {
+      const view = await api('/api/game/prefetch', { save: snapshot });
+      if (token !== prefetchToken) return;
+      if (!state || !sameScene(state.save, view.save)) return;
+      // 静默合并预缓存，避免重渲打断阅读
+      state = {
+        ...state,
+        save: view.save,
+        prefetchReady: view.prefetchReady,
+      };
+      persist(view.save);
+    } catch (err) {
+      console.warn('[预取]', err.message || err);
+    } finally {
+      if (token === prefetchToken) {
+        prefetchPromise = null;
+        updatePrefetchBadge();
+      }
+    }
+  })();
+
+  prefetchPromise = run;
+  updatePrefetchBadge();
+}
+
+async function waitPrefetchIfNeeded() {
+  if (state?.prefetchReady) return;
+  if (!prefetchPromise) {
+    kickPrefetch();
+  }
+  if (prefetchPromise) {
+    await prefetchPromise;
+  }
 }
 
 function render() {
@@ -137,7 +230,7 @@ function render() {
   } else {
     els.batchBadge.classList.add('hidden');
   }
-  setLoading(false);
+  updatePrefetchBadge();
 
   els.choices.innerHTML = '';
   els.deathActions.classList.add('hidden');
@@ -179,6 +272,11 @@ function render() {
 
 async function applyState(view, options = {}) {
   const wasCheckpoint = state?.isCheckpoint;
+  // 场景切换时作废旧预取
+  if (state && !sameScene(state.save, view.save)) {
+    prefetchToken += 1;
+    prefetchPromise = null;
+  }
   state = view;
   persist(view.save);
   render();
@@ -186,11 +284,16 @@ async function applyState(view, options = {}) {
   if (options.toastSave || (view.isCheckpoint && !wasCheckpoint && !view.isDeath)) {
     showToast('固有进化检查点已保存');
   }
+
+  // 到达检查点 / 需要下一段时立刻后台初始化
+  kickPrefetch();
 }
 
 async function startNew() {
   if (busy) return;
   busy = true;
+  prefetchToken += 1;
+  prefetchPromise = null;
   try {
     const view = await api('/api/game/new');
     await applyState(view, { toastSave: true });
@@ -220,30 +323,41 @@ async function boot() {
   }
 }
 
-function choiceNeedsFetch(choiceId) {
-  if (!state) return true;
-  if (state.isCheckpoint) return true;
+function choiceIsLocalJump(choiceId) {
+  if (!state || state.isCheckpoint) return false;
   const choice = (state.choices || []).find((c) => c.id === choiceId);
-  if (!choice) return true;
+  if (!choice) return false;
   const nextId = choice.nextNodeId;
-  if (nextId && state.save.batch?.nodes?.[nextId]) return false;
-  // 叶节点：可能要请求下一批或进入下一纪元
+  return Boolean(nextId && state.save.batch?.nodes?.[nextId]);
+}
+
+function choiceNeedsServerWait(choiceId) {
+  if (!state) return true;
+  if (choiceIsLocalJump(choiceId)) return false;
+  // 检查点 / 叶节点：若已预缓存则 choose 瞬时；否则需等预取或即时生成
+  if (state.prefetchReady) return false;
   return true;
 }
 
 async function onChoose(choiceId) {
   if (busy || !state) return;
   busy = true;
-  const needsFetch = choiceNeedsFetch(choiceId);
+  const needsWait = choiceNeedsServerWait(choiceId);
   render();
-  if (needsFetch) {
-    setLoading(true);
-    els.loadingBadge.textContent = state.isCheckpoint
-      ? '正在预推演本纪元分支树…'
-      : '分支末端，正在预推演下一段…';
-    els.nodeText.textContent =
-      (state.text || '') + '\n\n（DeepSeek 预生成多步分支，随后可连续点选）';
+
+  if (needsWait) {
+    setLoading(
+      true,
+      state.isCheckpoint ? '正在预推演本纪元分支树…' : '分支末端，正在预推演下一段…',
+    );
+    // 优先等后台预取完成，避免点击后再开一轮生成
+    try {
+      await waitPrefetchIfNeeded();
+    } catch {
+      /* 预取失败则走 choose 即时生成 */
+    }
   }
+
   try {
     const view = await api('/api/game/choose', {
       save: state.save,
@@ -262,6 +376,8 @@ async function onChoose(choiceId) {
 async function onRespawn() {
   if (busy || !state) return;
   busy = true;
+  prefetchToken += 1;
+  prefetchPromise = null;
   try {
     const view = await api('/api/game/respawn', { save: state.save });
     await applyState(view, { toastSave: true });
