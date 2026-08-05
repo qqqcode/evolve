@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/components/EvolvePanel.tsx","./src/components/MutationList.tsx","./src/components/Organism.tsx","./src/components/StatsBar.tsx","./src/game/config.ts","./src/game/engine.ts","./src/game/format.ts","./src/game/types.ts","./src/hooks/useGame.ts"],"version":"5.9.3"}
