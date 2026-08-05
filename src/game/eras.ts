@@ -526,6 +526,11 @@ export function nextEraId(id: StageId): StageId | 'ending' {
 export function formatYearLabel(yearMa: number): string {
   if (yearMa >= 1000) return `约 ${(yearMa / 1000).toFixed(1)} 亿年前`;
   if (yearMa >= 1) return `约 ${Math.round(yearMa)} 百万年前`;
-  if (yearMa >= 0.001) return `约 ${Math.round(yearMa * 10000) / 10} 万年前`;
+  // 1 Ma = 100 万年
+  if (yearMa >= 0.001) return `约 ${Math.round(yearMa * 1000) / 10} 万年前`;
   return '近现代前夜';
+}
+
+export function isStageId(id: string): id is StageId {
+  return STAGE_ORDER.includes(id as StageId);
 }

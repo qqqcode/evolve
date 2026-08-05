@@ -1,4 +1,4 @@
-import { STAGE_ORDER, formatYearLabel, getEra, nextEraId } from './eras';
+import { STAGE_ORDER, formatYearLabel, getEra, isStageId, nextEraId } from './eras';
 import { decideBatchDepth, generateAiBatch, isAiEnabled } from './deepseek';
 import { generateProceduralBatch } from './procedural';
 import type {
@@ -499,7 +499,11 @@ export async function chooseOption(save: GameSave, choiceId: string): Promise<Ga
 }
 
 export function respawnFromCheckpoint(save: GameSave): GameStateView {
-  const era = getEra(save.checkpointEraId || 'microbe');
+  const checkpointId =
+    isStageId(save.checkpointEraId) && save.checkpointEraId !== 'ending'
+      ? save.checkpointEraId
+      : 'microbe';
+  const era = getEra(checkpointId);
   const next: GameSave = {
     ...save,
     eraId: era.id,
@@ -547,12 +551,14 @@ export function loadSave(raw: unknown): GameSave {
 
   const eraIdRaw = typeof data.eraId === 'string' ? data.eraId : 'microbe';
   if (eraIdRaw === 'ending') {
+    const checkpointRaw =
+      typeof data.checkpointEraId === 'string' ? data.checkpointEraId : 'tribe';
+    const checkpointEraId: StageId =
+      isStageId(checkpointRaw) && checkpointRaw !== 'ending' ? checkpointRaw : 'tribe';
     return {
       ...createNewSave(),
       eraId: 'ending',
-      checkpointEraId: (typeof data.checkpointEraId === 'string'
-        ? data.checkpointEraId
-        : 'tribe') as StageId,
+      checkpointEraId,
       mode: 'ending',
       event: null,
       batch: null,
@@ -573,7 +579,11 @@ export function loadSave(raw: unknown): GameSave {
     };
   }
 
-  const era = getEra(eraIdRaw as StageId);
+  if (!isStageId(eraIdRaw)) {
+    return createNewSave();
+  }
+
+  const era = getEra(eraIdRaw);
   const base = createNewSave();
   let batch = (data.batch as EventBatch | null) ?? null;
   let batchNodeId = typeof data.batchNodeId === 'string' ? data.batchNodeId : null;
@@ -591,11 +601,14 @@ export function loadSave(raw: unknown): GameSave {
     batchNodeId = null;
   }
 
+  const checkpointRaw =
+    typeof data.checkpointEraId === 'string' ? data.checkpointEraId : era.id;
+  const checkpointEraId: StageId =
+    isStageId(checkpointRaw) && checkpointRaw !== 'ending' ? checkpointRaw : era.id;
+
   return {
     eraId: era.id,
-    checkpointEraId: (typeof data.checkpointEraId === 'string'
-      ? data.checkpointEraId
-      : era.id) as StageId,
+    checkpointEraId,
     mode: (data.mode as GameSave['mode']) || 'milestone',
     event,
     batch,

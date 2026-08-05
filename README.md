@@ -5,12 +5,12 @@
 ## 本地开发
 
 ```bash
-cp .env.example .env   # 填入 DEEPSEEK_API_KEY
+cp .env.example .env   # 可选：填入 DEEPSEEK_API_KEY；留空则用程序化事件
 npm install
 npm run dev
 ```
 
-访问：`http://localhost:3000`
+访问：`http://localhost:3000`（未配置密钥时中间事件走程序化兜底）
 
 ## Docker Compose 部署
 

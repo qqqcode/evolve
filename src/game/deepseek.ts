@@ -4,8 +4,14 @@ import { formatYearLabel } from './eras';
 const API_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/chat/completions';
 const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
+/** 示例占位或非 ASCII 密钥不能用于 Authorization，视为未配置 */
 export function isAiEnabled(): boolean {
-  return Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+  const key = process.env.DEEPSEEK_API_KEY?.trim();
+  if (!key) return false;
+  if (/请填入|your[_-]?api[_-]?key|changeme|replace[_-]?me|xxx+/i.test(key)) return false;
+  // Bearer 头只接受 Latin-1；含中文等字符会直接抛错
+  if (!/^[\x21-\x7E]+$/.test(key)) return false;
+  return true;
 }
 
 /** 本批沿路径事件数：剩余 1→1，2→2，其余 3~4 */
@@ -210,8 +216,8 @@ function repairBatch(batch: EventBatch, depth: number): EventBatch {
 }
 
 export async function generateAiBatch(era: EraDef, save: GameSave, depth: number): Promise<EventBatch> {
-  const key = process.env.DEEPSEEK_API_KEY?.trim();
-  if (!key) throw new Error('未配置 DEEPSEEK_API_KEY');
+  if (!isAiEnabled()) throw new Error('未配置有效的 DEEPSEEK_API_KEY');
+  const key = process.env.DEEPSEEK_API_KEY!.trim();
 
   const { system, user } = buildPrompt(era, save, depth);
   const started = Date.now();
