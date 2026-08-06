@@ -5,9 +5,9 @@
   'use strict';
 
   var COLS = 8;
-  var ROWS = 7;
-  var ENEMY_ROW_MAX = 2;
-  var ALLY_ROW_MIN = 3;
+  var ROWS = 8;
+  var ENEMY_ROW_MAX = 3;
+  var ALLY_ROW_MIN = 4;
   var BENCH_SIZE = 8;
   var SHOP_SIZE = 5;
   var MAX_LEVEL = 3;

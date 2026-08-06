@@ -26,7 +26,7 @@ export const GAMES: GameEntry[] = [
     id: 'legion',
     title: '兵阵对决',
     path: '/legion/',
-    blurb: '8×7 方格自走棋：盾刀骑弓术，合成升级，布阵后自动战斗。',
+    blurb: '8×8 方格自走棋：盾刀骑弓术，合成升级，布阵后自动战斗。',
     ready: true,
   },
   {

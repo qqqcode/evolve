@@ -1,10 +1,10 @@
 import type { KindDef, UnitKind, UnitStats } from './types';
 
 export const COLS = 8;
-/** 战场行数：上 3 敌 + 下 4 友 = 7（贴近 8×7；备战区另置） */
-export const ROWS = 7;
-export const ENEMY_ROW_MAX = 2; // 0..2
-export const ALLY_ROW_MIN = 3; // 3..6
+/** 战场行数：上 4 敌 + 下 4 友 = 8（备战区另置） */
+export const ROWS = 8;
+export const ENEMY_ROW_MAX = 3; // 0..3
+export const ALLY_ROW_MIN = 4; // 4..7
 export const BENCH_SIZE = 8;
 export const SHOP_SIZE = 5;
 export const MAX_LEVEL = 3;
