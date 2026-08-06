@@ -43,6 +43,16 @@
     btnOverlay: document.getElementById('btnOverlay'),
   };
 
+  function fitBoard() {
+    var stage = document.querySelector('.board-stage');
+    var board = els.board;
+    if (!stage || !board) return;
+    var pad = 2;
+    var size = Math.max(80, Math.floor(Math.min(stage.clientWidth, stage.clientHeight) - pad));
+    board.style.width = size + 'px';
+    board.style.height = size + 'px';
+  }
+
   function setState(next) {
     state = next;
     render();
@@ -300,6 +310,7 @@
     renderShop();
     renderHud();
     renderLog();
+    fitBoard();
   }
 
   function onCellClick(ev) {
@@ -421,6 +432,7 @@
       });
       renderBench();
       renderLog(state.battleLog);
+      fitBoard();
       frameTimer = setTimeout(step, frame.events && frame.events.length ? 380 : 160);
     }
     step();
@@ -447,6 +459,10 @@
 
   function boot() {
     buildBoard();
+    window.addEventListener('resize', fitBoard);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', fitBoard);
+    }
 
     els.btnFight.addEventListener('click', onFight);
     els.btnRefresh.addEventListener('click', function () {

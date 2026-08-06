@@ -47,10 +47,14 @@
 
       <div class="layout">
         <section class="board-wrap">
-          <div id="board" class="board" aria-label="战场"></div>
+          <div class="board-stage">
+            <div id="board" class="board" aria-label="战场"></div>
+          </div>
           <p class="hint" id="boardHint">点选备战区棋子，再点友方格上阵。人口未满才能上阵；两只相同合成升级。</p>
-          <div class="bench-label">备战区</div>
-          <div id="bench" class="bench" aria-label="备战区"></div>
+          <div class="bench-block">
+            <div class="bench-label">备战区</div>
+            <div id="bench" class="bench" aria-label="备战区"></div>
+          </div>
         </section>
 
         <aside class="side">
@@ -62,7 +66,7 @@
             <div id="shop" class="shop"></div>
           </div>
 
-          <div class="panel">
+          <div class="panel ops-panel">
             <h2>操作</h2>
             <div class="actions">
               <button type="button" id="btnFight" class="btn primary">开始战斗</button>
@@ -73,7 +77,7 @@
             <div id="selectedInfo" class="selected-info">未选中单位</div>
           </div>
 
-          <div class="panel">
+          <div class="panel kind-panel">
             <h2>兵种</h2>
             <ul class="kind-help">
               <li><b>盾</b> 近战肉盾</li>
@@ -82,7 +86,7 @@
               <li><b>弓</b> 远程</li>
               <li><b>术</b> 远程法伤</li>
             </ul>
-            <p class="mini">2 同种同级 → 高一级。人口随回合增加（2→8）。难度：试炼→锋芒→铁潮→血战→末日。</p>
+            <p class="mini">2 同种同级 → 高一级。人口 2→8。难度：试炼→末日。</p>
           </div>
 
           <div class="panel log-panel">
