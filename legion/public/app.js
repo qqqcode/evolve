@@ -371,6 +371,7 @@
     els.btnNew.addEventListener('click', function () {
       if (playing && frameTimer) clearTimeout(frameTimer);
       playing = false;
+      prepAllySnapshot = null;
       hideOverlay();
       setState(L.createNewGame());
       els.boardHint.textContent = '点选备战区棋子，再点友方格上阵。两只相同合成升级。';
