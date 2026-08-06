@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>进化点击 · 文字游戏集合</title>
+    <base href="/evolve2/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="cosmos" aria-hidden="true">
+      <div class="nebula nebula-a"></div>
+      <div class="nebula nebula-b"></div>
+      <div class="starfield" id="starfield"></div>
+    </div>
+
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <a class="hub-link" href="/">集合</a>
+          <h1 class="brand-title">进化点击</h1>
+        </div>
+        <div class="top-actions">
+          <button type="button" id="btnReset" class="ghost-btn" title="清除存档">重置</button>
+          <span id="versionBadge" class="version">v—</span>
+        </div>
+      </header>
+
+      <section class="resource-bar" aria-label="资源">
+        <div class="res">
+          <span class="res-icon" aria-hidden="true">⚡</span>
+          <div>
+            <p class="res-label">能量</p>
+            <p class="res-value" id="energyVal">0</p>
+          </div>
+        </div>
+        <div class="res">
+          <span class="res-icon" aria-hidden="true">⏱</span>
+          <div>
+            <p class="res-label">每秒</p>
+            <p class="res-value" id="epsVal">0</p>
+          </div>
+        </div>
+        <div class="res">
+          <span class="res-icon" aria-hidden="true">🧬</span>
+          <div>
+            <p class="res-label">DNA</p>
+            <p class="res-value" id="dnaVal">0</p>
+          </div>
+        </div>
+        <div class="res">
+          <span class="res-icon" aria-hidden="true">✦</span>
+          <div>
+            <p class="res-label">倍率</p>
+            <p class="res-value" id="multVal">×1</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="layout">
+        <section class="stage-panel">
+          <div class="stage-rail" id="stageRail" aria-label="生命阶段"></div>
+          <p class="stage-blurb" id="stageBlurb"></p>
+        </section>
+
+        <section class="core-panel">
+          <p class="click-hint">点击细胞吸收能量</p>
+          <button type="button" id="cellBtn" class="cell-btn" aria-label="点击吸收能量">
+            <span class="cell-glow"></span>
+            <span class="cell-core" id="cellCore"></span>
+            <span class="cell-ring"></span>
+          </button>
+          <p class="click-power">
+            每次 <span id="clickPowerVal">1</span> ⚡
+          </p>
+          <div id="floatLayer" class="float-layer" aria-hidden="true"></div>
+        </section>
+
+        <aside class="shop-panel">
+          <div class="shop-tabs" role="tablist">
+            <button type="button" class="tab active" data-tab="mutations" role="tab">变异</button>
+            <button type="button" class="tab" data-tab="evolve" role="tab">进化</button>
+          </div>
+
+          <div id="tabMutations" class="tab-pane active">
+            <h2 class="pane-title">点击力</h2>
+            <div id="clickShop" class="shop-list"></div>
+            <h2 class="pane-title">被动产出</h2>
+            <div id="passiveShop" class="shop-list"></div>
+          </div>
+
+          <div id="tabEvolve" class="tab-pane">
+            <div class="evolve-card">
+              <h2 class="pane-title">生命阶段</h2>
+              <p id="evolveStatus" class="evolve-status"></p>
+              <button type="button" id="btnEvolve" class="action-btn primary">进化</button>
+            </div>
+            <div class="evolve-card prestige">
+              <h2 class="pane-title">DNA 转生</h2>
+              <p class="evolve-status">
+                达到「水生生物」后可转生。重置能量与变异，保留并增加 DNA（每点 +10% 全产出）。
+              </p>
+              <p id="prestigePreview" class="prestige-preview"></p>
+              <button type="button" id="btnPrestige" class="action-btn dna">转生获得 🧬</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div id="toast" class="toast" hidden></div>
+      <footer class="foot">
+        <span>离线进度上限 8 小时 · 自动存档</span>
+        <span id="saveHint">已保存</span>
+      </footer>
+    </main>
+
+    <script src="engine.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

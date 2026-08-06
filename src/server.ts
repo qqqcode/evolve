@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createEvolveRouter, logEvolveAiStatus } from '../evolve/src/router';
+import { createEvolve2Router } from '../evolve2/src/router';
 import { GAMES } from './registry';
 
 const app = express();
@@ -19,6 +20,9 @@ app.get('/api/games', (_req, res) => {
 /** 进化史：/evolve 与 /evolve/* */
 app.use('/evolve', createEvolveRouter());
 
+/** 进化点击：/evolve2 与 /evolve2/* */
+app.use('/evolve2', createEvolve2Router());
+
 /** 集合门户静态页 */
 app.use(express.static(hubPublic));
 
@@ -35,6 +39,7 @@ app.listen(PORT, HOST, () => {
   console.log(`文字游戏集合已启动: http://${HOST}:${PORT}`);
   console.log(`门户: http://${HOST}:${PORT}/`);
   console.log(`进化史: http://${HOST}:${PORT}/evolve/`);
+  console.log(`进化点击: http://${HOST}:${PORT}/evolve2/`);
   console.log(`本机局域网可访问: http://<你的IP>:${PORT}`);
   logEvolveAiStatus();
 });

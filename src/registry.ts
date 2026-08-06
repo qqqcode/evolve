@@ -16,6 +16,13 @@ export const GAMES: GameEntry[] = [
     ready: true,
   },
   {
+    id: 'evolve2',
+    title: '进化点击',
+    path: '/evolve2/',
+    blurb: '点击吸收能量、购买变异、跨越八阶段进化，DNA 永久提升产出。',
+    ready: true,
+  },
+  {
     id: 'othername',
     title: 'Other Name（占位）',
     path: '/othername/',

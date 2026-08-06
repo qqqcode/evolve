@@ -8,6 +8,7 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 COPY evolve/src ./evolve/src
+COPY evolve2/src ./evolve2/src
 RUN npm run build
 
 # 运行阶段
@@ -24,6 +25,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY public ./public
 COPY evolve/public ./evolve/public
+COPY evolve2/public ./evolve2/public
 
 EXPOSE 3000
 
