@@ -132,7 +132,7 @@
     shopsBuilt = true;
   }
 
-  /** 原地更新价格 / 持有数 / 禁用态，不销毁按钮节点 */
+  /** 原地更新价格 / 持有数 / 可买态，不销毁按钮节点 */
   function updateShopItems() {
     if (!shopsBuilt) buildShops();
     const all = [
@@ -147,7 +147,10 @@
       const ownedEl = btn.querySelector('[data-role="owned"]');
       if (costEl) costEl.textContent = '⚡ ' + E.formatNumber(cost || 0);
       if (ownedEl) ownedEl.textContent = '×' + owned;
-      btn.disabled = cost == null || state.energy < cost;
+      // 不用原生 disabled（会吞掉 click）；用样式锁 + 购买逻辑自校验
+      const locked = cost == null || state.energy < cost;
+      btn.classList.toggle('is-locked', locked);
+      btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
     });
   }
 
@@ -252,7 +255,7 @@
   function bindShopDelegation(container) {
     container.addEventListener('click', (ev) => {
       const btn = ev.target.closest('.shop-item');
-      if (!btn || !container.contains(btn) || btn.disabled) return;
+      if (!btn || !container.contains(btn)) return;
       const id = btn.dataset.id;
       if (!id) return;
       onBuyMutation(id);

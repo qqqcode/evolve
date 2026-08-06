@@ -497,19 +497,20 @@ button {
   border: 1px solid rgba(94, 230, 210, 0.12);
   background: rgba(6, 12, 22, 0.55);
   text-align: left;
+  touch-action: manipulation;
   transition: border-color 0.2s, background 0.2s, transform 0.12s;
 }
 
-.shop-item:hover:not(:disabled) {
+.shop-item:hover:not(.is-locked) {
   border-color: rgba(60, 232, 212, 0.45);
   background: rgba(20, 40, 55, 0.65);
 }
 
-.shop-item:active:not(:disabled) {
+.shop-item:active:not(.is-locked) {
   transform: scale(0.985);
 }
 
-.shop-item:disabled {
+.shop-item.is-locked {
   opacity: 0.45;
   cursor: not-allowed;
 }
