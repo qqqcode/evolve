@@ -12,6 +12,8 @@
   var battle = null;
   var playing = false;
   var frameTimer = null;
+  /** 开战前友军快照，战斗回放不得污染准备阶段单位 */
+  var prepAllySnapshot = null;
 
   var els = {
     board: document.getElementById('board'),
@@ -151,6 +153,7 @@
         '</span><span class="price">' +
         (sold ? '售罄' : offer.cost + '金') +
         '</span>';
+      if (!sold) btn.title = offer.kind + ' · 花费 ' + offer.cost + ' 金';
       btn.addEventListener('click', function () {
         if (sold || state.phase !== 'prep') return;
         var next = L.buyOffer(state, idx);
@@ -270,8 +273,16 @@
         showOverlay(title, text);
         els.btnOverlay.onclick = function () {
           hideOverlay();
-          var next = L.applyBattleResult(state, winner);
+          // 用开战前快照结算，避免回放帧破坏单位数据
+          var base = Object.assign({}, state, {
+            units: (prepAllySnapshot || []).map(function (u) {
+              return Object.assign({}, u);
+            }),
+            phase: 'battle',
+          });
+          var next = L.applyBattleResult(base, winner);
           battle = null;
+          prepAllySnapshot = null;
           setState(next);
           els.boardHint.textContent =
             next.phase === 'result'
@@ -288,7 +299,6 @@
         return;
       }
       var frame = frames[i++];
-      // 用帧数据覆盖场上显示（含敌我）
       var displayUnits = (frame.units || []).map(function (u) {
         return {
           id: u.id,
@@ -307,15 +317,16 @@
           dead: u.dead,
         };
       });
-      // 保留备战区
-      var benchKeep = state.units.filter(function (u) {
-        return u.team === 'ally' && u.benchIndex != null;
+      // 回放仅改展示层：备战区始终来自快照
+      var benchKeep = (prepAllySnapshot || []).filter(function (u) {
+        return u.benchIndex != null;
       });
+      paintUnitsOnBoard(displayUnits);
+      // 临时写入 state 仅用于战报，不覆盖快照
       state = Object.assign({}, state, {
-        units: displayUnits.concat(benchKeep),
         battleLog: (state.battleLog || []).concat(frame.events || []).slice(-20),
+        units: displayUnits.concat(benchKeep),
       });
-      paintUnitsOnBoard(state.units);
       renderBench();
       renderLog(state.battleLog);
       frameTimer = setTimeout(step, frame.events && frame.events.length ? 380 : 160);
@@ -325,8 +336,16 @@
 
   function onFight() {
     if (state.phase !== 'prep' || playing) return;
+    prepAllySnapshot = state.units
+      .filter(function (u) {
+        return u.team === 'ally';
+      })
+      .map(function (u) {
+        return Object.assign({}, u);
+      });
     var started = L.startBattle(state);
     if (!started.battle.frames.length) {
+      prepAllySnapshot = null;
       els.boardHint.textContent = '请先把至少一个单位部署到友方区域！';
       return;
     }
