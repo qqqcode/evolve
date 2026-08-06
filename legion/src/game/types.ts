@@ -8,6 +8,8 @@ export type RangeClass = 'melee' | 'cavalry' | 'ranged';
 export interface UnitStats {
   maxHp: number;
   atk: number;
+  /** 防御：减免所受伤害 */
+  def: number;
   /** 攻击距离（格） */
   range: number;
   /** 行动间隔权重，越小越快 */
@@ -42,6 +44,7 @@ export interface UnitInstance {
   hp: number;
   maxHp: number;
   atk: number;
+  def: number;
   range: number;
   speed: number;
   /** 已学会技能 id */
@@ -78,6 +81,8 @@ export interface BattleFrame {
     col: number;
     hp: number;
     maxHp: number;
+    atk?: number;
+    def?: number;
     dead?: boolean;
   }>;
   events: string[];

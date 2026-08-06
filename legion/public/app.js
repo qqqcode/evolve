@@ -27,6 +27,7 @@
     selectedInfo: document.getElementById('selectedInfo'),
     boardHint: document.getElementById('boardHint'),
     versionBadge: document.getElementById('versionBadge'),
+    unitTip: document.getElementById('unitTip'),
     overlay: document.getElementById('overlay'),
     overlayTitle: document.getElementById('overlayTitle'),
     overlayText: document.getElementById('overlayText'),
@@ -47,6 +48,55 @@
     return u.level > 1 ? u.kind + u.level : u.kind;
   }
 
+  function resolveUnitStats(u) {
+    var base = L.statsFor ? L.statsFor(u.kind, u.level) : null;
+    return {
+      hp: u.hp != null ? u.hp : base ? base.maxHp : 0,
+      maxHp: u.maxHp || (base ? base.maxHp : 0),
+      atk: u.atk != null && u.atk > 0 ? u.atk : base ? base.atk : 0,
+      def: u.def != null ? u.def : base ? base.def : 0,
+    };
+  }
+
+  function showUnitTip(u, clientX, clientY) {
+    var tip = els.unitTip;
+    if (!tip) return;
+    var st = resolveUnitStats(u);
+    tip.hidden = false;
+    tip.innerHTML =
+      '<div class="tip-name">' +
+      unitGlyph(u) +
+      ' · Lv' +
+      u.level +
+      '</div>' +
+      '<div class="tip-row"><span>血量</span><b>' +
+      st.hp +
+      ' / ' +
+      st.maxHp +
+      '</b></div>' +
+      '<div class="tip-row"><span>攻击力</span><b>' +
+      st.atk +
+      '</b></div>' +
+      '<div class="tip-row"><span>防御力</span><b>' +
+      st.def +
+      '</b></div>';
+    var x = clientX + 14;
+    var y = clientY + 14;
+    var pad = 8;
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    // 先显示再量尺寸，避免贴边裁切
+    var rect = tip.getBoundingClientRect();
+    if (x + rect.width + pad > window.innerWidth) x = clientX - rect.width - 10;
+    if (y + rect.height + pad > window.innerHeight) y = clientY - rect.height - 10;
+    tip.style.left = Math.max(pad, x) + 'px';
+    tip.style.top = Math.max(pad, y) + 'px';
+  }
+
+  function hideUnitTip() {
+    if (els.unitTip) els.unitTip.hidden = true;
+  }
+
   function makeUnitEl(u, opts) {
     opts = opts || {};
     var el = document.createElement('div');
@@ -62,11 +112,19 @@
       unitGlyph(u) +
       '</span>' +
       '<span class="hpbar"><i style="width:' +
-      Math.max(0, Math.min(100, (u.hp / u.maxHp) * 100)) +
+      Math.max(0, Math.min(100, (u.hp / Math.max(1, u.maxHp)) * 100)) +
       '%"></i></span>';
+    el.addEventListener('mouseenter', function (ev) {
+      showUnitTip(u, ev.clientX, ev.clientY);
+    });
+    el.addEventListener('mousemove', function (ev) {
+      showUnitTip(u, ev.clientX, ev.clientY);
+    });
+    el.addEventListener('mouseleave', hideUnitTip);
     if (opts.onClick) {
       el.addEventListener('click', function (ev) {
         ev.stopPropagation();
+        hideUnitTip();
         opts.onClick(u);
       });
     }
@@ -182,16 +240,19 @@
       els.selectedInfo.textContent = '未选中单位 · 先点备战区或场上友军';
     } else {
       var skills = L.skillNames(sel.kind, sel.level);
+      var st = resolveUnitStats(sel);
       els.selectedInfo.textContent =
         sel.kind +
         ' Lv' +
         sel.level +
-        ' · 攻' +
-        sel.atk +
-        ' 血' +
-        sel.hp +
+        ' · 血' +
+        st.hp +
         '/' +
-        sel.maxHp +
+        st.maxHp +
+        ' 攻' +
+        st.atk +
+        ' 防' +
+        st.def +
         ' 距' +
         sel.range +
         (skills.length ? ' · 技能：' + skills.join('、') : ' · 再升一级解锁技能');
@@ -309,7 +370,8 @@
           col: u.col,
           hp: u.hp,
           maxHp: u.maxHp,
-          atk: 0,
+          atk: u.atk || 0,
+          def: u.def || 0,
           range: 0,
           speed: 0,
           skills: [],

@@ -390,6 +390,44 @@ body {
   border-bottom: 1px solid rgba(120, 180, 140, 0.08);
 }
 
+.unit-tip {
+  position: fixed;
+  z-index: 30;
+  min-width: 132px;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(10, 18, 14, 0.96);
+  border: 1px solid rgba(94, 207, 154, 0.35);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  pointer-events: none;
+}
+
+.unit-tip[hidden] {
+  display: none !important;
+}
+
+.unit-tip .tip-name {
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.unit-tip .tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+}
+
+.unit-tip .tip-row b {
+  color: var(--text);
+  font-family: var(--num);
+  font-weight: 600;
+}
+
 .overlay {
   position: fixed;
   inset: 0;

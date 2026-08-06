@@ -76,6 +76,7 @@ export function createUnit(
     hp: st.maxHp,
     maxHp: st.maxHp,
     atk: st.atk,
+    def: st.def,
     range: st.range,
     speed: st.speed,
     skills,
@@ -309,6 +310,8 @@ function toFrame(units: CombatUnit[], events: string[]): BattleFrame {
       col: u.col ?? 0,
       hp: Math.max(0, u.hp),
       maxHp: u.maxHp,
+      atk: u.atk,
+      def: u.def,
       dead: u.dead,
     })),
     events: [...events],
@@ -342,6 +345,9 @@ function dealDamage(
     dmg *= 2;
     events.push(`${attacker.kind}破军暴击！`);
   }
+  // 防御减免：约 def/(def+12) 比例减伤，至少造成 1 点
+  const mitigated = Math.max(1, Math.round(dmg * (12 / (12 + Math.max(0, target.def)))));
+  dmg = mitigated;
   target.hp -= dmg;
   events.push(`${attacker.kind}${attacker.level} → ${target.kind}${target.level} 造成 ${dmg}`);
   if (target.hp <= 0) {
@@ -592,6 +598,7 @@ export function applyBattleResult(state: GameState, winner: BattleResult['winner
         hp: st.maxHp,
         maxHp: st.maxHp,
         atk: st.atk,
+        def: st.def,
         range: st.range,
         speed: st.speed,
       };

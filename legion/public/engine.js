@@ -20,7 +20,7 @@
   var KINDS = {
     盾: {
       rangeClass: 'melee',
-      base: { maxHp: 28, atk: 4, range: 1, speed: 12 },
+      base: { maxHp: 28, atk: 4, def: 6, range: 1, speed: 12 },
       skills: [
         { id: 'taunt', name: '嘲讽', desc: '受击反击 30% 攻击' },
         { id: 'fortress', name: '铁壁', desc: '最大生命 +35%' },
@@ -29,7 +29,7 @@
     },
     刀: {
       rangeClass: 'melee',
-      base: { maxHp: 18, atk: 7, range: 1, speed: 9 },
+      base: { maxHp: 18, atk: 7, def: 3, range: 1, speed: 9 },
       skills: [
         { id: 'cleave', name: '连斩', desc: '25% 再攻击一次' },
         { id: 'crit', name: '破军', desc: '30% 双倍伤害' },
@@ -38,7 +38,7 @@
     },
     骑: {
       rangeClass: 'cavalry',
-      base: { maxHp: 20, atk: 6, range: 2, speed: 7 },
+      base: { maxHp: 20, atk: 6, def: 4, range: 2, speed: 7 },
       skills: [
         { id: 'charge', name: '冲锋', desc: '首次攻击 +50%' },
         { id: 'trample', name: '践踏', desc: '溅射相邻 40%' },
@@ -47,7 +47,7 @@
     },
     弓: {
       rangeClass: 'ranged',
-      base: { maxHp: 12, atk: 6, range: 3, speed: 10 },
+      base: { maxHp: 12, atk: 6, def: 2, range: 3, speed: 10 },
       skills: [
         { id: 'double', name: '连射', desc: '30% 追加一箭' },
         { id: 'pierce', name: '穿甲', desc: '附加目标最大生命 5%' },
@@ -56,7 +56,7 @@
     },
     术: {
       rangeClass: 'ranged',
-      base: { maxHp: 10, atk: 8, range: 3, speed: 11 },
+      base: { maxHp: 10, atk: 8, def: 1, range: 3, speed: 11 },
       skills: [
         { id: 'splash', name: '溅射', desc: '波及周围 35%' },
         { id: 'freeze', name: '冰结', desc: '25% 冻结一回合' },
@@ -99,6 +99,7 @@
     return {
       maxHp: Math.round(base.maxHp * mult),
       atk: Math.round(base.atk * mult),
+      def: Math.round(base.def * mult),
       range: base.range,
       speed: Math.max(4, base.speed - (level - 1)),
     };
@@ -131,6 +132,7 @@
       hp: st.maxHp,
       maxHp: st.maxHp,
       atk: st.atk,
+      def: st.def,
       range: st.range,
       speed: st.speed,
       skills: skillsFor(kind, lv),
@@ -347,6 +349,8 @@
           col: u.col || 0,
           hp: Math.max(0, u.hp),
           maxHp: u.maxHp,
+          atk: u.atk,
+          def: u.def,
           dead: !!u.dead,
         };
       }),
@@ -375,6 +379,7 @@
       dmg *= 2;
       events.push(attacker.kind + '破军暴击！');
     }
+    dmg = Math.max(1, Math.round(dmg * (12 / (12 + Math.max(0, target.def || 0)))));
     target.hp -= dmg;
     events.push(
       attacker.kind + attacker.level + ' → ' + target.kind + target.level + ' 造成 ' + dmg,
@@ -614,6 +619,7 @@
           hp: st.maxHp,
           maxHp: st.maxHp,
           atk: st.atk,
+          def: st.def,
           range: st.range,
           speed: st.speed,
         });
@@ -648,6 +654,9 @@
     REFRESH_COST: REFRESH_COST,
     KIND_ORDER: KIND_ORDER,
     KINDS: KINDS,
+    statsFor: function (kind, level) {
+      return applyPassiveStats(kind, level, statsFor(kind, level));
+    },
     createNewGame: createNewGame,
     refreshShop: refreshShop,
     buyOffer: buyOffer,

@@ -19,7 +19,7 @@ export const KINDS: Record<UnitKind, KindDef> = {
   盾: {
     kind: '盾',
     rangeClass: 'melee',
-    base: { maxHp: 28, atk: 4, range: 1, speed: 12 },
+    base: { maxHp: 28, atk: 4, def: 6, range: 1, speed: 12 },
     skills: [
       { id: 'taunt', name: '嘲讽', desc: '受击时反击 30% 攻击' },
       { id: 'fortress', name: '铁壁', desc: '最大生命 +35%' },
@@ -29,7 +29,7 @@ export const KINDS: Record<UnitKind, KindDef> = {
   刀: {
     kind: '刀',
     rangeClass: 'melee',
-    base: { maxHp: 18, atk: 7, range: 1, speed: 9 },
+    base: { maxHp: 18, atk: 7, def: 3, range: 1, speed: 9 },
     skills: [
       { id: 'cleave', name: '连斩', desc: '攻击 25% 再打一次' },
       { id: 'crit', name: '破军', desc: '攻击 30% 造成双倍伤害' },
@@ -39,7 +39,7 @@ export const KINDS: Record<UnitKind, KindDef> = {
   骑: {
     kind: '骑',
     rangeClass: 'cavalry',
-    base: { maxHp: 20, atk: 6, range: 2, speed: 7 },
+    base: { maxHp: 20, atk: 6, def: 4, range: 2, speed: 7 },
     skills: [
       { id: 'charge', name: '冲锋', desc: '首次攻击伤害 +50%' },
       { id: 'trample', name: '践踏', desc: '攻击溅射相邻敌 40% 伤害' },
@@ -49,7 +49,7 @@ export const KINDS: Record<UnitKind, KindDef> = {
   弓: {
     kind: '弓',
     rangeClass: 'ranged',
-    base: { maxHp: 12, atk: 6, range: 3, speed: 10 },
+    base: { maxHp: 12, atk: 6, def: 2, range: 3, speed: 10 },
     skills: [
       { id: 'double', name: '连射', desc: '攻击 30% 追加一箭' },
       { id: 'pierce', name: '穿甲', desc: '伤害忽略目标 25% 等效生命' },
@@ -59,7 +59,7 @@ export const KINDS: Record<UnitKind, KindDef> = {
   术: {
     kind: '术',
     rangeClass: 'ranged',
-    base: { maxHp: 10, atk: 8, range: 3, speed: 11 },
+    base: { maxHp: 10, atk: 8, def: 1, range: 3, speed: 11 },
     skills: [
       { id: 'splash', name: '溅射', desc: '攻击波及目标周围敌 35% 伤害' },
       { id: 'freeze', name: '冰结', desc: '攻击 25% 使目标下回合无法行动' },
@@ -75,6 +75,7 @@ export function statsFor(kind: UnitKind, level: number): UnitStats {
   return {
     maxHp: Math.round(base.maxHp * mult),
     atk: Math.round(base.atk * mult),
+    def: Math.round(base.def * mult),
     range: base.range,
     speed: Math.max(4, base.speed - (level - 1)),
   };
