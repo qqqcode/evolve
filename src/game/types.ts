@@ -94,6 +94,12 @@ export interface GameSave {
   /** 已预生成、待进入的下一段分支树 */
   pendingBatch: EventBatch | null;
   pendingFor: PendingBatchFor | null;
+  /**
+   * 绑定到固有检查点的分支树缓存。
+   * 死亡重生回检查点时可直接复用，无需重新请求 DeepSeek。
+   */
+  checkpointBatch: EventBatch | null;
+  checkpointBatchEraId: StageId | null;
   updatedAt: string;
 }
 

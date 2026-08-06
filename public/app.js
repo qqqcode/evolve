@@ -418,7 +418,11 @@ async function onRespawn() {
   try {
     const view = await api('/api/game/respawn', { save: state.save });
     await applyState(view, { toastSave: true });
-    showToast('已从检查点重生');
+    showToast(
+      view.prefetchReady
+        ? '已从检查点重生 · 分支树缓存已恢复'
+        : '已从检查点重生',
+    );
   } catch (err) {
     showToast(err.message);
   } finally {

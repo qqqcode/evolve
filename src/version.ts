@@ -6,8 +6,8 @@ export const APP_VERSION: string = (() => {
   try {
     const raw = readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8');
     const version = JSON.parse(raw).version;
-    return typeof version === 'string' && version ? version : '0.9.3';
+    return typeof version === 'string' && version ? version : '0.9.4';
   } catch {
-    return '0.9.3';
+    return '0.9.4';
   }
 })();

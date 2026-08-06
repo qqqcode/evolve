@@ -40,6 +40,38 @@ function clearPending(save: GameSave): GameSave {
   return { ...save, pendingBatch: null, pendingFor: null };
 }
 
+function clearCheckpointBatch(save: GameSave): GameSave {
+  return { ...save, checkpointBatch: null, checkpointBatchEraId: null };
+}
+
+function isValidBatch(batch: EventBatch | null | undefined): batch is EventBatch {
+  return Boolean(batch && batch.startId && batch.nodes?.[batch.startId]);
+}
+
+/** 将分支树绑定到当前固有检查点，供死亡重生复用 */
+function rememberCheckpointBatch(save: GameSave, batch: EventBatch, eraId: StageId): GameSave {
+  if (!isValidBatch(batch)) return save;
+  return {
+    ...save,
+    checkpointBatch: batch,
+    checkpointBatchEraId: eraId,
+  };
+}
+
+/** 若检查点已有缓存，恢复为 pending，避免再次请求 */
+function restoreCheckpointPending(save: GameSave, eraId: StageId): GameSave | null {
+  if (!isValidBatch(save.checkpointBatch) || save.checkpointBatchEraId !== eraId) {
+    return null;
+  }
+  return {
+    ...save,
+    pendingBatch: save.checkpointBatch,
+    pendingFor: { kind: 'after_milestone', eraId, stepsInEra: 0 },
+    checkpointBatch: save.checkpointBatch,
+    checkpointBatchEraId: eraId,
+  };
+}
+
 function pendingMatches(save: GameSave, forKey: PendingBatchFor): boolean {
   const p = save.pendingFor;
   if (!save.pendingBatch || !p) return false;
@@ -131,6 +163,8 @@ export function createNewSave(): GameSave {
     environment: cloneEnv(era.baseEnvironment),
     pendingBatch: null,
     pendingFor: null,
+    checkpointBatch: null,
+    checkpointBatchEraId: null,
     updatedAt: nowIso(),
   };
 }
@@ -253,12 +287,23 @@ async function enterBatch(save: GameSave): Promise<GameSave> {
   ) {
     console.log(`[游戏] 使用预缓存分支树 ${save.pendingBatch.id}（无等待）`);
     const batch = save.pendingBatch;
-    return applyBatchNode(clearPending(save), batch, batch.startId);
+    const fromMilestone = save.pendingFor.kind === 'after_milestone';
+    let next = applyBatchNode(clearPending(save), batch, batch.startId);
+    // 离开检查点时把本树记到检查点缓存，死亡重生可复用
+    if (fromMilestone) {
+      next = rememberCheckpointBatch(next, batch, save.eraId);
+    }
+    return next;
   }
 
   const batch = await createBatchFor(save);
   console.log(`[游戏] 即时生成分支树 ${batch.id} | 建议在检查点预取以避免等待`);
-  return applyBatchNode(clearPending(save), batch, batch.startId);
+  let next = applyBatchNode(clearPending(save), batch, batch.startId);
+  // 纪元起点即时生成的树同样绑定检查点
+  if (save.stepsInEra === 0) {
+    next = rememberCheckpointBatch(next, batch, save.eraId);
+  }
+  return next;
 }
 
 /**
@@ -279,18 +324,31 @@ export async function prefetchContent(save: GameSave): Promise<GameStateView> {
     };
     if (pendingMatches(save, key)) {
       console.log(`[预取] 已就绪 after_milestone | ${save.eraId}`);
-      return toStateView(save);
+      return toStateView(rememberCheckpointBatch(save, save.pendingBatch!, save.eraId));
+    }
+
+    // 死亡重生等场景：优先复用检查点已保存的分支树
+    const restored = restoreCheckpointPending(save, save.eraId);
+    if (restored) {
+      console.log(
+        `[预取] 复用检查点缓存 ${restored.checkpointBatch!.id} | ${save.eraId}（无 DeepSeek 请求）`,
+      );
+      return toStateView({ ...restored, updatedAt: nowIso() });
     }
 
     console.log(`[预取] 检查点预生成本纪元分支树… | ${save.eraId}`);
     const batch = await createBatchFor({ ...save, stepsInEra: 0 });
-    const next: GameSave = {
-      ...save,
-      pendingBatch: batch,
-      pendingFor: key,
-      updatedAt: nowIso(),
-    };
-    console.log(`[预取] 完成 ${batch.id} | 节点=${Object.keys(batch.nodes).length}`);
+    const next: GameSave = rememberCheckpointBatch(
+      {
+        ...save,
+        pendingBatch: batch,
+        pendingFor: key,
+        updatedAt: nowIso(),
+      },
+      batch,
+      save.eraId,
+    );
+    console.log(`[预取] 完成 ${batch.id} | 节点=${Object.keys(batch.nodes).length} | 已写入检查点缓存`);
     return toStateView(next);
   }
 
@@ -363,7 +421,7 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
     const nextId = nextEraId(era.id);
     if (nextId === 'ending') {
       return {
-        ...clearPending(save),
+        ...clearCheckpointBatch(clearPending(save)),
         eraId: 'ending',
         mode: 'ending',
         event: null,
@@ -380,7 +438,8 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
     const next = getEra(nextId);
     console.log(`[游戏] 纪元完成，进入固有进化：${next.label}`);
     return {
-      ...clearPending(save),
+      // 进入新检查点：清空旧纪元分支缓存，等待新检查点预载
+      ...clearCheckpointBatch(clearPending(save)),
       eraId: next.id,
       checkpointEraId: next.id,
       mode: 'milestone',
@@ -409,6 +468,7 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
 
 function die(save: GameSave, title: string, text: string): GameSave {
   return {
+    // 清空进行中的 pending/batch，但保留 checkpointBatch 供重生复用
     ...clearPending(save),
     mode: 'death',
     event: null,
@@ -528,24 +588,55 @@ export function respawnFromCheckpoint(save: GameSave): GameStateView {
       ? save.checkpointEraId
       : 'microbe';
   const era = getEra(checkpointId);
-  const next: GameSave = {
-    ...save,
-    eraId: era.id,
-    mode: 'milestone',
-    event: null,
-    batch: null,
-    batchNodeId: null,
-    death: null,
-    stepsInEra: 0,
-    yearMa: era.yearMa,
-    fitness: Math.max(40, Math.min(save.fitness, 70)),
-    environment: cloneEnv(era.baseEnvironment),
-    pendingBatch: null,
-    pendingFor: null,
-    historySummary: pushHistory(save, `从检查点重生：${era.label}`),
-    updatedAt: nowIso(),
-  };
-  return toStateView(next);
+
+  // 优先把检查点已缓存的分支树恢复为 pending，重生后无需重新请求
+  const withCache =
+    restoreCheckpointPending(
+      {
+        ...save,
+        eraId: era.id,
+        mode: 'milestone',
+        event: null,
+        batch: null,
+        batchNodeId: null,
+        death: null,
+        stepsInEra: 0,
+        yearMa: era.yearMa,
+        fitness: Math.max(40, Math.min(save.fitness, 70)),
+        environment: cloneEnv(era.baseEnvironment),
+        pendingBatch: null,
+        pendingFor: null,
+        historySummary: pushHistory(save, `从检查点重生：${era.label}`),
+        updatedAt: nowIso(),
+      },
+      era.id,
+    ) ?? {
+      ...save,
+      eraId: era.id,
+      mode: 'milestone' as const,
+      event: null,
+      batch: null,
+      batchNodeId: null,
+      death: null,
+      stepsInEra: 0,
+      yearMa: era.yearMa,
+      fitness: Math.max(40, Math.min(save.fitness, 70)),
+      environment: cloneEnv(era.baseEnvironment),
+      pendingBatch: null,
+      pendingFor: null,
+      historySummary: pushHistory(save, `从检查点重生：${era.label}`),
+      updatedAt: nowIso(),
+    };
+
+  if (withCache.pendingBatch) {
+    console.log(
+      `[游戏] 重生复用检查点缓存 ${withCache.pendingBatch.id} | ${era.id}（无 DeepSeek 请求）`,
+    );
+  } else {
+    console.log(`[游戏] 重生无检查点缓存，需重新预载 | ${era.id}`);
+  }
+
+  return toStateView(withCache);
 }
 
 function normalizePending(
@@ -563,6 +654,23 @@ function normalizePending(
     return { pendingBatch, pendingFor };
   }
   return { pendingBatch: null, pendingFor: null };
+}
+
+function normalizeCheckpointBatch(data: Partial<GameSave>): {
+  checkpointBatch: EventBatch | null;
+  checkpointBatchEraId: StageId | null;
+} {
+  const batch = (data.checkpointBatch as EventBatch | null) ?? null;
+  const eraRaw = typeof data.checkpointBatchEraId === 'string' ? data.checkpointBatchEraId : null;
+  if (
+    isValidBatch(batch) &&
+    eraRaw &&
+    isStageId(eraRaw) &&
+    eraRaw !== 'ending'
+  ) {
+    return { checkpointBatch: batch, checkpointBatchEraId: eraRaw };
+  }
+  return { checkpointBatch: null, checkpointBatchEraId: null };
 }
 
 export function loadSave(raw: unknown): GameSave {
@@ -599,6 +707,8 @@ export function loadSave(raw: unknown): GameSave {
       environment: createNewSave().environment,
       pendingBatch: null,
       pendingFor: null,
+      checkpointBatch: null,
+      checkpointBatchEraId: null,
       updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : nowIso(),
     };
   }
@@ -613,6 +723,7 @@ export function loadSave(raw: unknown): GameSave {
   let batchNodeId = typeof data.batchNodeId === 'string' ? data.batchNodeId : null;
   let event = data.event ?? null;
   const { pendingBatch, pendingFor } = normalizePending(data);
+  const { checkpointBatch, checkpointBatchEraId } = normalizeCheckpointBatch(data);
 
   // 若有批次，以批次节点为准
   if (batch && batchNodeId && batch.nodes?.[batchNodeId]) {
@@ -670,6 +781,8 @@ export function loadSave(raw: unknown): GameSave {
         : cloneEnv(era.baseEnvironment),
     pendingBatch,
     pendingFor,
+    checkpointBatch,
+    checkpointBatchEraId,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : nowIso(),
   };
 }
