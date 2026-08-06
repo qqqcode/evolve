@@ -214,7 +214,10 @@
   function onBuyMutation(mutationId) {
     const result = E.buyMutation(state, mutationId);
     if (!result.ok) {
-      showToast(result.reason || '无法购买');
+      // 能量不足时靠 is-locked 样式提示即可，避免连点误弹 toast
+      if (result.reason && result.reason !== '能量不足') {
+        showToast(result.reason);
+      }
       setState(result.state, { soft: true });
       return;
     }
