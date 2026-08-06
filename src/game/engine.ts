@@ -98,11 +98,17 @@ function isPrefetchNeeded(save: GameSave): boolean {
 function isPrefetchReady(save: GameSave): boolean {
   if (!isPrefetchNeeded(save)) return false;
   if (save.mode === 'milestone' && save.eraId !== 'ending') {
-    return pendingMatches(save, {
-      kind: 'after_milestone',
-      eraId: save.eraId,
-      stepsInEra: 0,
-    });
+    if (
+      pendingMatches(save, {
+        kind: 'after_milestone',
+        eraId: save.eraId,
+        stepsInEra: 0,
+      })
+    ) {
+      return true;
+    }
+    // 仅有检查点持久缓存时也视为可瞬时离开（enterBatch 会再 hydrate pending）
+    return isValidBatch(save.checkpointBatch) && save.checkpointBatchEraId === save.eraId;
   }
   if (save.mode === 'event' && save.event) {
     const nextSteps = save.stepsInEra + 1;
@@ -296,6 +302,20 @@ async function enterBatch(save: GameSave): Promise<GameSave> {
     return next;
   }
 
+  // 离开检查点时 pending 丢失：仍优先复用检查点持久缓存，禁止重新请求
+  if (save.stepsInEra === 0) {
+    const restored = restoreCheckpointPending(save, save.eraId);
+    if (restored?.pendingBatch) {
+      console.log(
+        `[游戏] enterBatch 复用检查点缓存 ${restored.pendingBatch.id}（无 DeepSeek 请求）`,
+      );
+      const batch = restored.pendingBatch;
+      let next = applyBatchNode(clearPending(restored), batch, batch.startId);
+      next = rememberCheckpointBatch(next, batch, save.eraId);
+      return next;
+    }
+  }
+
   const batch = await createBatchFor(save);
   console.log(`[游戏] 即时生成分支树 ${batch.id} | 建议在检查点预取以避免等待`);
   let next = applyBatchNode(clearPending(save), batch, batch.startId);
@@ -467,16 +487,36 @@ async function afterPathStep(save: GameSave): Promise<GameSave> {
 }
 
 function die(save: GameSave, title: string, text: string): GameSave {
+  let next = save;
+  // 抢救：检查点缓存缺失时，把当前正在打的分支树记到检查点，避免重生后重请求
+  if (
+    !isValidBatch(next.checkpointBatch) &&
+    isValidBatch(next.batch) &&
+    next.checkpointEraId &&
+    next.eraId === next.checkpointEraId
+  ) {
+    next = rememberCheckpointBatch(next, next.batch, next.checkpointEraId);
+    console.log(`[游戏] 死亡前抢救当前分支树为检查点缓存 ${next.batch!.id}`);
+  } else if (
+    !isValidBatch(next.checkpointBatch) &&
+    isValidBatch(next.pendingBatch) &&
+    next.pendingFor?.kind === 'after_milestone' &&
+    next.pendingFor.eraId === next.checkpointEraId
+  ) {
+    next = rememberCheckpointBatch(next, next.pendingBatch, next.checkpointEraId);
+    console.log(`[游戏] 死亡前抢救 pending 为检查点缓存 ${next.pendingBatch!.id}`);
+  }
+
   return {
     // 清空进行中的 pending/batch，但保留 checkpointBatch 供重生复用
-    ...clearPending(save),
+    ...clearPending(next),
     mode: 'death',
     event: null,
     batch: null,
     batchNodeId: null,
     death: { title, text },
-    deaths: save.deaths + 1,
-    historySummary: pushHistory(save, `死亡：${title}`),
+    deaths: next.deaths + 1,
+    historySummary: pushHistory(next, `死亡：${title}`),
     updatedAt: nowIso(),
   };
 }

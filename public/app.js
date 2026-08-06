@@ -132,8 +132,43 @@ function sameScene(a, b) {
   );
 }
 
+/** 用检查点持久缓存补齐 pending，避免重生后还去打 DeepSeek */
+function hydrateCheckpointCache(view) {
+  if (!view?.save || view.isDeath || view.isEnding) return view;
+  const save = view.save;
+  if (save.mode !== 'milestone') return view;
+  const batch = save.checkpointBatch;
+  const eraId = save.checkpointBatchEraId;
+  if (!batch || eraId !== save.eraId || !batch.startId || !batch.nodes?.[batch.startId]) {
+    return view;
+  }
+  const pendingOk =
+    save.pendingBatch &&
+    save.pendingFor?.kind === 'after_milestone' &&
+    save.pendingFor.eraId === save.eraId;
+  if (pendingOk && view.prefetchReady) return view;
+  return {
+    ...view,
+    save: {
+      ...save,
+      pendingBatch: batch,
+      pendingFor: { kind: 'after_milestone', eraId, stepsInEra: 0 },
+    },
+    prefetchNeeded: true,
+    prefetchReady: true,
+  };
+}
+
 function needsPrefetch(view) {
   if (!view || view.isDeath || view.isEnding) return false;
+  // 已有检查点缓存则绝不后台重请求
+  if (
+    view.save?.mode === 'milestone' &&
+    view.save.checkpointBatch &&
+    view.save.checkpointBatchEraId === view.save.eraId
+  ) {
+    return false;
+  }
   // 服务端标明需要下一段，且本地尚未缓存
   if (view.prefetchNeeded) return !view.prefetchReady;
   return false;
@@ -298,15 +333,16 @@ async function applyState(view, options = {}) {
     prefetchToken += 1;
     prefetchPromise = null;
   }
-  state = view;
-  persist(view.save);
+  // 重生/进检查点：有持久缓存则先本地 hydrate，避免再走网络预载
+  state = hydrateCheckpointCache(view);
+  persist(state.save);
   render();
 
-  if (options.toastSave || (view.isCheckpoint && !wasCheckpoint && !view.isDeath)) {
+  if (options.toastSave || (state.isCheckpoint && !wasCheckpoint && !state.isDeath)) {
     showToast('固有进化检查点已保存');
   }
 
-  // 进入页面立刻预载「选择 + 后续选择」整棵分支树
+  // 进入页面立刻预载；若已 hydrate 出检查点缓存则跳过
   kickPrefetch();
 }
 
@@ -418,11 +454,8 @@ async function onRespawn() {
   try {
     const view = await api('/api/game/respawn', { save: state.save });
     await applyState(view, { toastSave: true });
-    showToast(
-      view.prefetchReady
-        ? '已从检查点重生 · 分支树缓存已恢复'
-        : '已从检查点重生',
-    );
+    const cached = Boolean(state?.prefetchReady && state?.save?.checkpointBatch);
+    showToast(cached ? '已从检查点重生 · 分支树缓存已恢复' : '已从检查点重生');
   } catch (err) {
     showToast(err.message);
   } finally {

@@ -1,6 +1,6 @@
 {
   "name": "evolve",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "进化史文字游戏",
   "main": "dist/server.js",
   "scripts": {
