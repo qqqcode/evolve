@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>进化史 · 文字游戏集合</title>
+    <base href="/evolve/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=ZCOOL+XiaoWei&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="sky" aria-hidden="true">
+      <div class="moon"></div>
+      <div class="stars"></div>
+      <div class="horizon"></div>
+    </div>
+
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <a class="hub-link" href="/">集合</a>
+          <span class="brand-mark">进化史</span>
+          <span id="aiBadge" class="ai-badge">AI 未配置</span>
+        </div>
+        <div class="stats">
+          <span id="deathCount">死亡 0</span>
+          <span id="fitnessVal">适应 55</span>
+          <button id="btnNew" type="button" class="ghost-btn">新游戏</button>
+        </div>
+      </header>
+
+      <section class="stage-rail" aria-label="进化阶段">
+        <div id="stageTrack" class="stage-track"></div>
+        <p id="stageLabel" class="stage-label">微生物纪元</p>
+      </section>
+
+      <aside id="envPanel" class="env-panel">
+        <div class="env-row">
+          <span class="env-k">时间</span>
+          <span id="envYear" class="env-v">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">形态</span>
+          <span id="envForm" class="env-v">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">栖息</span>
+          <span id="envHabitat" class="env-v">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">气候</span>
+          <span id="envClimate" class="env-v">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">环境适合</span>
+          <span id="envSuit" class="env-v">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">威胁</span>
+          <span id="envThreats" class="env-v danger-text">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">机缘</span>
+          <span id="envOps" class="env-v ok-text">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">周围生物</span>
+          <span id="envLife" class="env-v">—</span>
+        </div>
+        <div class="env-row">
+          <span class="env-k">特性</span>
+          <span id="envTraits" class="env-v">—</span>
+        </div>
+        <p id="envNotes" class="env-notes"></p>
+      </aside>
+
+      <article class="panel" id="storyPanel">
+        <p id="checkpointBadge" class="badge hidden">固有进化 · 检查点已保存</p>
+        <p id="batchBadge" class="badge hidden"></p>
+        <p id="loadingBadge" class="badge loading hidden">正在预推演分支树…</p>
+        <p id="prefetchBadge" class="badge hidden">下一段已就绪</p>
+        <h1 id="nodeTitle" class="title">载入中…</h1>
+        <div id="nodeText" class="prose"></div>
+        <div id="choices" class="choices"></div>
+        <div id="deathActions" class="death-actions hidden">
+          <p class="death-hint">演化线断裂。可从最近固有进化检查点重生。</p>
+          <button id="btnRespawn" type="button" class="primary-btn">从检查点重生</button>
+        </div>
+        <div id="endingActions" class="death-actions hidden">
+          <p class="ending-hint">你已走完这段进化史。</p>
+          <button id="btnRestart" type="button" class="primary-btn">再进化一次</button>
+        </div>
+      </article>
+
+      <footer class="foot">
+        <span class="foot-tip">进页预载整棵分支树 · 同批点选瞬时 · 边界选项就绪后再点</span>
+        <span id="appVersion" class="foot-version">v0.9.6</span>
+      </footer>
+    </main>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

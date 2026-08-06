@@ -1,7 +1,7 @@
 services:
-  evolve:
+  games:
     build: .
-    container_name: evolve
+    container_name: text-games
     ports:
       - "${PORT:-3000}:3000"
     env_file:

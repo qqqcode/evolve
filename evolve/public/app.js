@@ -1,4 +1,14 @@
 const SAVE_KEY = 'evolve-save-v3';
+/** 本游戏挂载在 /evolve 下 */
+const GAME_BASE = '/evolve';
+
+function apiUrl(path) {
+  if (!path) return GAME_BASE;
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.startsWith('/api/')) return `${GAME_BASE}${path}`;
+  if (path.startsWith('api/')) return `${GAME_BASE}/${path}`;
+  return path;
+}
 
 const els = {
   deathCount: document.getElementById('deathCount'),
@@ -63,7 +73,7 @@ function readLocalSave() {
 }
 
 async function api(path, body) {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),
@@ -364,7 +374,7 @@ async function startNew() {
 
 async function boot() {
   try {
-    const metaRes = await fetch('/api/meta');
+    const metaRes = await fetch(apiUrl('/api/meta'));
     meta = await metaRes.json();
     if (els.appVersion && meta?.version) {
       els.appVersion.textContent = `v${meta.version}`;

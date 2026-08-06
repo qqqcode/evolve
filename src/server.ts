@@ -1,93 +1,40 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import {
-  chooseOption,
-  createNewSave,
-  getMeta,
-  loadSave,
-  prefetchContent,
-  respawnFromCheckpoint,
-  toStateView,
-} from './game/engine';
-import { isAiEnabled } from './game/deepseek';
-import type { GameSave } from './game/types';
+import { createEvolveRouter, logEvolveAiStatus } from '../evolve/src/router';
+import { GAMES } from './registry';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+const hubPublic = path.join(process.cwd(), 'public');
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
 
-app.get('/api/meta', (_req, res) => {
-  res.json(getMeta());
+/** 游戏集合 API */
+app.get('/api/games', (_req, res) => {
+  res.json({ games: GAMES });
 });
 
-app.post('/api/game/new', (_req, res) => {
-  const save = createNewSave();
-  res.json(toStateView(save));
+/** 进化史：/evolve 与 /evolve/* */
+app.use('/evolve', createEvolveRouter());
+
+/** 集合门户静态页 */
+app.use(express.static(hubPublic));
+
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(hubPublic, 'index.html'));
 });
 
-app.post('/api/game/load', (req, res) => {
-  try {
-    const save = loadSave(req.body?.save);
-    res.json(toStateView(save));
-  } catch (err) {
-    res.status(400).json({ error: err instanceof Error ? err.message : '读取失败' });
-  }
+/** 未上线游戏的占位页 */
+app.get(['/othername', '/othername/*'], (_req, res) => {
+  res.status(503).sendFile(path.join(hubPublic, 'coming-soon.html'));
 });
-
-/** 后台预取下一段分支树，写入 save.pendingBatch */
-app.post('/api/game/prefetch', async (req, res) => {
-  try {
-    const save = loadSave(req.body?.save) as GameSave;
-    console.log(`[预取] 请求 | 纪元=${save.eraId} | mode=${save.mode}`);
-    const view = await prefetchContent(save);
-    res.json(view);
-  } catch (err) {
-    console.error('[预取] 失败:', err instanceof Error ? err.message : err);
-    res.status(400).json({ error: err instanceof Error ? err.message : '预取失败' });
-  }
-});
-
-app.post('/api/game/choose', async (req, res) => {
-  try {
-    const save = loadSave(req.body?.save) as GameSave;
-    const choiceId = String(req.body?.choiceId ?? '');
-    console.log(`[游戏] 选择 | 纪元=${save.eraId} | mode=${save.mode} | choice=${choiceId}`);
-    const view = await chooseOption(save, choiceId);
-    console.log(
-      `[游戏] 结果 | mode=${view.save.mode} | 「${view.title}」 | 死亡=${view.isDeath} | 检查点=${view.isCheckpoint}`,
-    );
-    res.json(view);
-  } catch (err) {
-    console.error('[游戏] 选择失败:', err instanceof Error ? err.message : err);
-    res.status(400).json({ error: err instanceof Error ? err.message : '选择失败' });
-  }
-});
-
-app.post('/api/game/respawn', (req, res) => {
-  try {
-    const save = loadSave(req.body?.save) as GameSave;
-    const view = respawnFromCheckpoint(save);
-    res.json(view);
-  } catch (err) {
-    res.status(400).json({ error: err instanceof Error ? err.message : '复活失败' });
-  }
-});
-
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-const HOST = process.env.HOST || '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
-  console.log(`进化史已启动: http://${HOST}:${PORT}`);
+  console.log(`文字游戏集合已启动: http://${HOST}:${PORT}`);
+  console.log(`门户: http://${HOST}:${PORT}/`);
+  console.log(`进化史: http://${HOST}:${PORT}/evolve/`);
   console.log(`本机局域网可访问: http://<你的IP>:${PORT}`);
-  console.log(
-    isAiEnabled()
-      ? 'DeepSeek：已启用（中间事件由大模型生成）'
-      : 'DeepSeek：未配置 DEEPSEEK_API_KEY，中间事件使用程序化兜底',
-  );
+  logEvolveAiStatus();
 });

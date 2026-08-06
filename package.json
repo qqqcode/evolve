@@ -1,14 +1,14 @@
 {
-  "name": "evolve",
-  "version": "0.9.5",
-  "description": "进化史文字游戏",
-  "main": "dist/server.js",
+  "name": "text-games",
+  "version": "0.9.6",
+  "description": "文字游戏集合（进化史等）",
+  "main": "dist/src/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/src/server.js"
   },
-  "keywords": ["text-game", "evolution", "typescript"],
+  "keywords": ["text-game", "evolution", "typescript", "collection"],
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.7",

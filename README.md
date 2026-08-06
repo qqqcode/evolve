@@ -1,8 +1,24 @@
-# evolve
+# 文字游戏集合
 
-进化史文字游戏。
+当前版本：**0.9.6**（每次功能修改将根目录 `package.json` 版本号最后一位 +1，并同步页脚展示）。
 
-当前版本：**0.9.5**（每次功能修改将 `package.json` 版本号最后一位 +1，并同步页脚展示）。
+本仓库是一个文字游戏集合门户：
+
+| 路径 | 说明 |
+|---|---|
+| `/` | 集合门户，列出全部游戏 |
+| `/evolve/` | 《进化史》文字游戏（完整实现） |
+| `/othername/` | 预留下一款游戏的入口（占位） |
+
+游戏源码按目录隔离，例如进化史全部在 `evolve/` 下：
+
+```
+evolve/
+  src/          # 游戏逻辑与 /evolve 路由
+  public/       # 游戏前端
+public/         # 集合门户前端
+src/            # 集合入口服务与游戏注册表
+```
 
 ## 本地开发
 
@@ -12,31 +28,36 @@ npm install
 npm run dev
 ```
 
-访问：`http://localhost:3000`（未配置密钥时中间事件走程序化兜底）
+- 门户：`http://localhost:3000/`
+- 进化史：`http://localhost:3000/evolve/`
 
-进入检查点或分支叶节点时，会在后台一次性预载「当前选择 + 后续分支」整棵事件树并写入存档；同批内点选瞬时切换，无需再次请求 DeepSeek。
+《进化史》会在进入检查点或分支叶节点时后台预载分支树；同批点选瞬时；检查点缓存可在死亡重生时复用。
+
+## 新增游戏
+
+1. 新建目录，例如 `othername/src` + `othername/public`
+2. 实现 `createXxxRouter()` 并在 `src/server.ts` 挂载到 `/othername`
+3. 在 `src/registry.ts` 登记条目（`ready: true`）
 
 ## Docker Compose 部署
 
 ```bash
 git clone https://github.com/qqqcode/evolve.git
 cd evolve
-cp .env.example .env   # 填入密钥与端口
+cp .env.example .env
 docker compose up -d --build
 ```
 
-更新代码后重新部署：
+更新：
 
 ```bash
 git pull
 docker compose up -d --build
 ```
 
-查看日志 / 停止：
+日志 / 停止：
 
 ```bash
 docker compose logs -f
 docker compose down
 ```
-
-Cloud Agent test
