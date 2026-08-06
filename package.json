@@ -1,6 +1,6 @@
 {
   "name": "text-games",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "文字游戏集合（进化史、进化点击等）",
   "main": "dist/src/server.js",
   "scripts": {

@@ -11,7 +11,10 @@
   let state = E.createNewState();
   let toastTimer = null;
   let saveTimer = null;
-  let activeTab = 'mutations';
+  /** 商店 DOM 是否已构建（避免 tick 时反复销毁按钮导致点击丢失） */
+  let shopsBuilt = false;
+  /** 上次完整渲染时的阶段，用于判断是否需要重绘阶段轨 */
+  let renderedStageIndex = -1;
 
   const els = {
     energyVal: document.getElementById('energyVal'),
@@ -22,7 +25,6 @@
     stageRail: document.getElementById('stageRail'),
     stageBlurb: document.getElementById('stageBlurb'),
     cellBtn: document.getElementById('cellBtn'),
-    cellCore: document.getElementById('cellCore'),
     floatLayer: document.getElementById('floatLayer'),
     clickShop: document.getElementById('clickShop'),
     passiveShop: document.getElementById('passiveShop'),
@@ -55,9 +57,13 @@
     }, 400);
   }
 
+  /**
+   * @param {object} next
+   * @param {{ soft?: boolean }} [opts] soft=true 时只刷新数值与可买状态，不重建商店 DOM
+   */
   function setState(next, opts) {
     state = next;
-    render(opts);
+    render(opts && opts.soft ? { soft: true } : undefined);
     scheduleSave();
   }
 
@@ -71,6 +77,13 @@
   }
 
   function renderStageRail(stats) {
+    if (renderedStageIndex === state.stageIndex && els.stageRail.childElementCount) {
+      els.stageBlurb.textContent =
+        stats.stage.name + ' · ' + stats.stage.blurb + '（阶段倍率 ×' + stats.stageMult + '）';
+      document.documentElement.style.setProperty('--hue', String(stats.stage.hue));
+      return;
+    }
+    renderedStageIndex = state.stageIndex;
     els.stageRail.innerHTML = '';
     E.STAGES.forEach((stage, i) => {
       const chip = document.createElement('span');
@@ -85,19 +98,12 @@
     document.documentElement.style.setProperty('--hue', String(stats.stage.hue));
   }
 
-  function shopButton(m, energy) {
-    const cost = E.mutationCost(state, m.id);
-    const owned = state.owned[m.id] || 0;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'shop-item';
-    btn.disabled = cost == null || energy < cost;
-    btn.dataset.id = m.id;
+  function shopItemHtml(m) {
     const powerLabel =
       m.kind === 'click'
         ? '+' + E.formatNumber(m.power) + ' 点击'
         : '+' + E.formatNumber(m.power) + '/秒';
-    btn.innerHTML =
+    return (
       '<span class="icon" aria-hidden="true">' +
       m.icon +
       '</span>' +
@@ -108,33 +114,44 @@
       '（' +
       powerLabel +
       '）</p></span>' +
-      '<span class="buy"><p class="cost">⚡ ' +
-      E.formatNumber(cost || 0) +
-      '</p><p class="owned">×' +
-      owned +
-      '</p></span>';
-    btn.addEventListener('click', () => {
-      const result = E.buyMutation(state, m.id);
-      if (!result.ok) {
-        showToast(result.reason || '无法购买');
-        setState(result.state);
-        return;
-      }
-      setState(result.state);
-    });
-    return btn;
+      '<span class="buy"><p class="cost" data-role="cost"></p><p class="owned" data-role="owned"></p></span>'
+    );
   }
 
-  function renderShops(stats) {
+  function buildShops() {
     els.clickShop.innerHTML = '';
     els.passiveShop.innerHTML = '';
-    E.MUTATIONS.filter((m) => m.kind === 'click').forEach((m) => {
-      els.clickShop.appendChild(shopButton(m, state.energy));
+    E.MUTATIONS.forEach((m) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'shop-item';
+      btn.dataset.id = m.id;
+      btn.innerHTML = shopItemHtml(m);
+      (m.kind === 'click' ? els.clickShop : els.passiveShop).appendChild(btn);
     });
-    E.MUTATIONS.filter((m) => m.kind === 'passive').forEach((m) => {
-      els.passiveShop.appendChild(shopButton(m, state.energy));
-    });
+    shopsBuilt = true;
+  }
 
+  /** 原地更新价格 / 持有数 / 禁用态，不销毁按钮节点 */
+  function updateShopItems() {
+    if (!shopsBuilt) buildShops();
+    const all = [
+      ...els.clickShop.querySelectorAll('.shop-item'),
+      ...els.passiveShop.querySelectorAll('.shop-item'),
+    ];
+    all.forEach((btn) => {
+      const id = btn.dataset.id;
+      const cost = E.mutationCost(state, id);
+      const owned = state.owned[id] || 0;
+      const costEl = btn.querySelector('[data-role="cost"]');
+      const ownedEl = btn.querySelector('[data-role="owned"]');
+      if (costEl) costEl.textContent = '⚡ ' + E.formatNumber(cost || 0);
+      if (ownedEl) ownedEl.textContent = '×' + owned;
+      btn.disabled = cost == null || state.energy < cost;
+    });
+  }
+
+  function updateEvolvePanel(stats) {
     if (stats.nextStage) {
       els.evolveStatus.textContent =
         '下一阶段「' +
@@ -165,32 +182,51 @@
     els.btnPrestige.disabled = !stats.canPrestige;
   }
 
-  function render() {
-    const stats = E.derive(state);
+  function renderResources(stats) {
     els.energyVal.textContent = E.formatNumber(state.energy);
     els.epsVal.textContent = E.formatNumber(stats.energyPerSec);
     els.dnaVal.textContent = E.formatNumber(state.dna);
     els.multVal.textContent =
       '×' + (stats.stageMult * stats.dnaMult).toFixed(2).replace(/\.?0+$/, '');
     els.clickPowerVal.textContent = E.formatNumber(stats.clickPower);
-    renderStageRail(stats);
-    renderShops(stats);
   }
 
-  function onClickCell(ev) {
+  /**
+   * @param {{ soft?: boolean }} [opts]
+   * soft：高频 tick 用——只更新资源数字与按钮禁用态，不重建 DOM
+   */
+  function render(opts) {
+    const soft = Boolean(opts && opts.soft);
+    const stats = E.derive(state);
+    renderResources(stats);
+    if (!soft) {
+      renderStageRail(stats);
+    } else if (renderedStageIndex !== state.stageIndex) {
+      renderStageRail(stats);
+    }
+    updateShopItems();
+    updateEvolvePanel(stats);
+  }
+
+  function onBuyMutation(mutationId) {
+    const result = E.buyMutation(state, mutationId);
+    if (!result.ok) {
+      showToast(result.reason || '无法购买');
+      setState(result.state, { soft: true });
+      return;
+    }
+    setState(result.state, { soft: true });
+  }
+
+  function onClickCell() {
     const before = state.energy;
     const result = E.clickAbsorb(state);
     const gained = result.state.energy - before;
-    setState(result.state);
+    setState(result.state, { soft: true });
     spawnFloat(gained);
-    // 轻微按压反馈已由 CSS :active 处理
-    if (ev && ev.clientX) {
-      /* reserved for future particle burst at pointer */
-    }
   }
 
   function switchTab(name) {
-    activeTab = name;
     document.querySelectorAll('.tab').forEach((t) => {
       t.classList.toggle('active', t.dataset.tab === name);
     });
@@ -212,8 +248,22 @@
     els.starfield.appendChild(frag);
   }
 
+  /** 事件委托：商店列表节点稳定，不因 tick 重建而丢失点击 */
+  function bindShopDelegation(container) {
+    container.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.shop-item');
+      if (!btn || !container.contains(btn) || btn.disabled) return;
+      const id = btn.dataset.id;
+      if (!id) return;
+      onBuyMutation(id);
+    });
+  }
+
   function boot() {
     buildStars();
+    buildShops();
+    bindShopDelegation(els.clickShop);
+    bindShopDelegation(els.passiveShop);
 
     const now = Date.now();
     const loaded = E.loadFromStorage(now);
@@ -242,10 +292,11 @@
       const result = E.evolveStage(state);
       if (!result.ok) {
         showToast(result.reason || '无法进化');
-        setState(result.state);
+        setState(result.state, { soft: true });
         return;
       }
       const name = E.STAGES[result.state.stageIndex].name;
+      // 阶段变化需要重绘阶段轨
       setState(result.state);
       showToast('进化成功：' + name);
     });
@@ -273,6 +324,7 @@
       const ok = window.confirm('清除本地存档并重新开始？此操作不可撤销。');
       if (!ok) return;
       E.clearStorage();
+      renderedStageIndex = -1;
       setState(E.createNewState());
       showToast('已重置');
     });
@@ -281,17 +333,15 @@
       tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
 
-    // 被动 tick：约 10fps 足够平滑
+    // 被动 tick：只 soft 刷新，绝不销毁商店按钮
     setInterval(() => {
       const t = E.tick(state);
-      if (t.gained > 0 || t.state.lastTickAt !== state.lastTickAt) {
-        state = t.state;
-        render();
-        scheduleSave();
-      }
+      if (t.gained === 0 && t.state.lastTickAt === state.lastTickAt) return;
+      state = t.state;
+      render({ soft: true });
+      scheduleSave();
     }, 100);
 
-    // 页面隐藏时立即存档
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         state = E.tick(state).state;
