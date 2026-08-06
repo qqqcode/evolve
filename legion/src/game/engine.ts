@@ -12,6 +12,8 @@ import {
   START_GOLD,
   UNIT_BASE_COST,
   applyPassiveStats,
+  difficultyFor,
+  populationCap,
   skillsFor,
   statsFor,
 } from './data';
@@ -244,6 +246,15 @@ export function placeSelected(state: GameState, row: number, col: number): GameS
     other.col = oc;
     other.benchIndex = ob;
   } else {
+    // 从备战区新上阵时检查人口
+    const alreadyOnBoard = me.row != null && me.col != null;
+    if (!alreadyOnBoard) {
+      const onBoard = units.filter((u) => u.team === 'ally' && u.row != null && u.id !== me.id)
+        .length;
+      if (onBoard >= populationCap(state.round)) {
+        return state;
+      }
+    }
     me.row = row;
     me.col = col;
     me.benchIndex = null;
@@ -439,15 +450,18 @@ function attackOnce(attacker: CombatUnit, target: CombatUnit, all: CombatUnit[],
   }
 }
 
-/** 生成敌方阵容 */
+/** 按难度阶梯生成敌方阵容 */
 export function spawnEnemies(round: number, rng: () => number): UnitInstance[] {
-  const count = clamp(3 + Math.floor(round * 0.7), 3, 10);
-  const levelBias = round >= 6 ? 2 : round >= 3 ? 1 : 0;
+  const tier = difficultyFor(round);
+  const span = Math.max(0, tier.countMax - tier.countMin);
+  const count = tier.countMin + Math.floor(rng() * (span + 1));
   const enemies: UnitInstance[] = [];
   const occ = new Set<string>();
   for (let i = 0; i < count; i++) {
     const kind = KIND_ORDER[Math.floor(rng() * KIND_ORDER.length)]!;
-    let level = 1 + (rng() < 0.25 + round * 0.04 ? levelBias : 0);
+    let level = 1;
+    if (rng() < tier.level3Chance) level = 3;
+    else if (rng() < tier.level2Chance) level = 2;
     level = clamp(level, 1, MAX_LEVEL);
     let placed = false;
     for (let t = 0; t < 40; t++) {
@@ -626,9 +640,13 @@ export function getMeta() {
     rows: ROWS,
     kinds: KIND_ORDER,
     maxLevel: MAX_LEVEL,
+    maxPopulation: 8,
+    difficulties: ['试炼', '锋芒', '铁潮', '血战', '末日'],
   };
 }
 
 export function boardAllyCount(state: GameState): number {
   return state.units.filter((u) => u.team === 'ally' && u.row != null).length;
 }
+
+export { difficultyFor, populationCap };

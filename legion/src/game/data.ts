@@ -12,6 +12,91 @@ export const UNIT_BASE_COST = 3;
 export const REFRESH_COST = 1;
 export const PLAYER_MAX_HP = 10;
 export const START_GOLD = 8;
+/** 场上友军人口上限上限值 */
+export const MAX_POPULATION = 8;
+/** 起始人口 */
+export const START_POPULATION = 2;
+
+export interface DifficultyTier {
+  id: string;
+  name: string;
+  /** 含本回合起生效 */
+  fromRound: number;
+  /** 敌方数量区间 */
+  countMin: number;
+  countMax: number;
+  /** 升到 2/3 级的概率 */
+  level2Chance: number;
+  level3Chance: number;
+  blurb: string;
+}
+
+/** 难度阶梯：越往后敌越多、星级越高 */
+export const DIFFICULTY_TIERS: DifficultyTier[] = [
+  {
+    id: 'trial',
+    name: '试炼',
+    fromRound: 1,
+    countMin: 2,
+    countMax: 3,
+    level2Chance: 0,
+    level3Chance: 0,
+    blurb: '敌军稀少且全是一星',
+  },
+  {
+    id: 'edge',
+    name: '锋芒',
+    fromRound: 3,
+    countMin: 3,
+    countMax: 4,
+    level2Chance: 0.2,
+    level3Chance: 0,
+    blurb: '开始出现二星',
+  },
+  {
+    id: 'iron',
+    name: '铁潮',
+    fromRound: 5,
+    countMin: 4,
+    countMax: 6,
+    level2Chance: 0.45,
+    level3Chance: 0.05,
+    blurb: '二星增多，偶见三星',
+  },
+  {
+    id: 'blood',
+    name: '血战',
+    fromRound: 7,
+    countMin: 5,
+    countMax: 7,
+    level2Chance: 0.55,
+    level3Chance: 0.2,
+    blurb: '高星混编压境',
+  },
+  {
+    id: 'doom',
+    name: '末日',
+    fromRound: 9,
+    countMin: 6,
+    countMax: 10,
+    level2Chance: 0.5,
+    level3Chance: 0.35,
+    blurb: '数量与星级全面拉满',
+  },
+];
+
+export function difficultyFor(round: number): DifficultyTier {
+  let tier = DIFFICULTY_TIERS[0]!;
+  for (const t of DIFFICULTY_TIERS) {
+    if (round >= t.fromRound) tier = t;
+  }
+  return tier;
+}
+
+/** 人口：第 1 回合 2，之后每回合 +1，封顶 8 */
+export function populationCap(round: number): number {
+  return Math.min(MAX_POPULATION, START_POPULATION + Math.max(0, round - 1));
+}
 
 export const KIND_ORDER: UnitKind[] = ['盾', '刀', '骑', '弓', '术'];
 

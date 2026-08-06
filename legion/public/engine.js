@@ -15,7 +15,74 @@
   var REFRESH_COST = 1;
   var PLAYER_MAX_HP = 10;
   var START_GOLD = 8;
+  var MAX_POPULATION = 8;
+  var START_POPULATION = 2;
   var KIND_ORDER = ['盾', '刀', '骑', '弓', '术'];
+
+  var DIFFICULTY_TIERS = [
+    {
+      id: 'trial',
+      name: '试炼',
+      fromRound: 1,
+      countMin: 2,
+      countMax: 3,
+      level2Chance: 0,
+      level3Chance: 0,
+      blurb: '敌军稀少且全是一星',
+    },
+    {
+      id: 'edge',
+      name: '锋芒',
+      fromRound: 3,
+      countMin: 3,
+      countMax: 4,
+      level2Chance: 0.2,
+      level3Chance: 0,
+      blurb: '开始出现二星',
+    },
+    {
+      id: 'iron',
+      name: '铁潮',
+      fromRound: 5,
+      countMin: 4,
+      countMax: 6,
+      level2Chance: 0.45,
+      level3Chance: 0.05,
+      blurb: '二星增多，偶见三星',
+    },
+    {
+      id: 'blood',
+      name: '血战',
+      fromRound: 7,
+      countMin: 5,
+      countMax: 7,
+      level2Chance: 0.55,
+      level3Chance: 0.2,
+      blurb: '高星混编压境',
+    },
+    {
+      id: 'doom',
+      name: '末日',
+      fromRound: 9,
+      countMin: 6,
+      countMax: 10,
+      level2Chance: 0.5,
+      level3Chance: 0.35,
+      blurb: '数量与星级全面拉满',
+    },
+  ];
+
+  function difficultyFor(round) {
+    var tier = DIFFICULTY_TIERS[0];
+    for (var i = 0; i < DIFFICULTY_TIERS.length; i++) {
+      if (round >= DIFFICULTY_TIERS[i].fromRound) tier = DIFFICULTY_TIERS[i];
+    }
+    return tier;
+  }
+
+  function populationCap(round) {
+    return Math.min(MAX_POPULATION, START_POPULATION + Math.max(0, round - 1));
+  }
 
   var KINDS = {
     盾: {
@@ -284,6 +351,13 @@
       occupant.col = oc;
       occupant.benchIndex = ob;
     } else {
+      var alreadyOnBoard = me.row != null && me.col != null;
+      if (!alreadyOnBoard) {
+        var onBoard = units.filter(function (u) {
+          return u.team === 'ally' && u.row != null && u.id !== me.id;
+        }).length;
+        if (onBoard >= populationCap(state.round)) return state;
+      }
       me.row = row;
       me.col = col;
       me.benchIndex = null;
@@ -469,13 +543,16 @@
   }
 
   function spawnEnemies(round, rng) {
-    var count = clamp(3 + Math.floor(round * 0.7), 3, 10);
-    var levelBias = round >= 6 ? 2 : round >= 3 ? 1 : 0;
+    var tier = difficultyFor(round);
+    var span = Math.max(0, tier.countMax - tier.countMin);
+    var count = tier.countMin + Math.floor(rng() * (span + 1));
     var enemies = [];
     var occ = {};
     for (var i = 0; i < count; i++) {
       var kind = KIND_ORDER[Math.floor(rng() * KIND_ORDER.length)];
-      var level = 1 + (rng() < 0.25 + round * 0.04 ? levelBias : 0);
+      var level = 1;
+      if (rng() < tier.level3Chance) level = 3;
+      else if (rng() < tier.level2Chance) level = 2;
       level = clamp(level, 1, MAX_LEVEL);
       for (var t = 0; t < 40; t++) {
         var row = Math.floor(rng() * (ENEMY_ROW_MAX + 1));
@@ -669,5 +746,13 @@
     isAllyCell: isAllyCell,
     skillNames: skillNames,
     tryAutoMerge: tryAutoMerge,
+    difficultyFor: difficultyFor,
+    populationCap: populationCap,
+    boardAllyCount: function (state) {
+      return state.units.filter(function (u) {
+        return u.team === 'ally' && u.row != null;
+      }).length;
+    },
+    DIFFICULTY_TIERS: DIFFICULTY_TIERS,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

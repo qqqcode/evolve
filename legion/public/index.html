@@ -22,18 +22,33 @@
           <h1 class="title">兵阵对决</h1>
         </div>
         <div class="hud">
-          <span id="roundVal">回合 1</span>
           <span id="goldVal">金 8</span>
+          <span id="popVal" class="hud-pop">人口 0/2</span>
           <span id="hpVal">命 10</span>
           <span id="phaseVal">准备</span>
           <span id="versionBadge" class="ver">v—</span>
         </div>
       </header>
 
+      <section class="round-banner" aria-live="polite">
+        <div class="round-main">
+          <span class="round-label">回合</span>
+          <span id="roundNum" class="round-num">1</span>
+        </div>
+        <div class="round-meta">
+          <span id="diffBadge" class="diff-badge">试炼</span>
+          <p id="diffBlurb" class="diff-blurb">敌军稀少且全是一星</p>
+        </div>
+        <div class="round-pop">
+          <span class="round-pop-label">上场人口</span>
+          <span id="popBanner" class="round-pop-val">0 / 2</span>
+        </div>
+      </section>
+
       <div class="layout">
         <section class="board-wrap">
           <div id="board" class="board" aria-label="战场"></div>
-          <p class="hint" id="boardHint">点选备战区棋子，再点友方格上阵。两只相同合成升级。</p>
+          <p class="hint" id="boardHint">点选备战区棋子，再点友方格上阵。人口未满才能上阵；两只相同合成升级。</p>
           <div class="bench-label">备战区</div>
           <div id="bench" class="bench" aria-label="备战区"></div>
         </section>
@@ -67,7 +82,7 @@
               <li><b>弓</b> 远程</li>
               <li><b>术</b> 远程法伤</li>
             </ul>
-            <p class="mini">2 同种同级 → 高一级；2 级/3 级各多 1 个技能。</p>
+            <p class="mini">2 同种同级 → 高一级。人口随回合增加（2→8）。难度：试炼→锋芒→铁潮→血战→末日。</p>
           </div>
 
           <div class="panel log-panel">

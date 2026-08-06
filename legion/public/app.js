@@ -20,8 +20,12 @@
     bench: document.getElementById('bench'),
     shop: document.getElementById('shop'),
     log: document.getElementById('log'),
-    roundVal: document.getElementById('roundVal'),
+    roundNum: document.getElementById('roundNum'),
     goldVal: document.getElementById('goldVal'),
+    popVal: document.getElementById('popVal'),
+    popBanner: document.getElementById('popBanner'),
+    diffBadge: document.getElementById('diffBadge'),
+    diffBlurb: document.getElementById('diffBlurb'),
     hpVal: document.getElementById('hpVal'),
     phaseVal: document.getElementById('phaseVal'),
     selectedInfo: document.getElementById('selectedInfo'),
@@ -223,8 +227,19 @@
   }
 
   function renderHud() {
-    els.roundVal.textContent = '回合 ' + state.round;
+    var cap = L.populationCap(state.round);
+    var used = L.boardAllyCount(state);
+    var tier = L.difficultyFor(state.round);
+
+    els.roundNum.textContent = String(state.round);
     els.goldVal.textContent = '金 ' + state.gold;
+    els.popVal.textContent = '人口 ' + used + '/' + cap;
+    if (els.popBanner) els.popBanner.textContent = used + ' / ' + cap;
+    if (els.diffBadge) {
+      els.diffBadge.textContent = tier.name;
+      els.diffBadge.className = 'diff-badge tier-' + tier.id;
+    }
+    if (els.diffBlurb) els.diffBlurb.textContent = tier.blurb;
     els.hpVal.textContent = '命 ' + state.hp;
     els.phaseVal.textContent =
       state.phase === 'prep' ? '准备' : state.phase === 'battle' ? '战斗中' : '结束';
@@ -237,7 +252,8 @@
       return u.id === state.selectedUnitId;
     })[0];
     if (!sel) {
-      els.selectedInfo.textContent = '未选中单位 · 先点备战区或场上友军';
+      els.selectedInfo.textContent =
+        '未选中单位 · 人口 ' + used + '/' + cap + ' · 先点备战区或场上友军';
     } else {
       var skills = L.skillNames(sel.kind, sel.level);
       var st = resolveUnitStats(sel);
@@ -299,7 +315,21 @@
       return;
     }
     if (!L.isAllyCell(row)) return;
-    setState(L.placeSelected(state, row, col));
+    var before = state;
+    var next = L.placeSelected(state, row, col);
+    if (next === before) {
+      var sel = state.units.filter(function (x) {
+        return x.id === state.selectedUnitId;
+      })[0];
+      var fromBench = sel && sel.row == null;
+      var cap = L.populationCap(state.round);
+      if (fromBench && L.boardAllyCount(state) >= cap) {
+        els.boardHint.textContent = '人口已满（' + cap + '），请先下阵或卖掉场上单位。';
+      }
+      return;
+    }
+    setState(next);
+    els.boardHint.textContent = '点选备战区棋子，再点友方格上阵。人口未满才能上阵；两只相同合成升级。';
   }
 
   function showOverlay(title, text) {
@@ -436,7 +466,7 @@
       prepAllySnapshot = null;
       hideOverlay();
       setState(L.createNewGame());
-      els.boardHint.textContent = '点选备战区棋子，再点友方格上阵。两只相同合成升级。';
+      els.boardHint.textContent = '点选备战区棋子，再点友方格上阵。人口未满才能上阵；两只相同合成升级。';
     });
 
     fetch('api/meta')
