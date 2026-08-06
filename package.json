@@ -1,14 +1,14 @@
 {
   "name": "text-games",
-  "version": "0.9.8",
-  "description": "文字游戏集合（进化史、进化点击等）",
+  "version": "0.9.9",
+  "description": "文字游戏集合（进化史、进化点击、兵阵对决等）",
   "main": "dist/src/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/src/server.js"
   },
-  "keywords": ["text-game", "evolution", "incremental", "typescript", "collection"],
+  "keywords": ["text-game", "evolution", "incremental", "autochess", "typescript", "collection"],
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.7",

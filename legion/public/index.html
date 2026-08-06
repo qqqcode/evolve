@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>兵阵对决 · 文字游戏集合</title>
+    <base href="/legion/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&family=Oxanium:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg" aria-hidden="true"></div>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <a class="hub-link" href="/">集合</a>
+          <h1 class="title">兵阵对决</h1>
+        </div>
+        <div class="hud">
+          <span id="roundVal">回合 1</span>
+          <span id="goldVal">金 8</span>
+          <span id="hpVal">命 10</span>
+          <span id="phaseVal">准备</span>
+          <span id="versionBadge" class="ver">v—</span>
+        </div>
+      </header>
+
+      <div class="layout">
+        <section class="board-wrap">
+          <div id="board" class="board" aria-label="战场"></div>
+          <p class="hint" id="boardHint">点选备战区棋子，再点友方格上阵。两只相同合成升级。</p>
+          <div class="bench-label">备战区</div>
+          <div id="bench" class="bench" aria-label="备战区"></div>
+        </section>
+
+        <aside class="side">
+          <div class="panel shop-panel">
+            <div class="panel-head">
+              <h2>招募</h2>
+              <button type="button" id="btnRefresh" class="btn ghost">刷新 (1金)</button>
+            </div>
+            <div id="shop" class="shop"></div>
+          </div>
+
+          <div class="panel">
+            <h2>操作</h2>
+            <div class="actions">
+              <button type="button" id="btnFight" class="btn primary">开始战斗</button>
+              <button type="button" id="btnSell" class="btn ghost">卖掉选中</button>
+              <button type="button" id="btnBench" class="btn ghost">选中下阵</button>
+              <button type="button" id="btnNew" class="btn ghost">新开局</button>
+            </div>
+            <div id="selectedInfo" class="selected-info">未选中单位</div>
+          </div>
+
+          <div class="panel">
+            <h2>兵种</h2>
+            <ul class="kind-help">
+              <li><b>盾</b> 近战肉盾</li>
+              <li><b>刀</b> 近战输出</li>
+              <li><b>骑</b> 射程 2</li>
+              <li><b>弓</b> 远程</li>
+              <li><b>术</b> 远程法伤</li>
+            </ul>
+            <p class="mini">2 同种同级 → 高一级；2 级/3 级各多 1 个技能。</p>
+          </div>
+
+          <div class="panel log-panel">
+            <h2>战报</h2>
+            <div id="log" class="log"></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <div id="overlay" class="overlay" hidden>
+      <div class="modal">
+        <h2 id="overlayTitle">结果</h2>
+        <p id="overlayText"></p>
+        <button type="button" id="btnOverlay" class="btn primary">继续</button>
+      </div>
+    </div>
+
+    <script src="engine.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

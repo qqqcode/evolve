@@ -9,6 +9,7 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY evolve/src ./evolve/src
 COPY evolve2/src ./evolve2/src
+COPY legion/src ./legion/src
 RUN npm run build
 
 # 运行阶段
@@ -26,6 +27,7 @@ COPY --from=build /app/dist ./dist
 COPY public ./public
 COPY evolve/public ./evolve/public
 COPY evolve2/public ./evolve2/public
+COPY legion/public ./legion/public
 
 EXPOSE 3000
 

@@ -23,6 +23,13 @@ export const GAMES: GameEntry[] = [
     ready: true,
   },
   {
+    id: 'legion',
+    title: '兵阵对决',
+    path: '/legion/',
+    blurb: '8×7 方格自走棋：盾刀骑弓术，合成升级，布阵后自动战斗。',
+    ready: true,
+  },
+  {
     id: 'othername',
     title: 'Other Name（占位）',
     path: '/othername/',

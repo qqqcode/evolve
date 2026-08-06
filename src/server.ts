@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createEvolveRouter, logEvolveAiStatus } from '../evolve/src/router';
 import { createEvolve2Router } from '../evolve2/src/router';
+import { createLegionRouter } from '../legion/src/router';
 import { GAMES } from './registry';
 
 const app = express();
@@ -23,6 +24,9 @@ app.use('/evolve', createEvolveRouter());
 /** 进化点击：/evolve2 与 /evolve2/* */
 app.use('/evolve2', createEvolve2Router());
 
+/** 兵阵对决：/legion 与 /legion/* */
+app.use('/legion', createLegionRouter());
+
 /** 集合门户静态页 */
 app.use(express.static(hubPublic));
 
@@ -40,6 +44,7 @@ app.listen(PORT, HOST, () => {
   console.log(`门户: http://${HOST}:${PORT}/`);
   console.log(`进化史: http://${HOST}:${PORT}/evolve/`);
   console.log(`进化点击: http://${HOST}:${PORT}/evolve2/`);
+  console.log(`兵阵对决: http://${HOST}:${PORT}/legion/`);
   console.log(`本机局域网可访问: http://<你的IP>:${PORT}`);
   logEvolveAiStatus();
 });
