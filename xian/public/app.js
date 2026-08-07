@@ -12,24 +12,33 @@
   let toastTimer = null;
   let saveTimer = null;
   let shopsBuilt = false;
+  let treasuresBuilt = false;
   let renderedRealmIndex = -1;
   let lastEndingShown = null;
   let eventModalOpen = false;
+  let selectedBring = [];
 
   const els = {
-    douqiVal: document.getElementById('douqiVal'),
+    lingqiVal: document.getElementById('lingqiVal'),
     dpsVal: document.getElementById('dpsVal'),
     qiyunVal: document.getElementById('qiyunVal'),
-    multVal: document.getElementById('multVal'),
+    combatVal: document.getElementById('combatVal'),
     clickPowerVal: document.getElementById('clickPowerVal'),
     realmRail: document.getElementById('realmRail'),
     realmBlurb: document.getElementById('realmBlurb'),
     pathLine: document.getElementById('pathLine'),
     realmHint: document.getElementById('realmHint'),
+    freePointsHint: document.getElementById('freePointsHint'),
+    attrList: document.getElementById('attrList'),
+    combatList: document.getElementById('combatList'),
     absorbBtn: document.getElementById('absorbBtn'),
     floatLayer: document.getElementById('floatLayer'),
     clickShop: document.getElementById('clickShop'),
     passiveShop: document.getElementById('passiveShop'),
+    ownedTreasures: document.getElementById('ownedTreasures'),
+    shopTreasures: document.getElementById('shopTreasures'),
+    vaultList: document.getElementById('vaultList'),
+    vaultHint: document.getElementById('vaultHint'),
     chronicleList: document.getElementById('chronicleList'),
     reincarnateStatus: document.getElementById('reincarnateStatus'),
     endingList: document.getElementById('endingList'),
@@ -41,7 +50,16 @@
     saveHint: document.getElementById('saveHint'),
     toast: document.getElementById('toast'),
     versionBadge: document.getElementById('versionBadge'),
+    birthModal: document.getElementById('birthModal'),
+    birthEyebrow: document.getElementById('birthEyebrow'),
+    birthTitle: document.getElementById('birthTitle'),
+    birthBody: document.getElementById('birthBody'),
+    inheritInfo: document.getElementById('inheritInfo'),
+    bringTreasures: document.getElementById('bringTreasures'),
+    bringList: document.getElementById('bringList'),
+    birthOptions: document.getElementById('birthOptions'),
     eventModal: document.getElementById('eventModal'),
+    eventLore: document.getElementById('eventLore'),
     eventTitle: document.getElementById('eventTitle'),
     eventBody: document.getElementById('eventBody'),
     eventOptions: document.getElementById('eventOptions'),
@@ -57,7 +75,7 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => {
       els.toast.hidden = true;
-    }, 2600);
+    }, 2800);
   }
 
   function scheduleSave() {
@@ -86,16 +104,20 @@
 
   function pathLabel() {
     const parts = [];
+    if (state.birthId) {
+      const b = X.BIRTHS.find((x) => x.id === state.birthId);
+      if (b) parts.push(b.name);
+    }
     if (state.branchId && X.BRANCH_LABELS[state.branchId]) {
       parts.push(X.BRANCH_LABELS[state.branchId].name);
     }
     if (state.factionId === 'orthodox') parts.push('正道');
-    if (state.factionId === 'dark') parts.push('黑角域');
-    if (state.factionId === 'hermit') parts.push('隐世散修');
-    if (state.destinyId === 'emperor') parts.push('执意成帝');
-    if (state.destinyId === 'guardian') parts.push('镇守大陆');
-    if (state.destinyId === 'void') parts.push('问道虚空');
-    return parts.length ? parts.join(' · ') : '道途未定 · 阵营未立';
+    if (state.factionId === 'dark') parts.push('魔道');
+    if (state.factionId === 'hermit') parts.push('隐世');
+    if (state.destinyId === 'emperor') parts.push('证道');
+    if (state.destinyId === 'guardian') parts.push('守界');
+    if (state.destinyId === 'void') parts.push('问虚');
+    return parts.length ? parts.join(' · ') : '未择出身';
   }
 
   function renderRealmRail(stats) {
@@ -103,12 +125,10 @@
       els.realmBlurb.textContent =
         stats.realm.name +
         state.star +
-        '星 · ' +
+        '层 · ' +
         stats.realm.blurb +
         '（境×' +
         stats.realmMult +
-        ' 星×' +
-        stats.starMult.toFixed(2) +
         '）';
       document.documentElement.style.setProperty('--hue', String(stats.realm.hue));
       return;
@@ -124,16 +144,89 @@
       els.realmRail.appendChild(chip);
     });
     els.realmBlurb.textContent =
-      stats.realm.name +
-      state.star +
-      '星 · ' +
-      stats.realm.blurb +
-      '（境×' +
-      stats.realmMult +
-      ' 星×' +
-      stats.starMult.toFixed(2) +
-      '）';
+      stats.realm.name + state.star + '层 · ' + stats.realm.blurb + '（境×' + stats.realmMult + '）';
     document.documentElement.style.setProperty('--hue', String(stats.realm.hue));
+  }
+
+  function renderAttrs(stats) {
+    els.freePointsHint.textContent =
+      state.freePoints > 0 ? '（可分配 ' + state.freePoints + '）' : '';
+    els.attrList.innerHTML = '';
+    X.ATTR_KEYS.forEach((key) => {
+      const row = document.createElement('div');
+      row.className = 'attr-row';
+      const total = stats.totalAttrs[key];
+      const base = state.attrs[key] + state.legacyAttrs[key];
+      row.innerHTML =
+        '<span class="attr-name">' +
+        X.ATTR_LABELS[key] +
+        '</span><span class="attr-val">' +
+        total +
+        ' <small style="opacity:.6">(基' +
+        base +
+        ')</small></span>';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '+1';
+      btn.disabled = state.freePoints <= 0 || state.phase !== 'playing';
+      btn.addEventListener('click', () => {
+        const res = X.allocatePoint(state, key);
+        if (!res.ok) {
+          showToast(res.reason || '无法加点');
+          return;
+        }
+        setState(res.state, { soft: true });
+      });
+      row.appendChild(btn);
+      els.attrList.appendChild(row);
+    });
+  }
+
+  function renderCombat() {
+    els.combatList.innerHTML = '';
+    if (state.phase !== 'playing' || state.endingId) {
+      els.combatList.innerHTML = '<p class="realm-hint">轮回或结局中不可对战</p>';
+      return;
+    }
+    const list = X.listCombatEnemies(state);
+    if (!list.length) {
+      els.combatList.innerHTML = '<p class="realm-hint">附近无敌可战</p>';
+      return;
+    }
+    list.forEach((enemy) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'combat-row';
+      btn.innerHTML =
+        '<strong>' +
+        enemy.name +
+        '</strong><span>' +
+        enemy.blurb +
+        ' · ' +
+        enemy.lore +
+        ' · 赏 ' +
+        X.formatNumber(enemy.rewardLingqi) +
+        '</span>';
+      btn.addEventListener('click', () => {
+        if (!window.confirm('与「' + enemy.name + '」对战？败可能只是丢脸，剧情战败或会死。')) return;
+        const res = X.startCombat(state, enemy.id);
+        if (!res.ok) {
+          showToast(res.reason || '无法对战');
+          setState(res.state, { soft: true });
+          return;
+        }
+        showToast(
+          (res.won ? '胜！' : '败…') +
+            ' 战力 ' +
+            Math.floor(res.playerPower) +
+            ' vs ' +
+            Math.floor(res.enemyPower),
+        );
+        treasuresBuilt = false;
+        setState(res.state);
+      });
+      els.combatList.appendChild(btn);
+    });
   }
 
   function buildShops() {
@@ -141,7 +234,6 @@
     els.passiveShop.innerHTML = '';
     X.ARTS.forEach((art) => {
       if (!X.artAvailable(state, art) && (state.owned[art.id] || 0) <= 0) {
-        // 尚未解锁且未持有：仍可展示锁定行（境界将至时预告）
         if (art.minRealm > state.realmIndex + 1) return;
         if (art.branch && art.branch !== state.branchId) return;
         if (art.faction && art.faction !== state.factionId) return;
@@ -163,8 +255,7 @@
 
   function softUpdateShops(stats) {
     if (!shopsBuilt) buildShops();
-    const rows = document.querySelectorAll('.art-row');
-    rows.forEach((btn) => {
+    document.querySelectorAll('#clickShop .art-row, #passiveShop .art-row').forEach((btn) => {
       const id = btn.dataset.artId;
       const art = X.ARTS.find((a) => a.id === id);
       if (!art) return;
@@ -181,42 +272,217 @@
             : '需' + X.REALMS[art.minRealm].name;
         return;
       }
-      const canBuy = cost != null && state.douqi >= cost && !state.endingId && !stats.pendingEvent;
+      const canBuy =
+        cost != null && state.lingqi >= cost && state.phase === 'playing' && !stats.pendingEvent;
       btn.classList.toggle('is-locked', !canBuy);
-      meta.textContent =
-        '×' + owned + ' · ' + X.formatNumber(cost || 0);
+      meta.textContent = '×' + owned + ' · ' + X.formatNumber(cost || 0);
     });
+  }
+
+  function buildTreasures() {
+    els.ownedTreasures.innerHTML = '';
+    els.shopTreasures.innerHTML = '';
+    els.vaultList.innerHTML = '';
+
+    state.treasures.forEach((id) => {
+      const t = X.getTreasure(id);
+      if (!t) return;
+      const eq = state.equipped.includes(id);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'art-row treasure-row';
+      btn.dataset.treasureId = id;
+      btn.dataset.action = 'toggle';
+      btn.innerHTML =
+        '<span class="art-mark">' +
+        t.mark +
+        '</span><span><p class="art-name">' +
+        t.name +
+        '<span class="lore-tag">' +
+        t.lore +
+        '</span></p><p class="art-desc">' +
+        t.description +
+        '</p></span><span class="art-meta">' +
+        (eq ? '装备中' : '点击装备') +
+        '</span>';
+      els.ownedTreasures.appendChild(btn);
+    });
+    if (!state.treasures.length) {
+      els.ownedTreasures.innerHTML = '<p class="realm-hint">尚无法宝</p>';
+    }
+
+    X.TREASURES.filter((t) => t.cost > 0).forEach((t) => {
+      if (state.treasures.includes(t.id)) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'art-row treasure-row';
+      btn.dataset.treasureId = t.id;
+      btn.dataset.action = 'buy';
+      const locked = state.realmIndex < t.minRealm || state.lingqi < t.cost || state.phase !== 'playing';
+      if (locked) btn.classList.add('is-locked');
+      btn.innerHTML =
+        '<span class="art-mark">' +
+        t.mark +
+        '</span><span><p class="art-name">' +
+        t.name +
+        '<span class="lore-tag">' +
+        t.lore +
+        '</span></p><p class="art-desc">' +
+        t.description +
+        '</p></span><span class="art-meta">' +
+        X.formatNumber(t.cost) +
+        '</span>';
+      els.shopTreasures.appendChild(btn);
+    });
+
+    const stats = X.derive(state);
+    els.vaultHint.textContent =
+      '宝库 ' +
+      state.vault.length +
+      ' 件；本世峰值可携带 ' +
+      stats.inheritPreview.treasureSlots +
+      ' 件（继承属性 ' +
+      Math.floor(stats.inheritPreview.attrRate * 100) +
+      '%）';
+    state.vault.forEach((id) => {
+      const t = X.getTreasure(id);
+      if (!t) return;
+      const row = document.createElement('div');
+      row.className = 'art-row';
+      row.innerHTML =
+        '<span class="art-mark">' +
+        t.mark +
+        '</span><span><p class="art-name">' +
+        t.name +
+        '</p><p class="art-desc">' +
+        t.lore +
+        ' · 轮回时可携带</p></span><span class="art-meta">库</span>';
+      els.vaultList.appendChild(row);
+    });
+    if (!state.vault.length) {
+      els.vaultList.innerHTML = '<p class="realm-hint">宝库空空如也</p>';
+    }
+    treasuresBuilt = true;
   }
 
   function renderChronicle() {
     els.chronicleList.innerHTML = '';
-    const lines = state.chronicle.slice(-10).reverse();
-    lines.forEach((line) => {
-      const li = document.createElement('li');
-      li.textContent = line;
-      els.chronicleList.appendChild(li);
-    });
+    state.chronicle
+      .slice(-12)
+      .reverse()
+      .forEach((line) => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        els.chronicleList.appendChild(li);
+      });
   }
 
   function renderEndings() {
     els.endingList.innerHTML = '';
-    X.ENDINGS.filter((e) => e.id !== 'fallen_wild' || state.endingsUnlocked.includes(e.id)).forEach(
-      (ending) => {
-        const got = state.endingsUnlocked.includes(ending.id);
-        const li = document.createElement('li');
-        if (got) li.classList.add('got');
-        li.innerHTML =
-          (got ? '◆ ' : '◇ ') +
-          ending.name +
-          '<span class="ending-title">' +
-          ending.title +
-          '</span>';
-        els.endingList.appendChild(li);
-      },
-    );
+    X.ENDINGS.forEach((ending) => {
+      if (ending.id === 'fallen_wild' && !state.endingsUnlocked.includes(ending.id)) return;
+      const got = state.endingsUnlocked.includes(ending.id);
+      const li = document.createElement('li');
+      if (got) li.classList.add('got');
+      li.innerHTML =
+        (got ? '◆ ' : '◇ ') +
+        ending.name +
+        '<span class="ending-title">' +
+        ending.title +
+        '</span>';
+      els.endingList.appendChild(li);
+    });
+  }
+
+  function syncBirthModal() {
+    if (state.phase !== 'rebirth') {
+      els.birthModal.hidden = true;
+      return;
+    }
+    els.birthModal.hidden = false;
+    els.eventModal.hidden = true;
+    eventModalOpen = false;
+    els.birthEyebrow.textContent = state.deathReason ? '身死轮回' : '择生入世';
+    els.birthTitle.textContent = '选择出身';
+    els.birthBody.textContent = state.deathReason
+      ? state.deathReason + '。气运与宝库可带走，属性按峰值境界继承。'
+      : '诸天轮回，凡人起步。选一个有趣的开局吧。';
+
+    const peak = X.getRealm(state.peakRealmIndex);
+    const rate =
+      state.reincarnations === 0 && !state.deathReason ? 0 : peak.inheritAttrRate;
+    const slots =
+      state.reincarnations === 0 && !state.deathReason ? 0 : peak.inheritTreasureSlots;
+    els.inheritInfo.textContent =
+      '峰值「' +
+      peak.name +
+      '」→ 继承属性 ' +
+      Math.floor(rate * 100) +
+      '%，可携带法宝 ' +
+      slots +
+      ' 件。永久气运 ' +
+      state.qiyun +
+      '。';
+
+    if (slots > 0 && state.vault.length) {
+      els.bringTreasures.hidden = false;
+      els.bringList.innerHTML = '';
+      selectedBring = selectedBring.filter((id) => state.vault.includes(id)).slice(0, slots);
+      state.vault.forEach((id) => {
+        const t = X.getTreasure(id);
+        if (!t) return;
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = id;
+        cb.checked = selectedBring.includes(id);
+        cb.addEventListener('change', () => {
+          if (cb.checked) {
+            if (selectedBring.length >= slots) {
+              cb.checked = false;
+              showToast('最多携带 ' + slots + ' 件');
+              return;
+            }
+            selectedBring.push(id);
+          } else {
+            selectedBring = selectedBring.filter((x) => x !== id);
+          }
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(t.name));
+        els.bringList.appendChild(label);
+      });
+    } else {
+      els.bringTreasures.hidden = true;
+      selectedBring = [];
+    }
+
+    els.birthOptions.innerHTML = '';
+    X.BIRTHS.forEach((b) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'option-btn';
+      btn.dataset.birthId = b.id;
+      btn.innerHTML =
+        '<strong>' +
+        b.mark +
+        ' ' +
+        b.name +
+        '</strong><span>' +
+        b.blurb +
+        ' · 自由点 ' +
+        b.freePoints +
+        '</span>';
+      els.birthOptions.appendChild(btn);
+    });
   }
 
   function syncEventModal(stats) {
+    if (state.phase !== 'playing') {
+      els.eventModal.hidden = true;
+      eventModalOpen = false;
+      return;
+    }
     const ev = stats.pendingEvent;
     if (!ev) {
       if (eventModalOpen) {
@@ -228,6 +494,7 @@
     if (eventModalOpen && els.eventTitle.textContent === ev.title) return;
     eventModalOpen = true;
     els.eventModal.hidden = false;
+    els.eventLore.textContent = ev.lore || '诸天轶事';
     els.eventTitle.textContent = ev.title;
     els.eventBody.textContent = ev.body;
     els.eventOptions.innerHTML = '';
@@ -237,13 +504,16 @@
       btn.className = 'option-btn';
       btn.dataset.eventId = ev.id;
       btn.dataset.optionId = opt.id;
-      btn.innerHTML = '<strong>' + opt.label + '</strong><span>' + opt.blurb + '</span>';
+      let extra = opt.blurb;
+      if (opt.combatEnemyId) extra += '（含对战）';
+      if (opt.deathOnLose) extra += '（败则死）';
+      btn.innerHTML = '<strong>' + opt.label + '</strong><span>' + extra + '</span>';
       els.eventOptions.appendChild(btn);
     });
   }
 
   function syncEndingModal() {
-    if (!state.endingId) {
+    if (!state.endingId || state.phase === 'rebirth') {
       els.endingModal.hidden = true;
       return;
     }
@@ -260,25 +530,25 @@
   function render(opts) {
     const soft = opts && opts.soft;
     const stats = X.derive(state);
-    const totalMult = stats.realmMult * stats.starMult * stats.branchMult * stats.qiyunMult;
 
-    els.douqiVal.textContent = X.formatNumber(state.douqi);
-    els.dpsVal.textContent = X.formatNumber(stats.douqiPerSec);
+    els.lingqiVal.textContent = X.formatNumber(state.lingqi);
+    els.dpsVal.textContent = X.formatNumber(stats.lingqiPerSec);
     els.qiyunVal.textContent = String(state.qiyun);
-    els.multVal.textContent = '×' + totalMult.toFixed(2);
+    els.combatVal.textContent = X.formatNumber(stats.combatPower);
     els.clickPowerVal.textContent = X.formatNumber(stats.clickPower);
     els.pathLine.textContent = pathLabel();
 
     renderRealmRail(stats);
+    renderAttrs(stats);
 
     if (stats.nextStarCost != null) {
-      els.btnRaiseStar.textContent = '升星（' + X.formatNumber(stats.nextStarCost) + '）';
+      els.btnRaiseStar.textContent = '升层（' + X.formatNumber(stats.nextStarCost) + '）';
       els.btnRaiseStar.classList.toggle(
         'is-locked',
-        !stats.canRaiseStar || !!state.endingId || !!stats.pendingEvent,
+        !stats.canRaiseStar || !!stats.pendingEvent,
       );
     } else {
-      els.btnRaiseStar.textContent = '已满九星';
+      els.btnRaiseStar.textContent = '已满九层';
       els.btnRaiseStar.classList.add('is-locked');
     }
 
@@ -286,58 +556,56 @@
       els.btnBreak.textContent = '破境（' + X.formatNumber(stats.breakCost) + '）';
       els.btnBreak.classList.toggle(
         'is-locked',
-        !stats.canBreakthrough || !!state.endingId || !!stats.pendingEvent,
+        !stats.canBreakthrough || !!stats.pendingEvent,
       );
-      els.realmHint.textContent = '九星圆满，可破入下一境。';
+      els.realmHint.textContent = '九层圆满，可破入下一境。破境+2属性点。';
     } else if (state.realmIndex >= X.REALMS.length - 1) {
-      els.btnBreak.textContent = '已至斗帝';
+      els.btnBreak.textContent = '已至大道';
       els.btnBreak.classList.add('is-locked');
-      els.realmHint.textContent = state.endingId
-        ? '此世已落幕，可于右侧轮回。'
-        : '帝境之上，唯余传说与轮回。';
+      els.realmHint.textContent = state.endingId ? '此世落幕，可轮回继承。' : '大道之上，唯余轮回。';
     } else {
-      els.btnBreak.textContent = '破境（需九星）';
+      els.btnBreak.textContent = '破境（需九层）';
       els.btnBreak.classList.add('is-locked');
-      els.realmHint.textContent = '先升至九星，再图破境。';
+      els.realmHint.textContent = '先升至九层再破境。';
     }
 
     softUpdateShops(stats);
-
+    if (!soft || !treasuresBuilt) buildTreasures();
     if (!soft) {
       renderChronicle();
       renderEndings();
-    } else {
-      // 日志长度变化时刷新
-      if (els.chronicleList.childElementCount !== Math.min(10, state.chronicle.length)) {
-        renderChronicle();
-      }
+      renderCombat();
+    } else if (els.chronicleList.childElementCount !== Math.min(12, state.chronicle.length)) {
+      renderChronicle();
     }
 
-    const canRein = stats.canReincarnate || !!state.endingId;
-    els.btnReincarnate.classList.toggle('is-locked', !canRein);
-    els.reincarnateStatus.textContent = state.endingId
-      ? '结局已触发。轮回可保留气运与已收集结局，重选道途。预计气运 +' +
-        Math.max(stats.qiyunGain, 1) +
-        '。'
-      : '达大斗师以上可轮回。预计气运 +' +
-        stats.qiyunGain +
-        '（重置境界/功法/分支，保留气运与结局收集）。已轮回 ' +
-        state.reincarnations +
-        ' 次。';
+    const canRein = stats.canReincarnate || state.phase === 'ended';
+    els.btnReincarnate.classList.toggle('is-locked', !canRein || state.phase === 'rebirth');
+    els.reincarnateStatus.textContent =
+      '死亡或主动轮回后可选出身；按峰值境界继承属性与法宝。已轮回 ' +
+      state.reincarnations +
+      ' 次 · 胜 ' +
+      state.combatWins +
+      ' / 负 ' +
+      state.combatLosses +
+      '。预计气运 +' +
+      stats.qiyunGain +
+      '。';
 
+    syncBirthModal();
     syncEventModal(stats);
     syncEndingModal();
   }
 
   els.absorbBtn.addEventListener('click', () => {
-    const before = state.douqi;
+    const before = state.lingqi;
     const res = X.clickAbsorb(state);
     if (!res.ok) {
       if (res.reason) showToast(res.reason);
       setState(res.state, { soft: true });
       return;
     }
-    spawnFloat(res.state.douqi - before);
+    spawnFloat(res.state.lingqi - before);
     setState(res.state, { soft: true });
   });
 
@@ -345,11 +613,11 @@
     if (els.btnRaiseStar.classList.contains('is-locked')) return;
     const res = X.raiseStar(state);
     if (!res.ok) {
-      showToast(res.reason || '无法升星');
+      showToast(res.reason || '无法升层');
       setState(res.state, { soft: true });
       return;
     }
-    showToast(res.message || '升星成功');
+    showToast(res.message || '升层成功');
     shopsBuilt = false;
     setState(res.state);
   });
@@ -364,6 +632,7 @@
     }
     showToast(res.message || '破境成功');
     shopsBuilt = false;
+    treasuresBuilt = false;
     renderedRealmIndex = -1;
     setState(res.state);
   });
@@ -371,7 +640,33 @@
   function onShopClick(e) {
     const btn = e.target.closest('.art-row');
     if (!btn || btn.classList.contains('is-locked')) return;
+    if (btn.dataset.treasureId) {
+      const id = btn.dataset.treasureId;
+      if (btn.dataset.action === 'buy') {
+        const res = X.buyTreasure(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法购买');
+          setState(res.state, { soft: true });
+          return;
+        }
+        treasuresBuilt = false;
+        showToast(res.message || '购得法宝');
+        setState(res.state);
+        return;
+      }
+      if (btn.dataset.action === 'toggle') {
+        const res = X.toggleEquip(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法装备');
+          return;
+        }
+        treasuresBuilt = false;
+        setState(res.state, { soft: true });
+      }
+      return;
+    }
     const id = btn.dataset.artId;
+    if (!id) return;
     const res = X.buyArt(state, id);
     if (!res.ok) {
       showToast(res.reason || '无法修习');
@@ -382,6 +677,8 @@
   }
   els.clickShop.addEventListener('click', onShopClick);
   els.passiveShop.addEventListener('click', onShopClick);
+  els.ownedTreasures.addEventListener('click', onShopClick);
+  els.shopTreasures.addEventListener('click', onShopClick);
 
   els.eventOptions.addEventListener('click', (e) => {
     const btn = e.target.closest('.option-btn');
@@ -396,22 +693,38 @@
     els.eventModal.hidden = true;
     showToast('抉择：' + (res.message || ''));
     shopsBuilt = false;
+    treasuresBuilt = false;
+    setState(res.state);
+  });
+
+  els.birthOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-btn');
+    if (!btn) return;
+    const res = X.chooseBirth(state, btn.dataset.birthId, selectedBring);
+    if (!res.ok) {
+      showToast(res.reason || '无法转生');
+      return;
+    }
+    selectedBring = [];
+    shopsBuilt = false;
+    treasuresBuilt = false;
+    renderedRealmIndex = -1;
+    lastEndingShown = null;
+    showToast(res.message || '转生成功');
     setState(res.state);
   });
 
   els.btnReincarnate.addEventListener('click', () => {
     if (els.btnReincarnate.classList.contains('is-locked')) return;
-    if (!window.confirm('确认轮回？境界、功法与分支将重置，气运与已收集结局会保留。')) return;
-    const res = X.reincarnate(state);
+    if (!window.confirm('确认轮回？将进入出身选择，并按峰值境界继承属性/法宝。')) return;
+    const res = X.beginReincarnation(state);
     if (!res.ok) {
       showToast(res.reason || '无法轮回');
       return;
     }
     lastEndingShown = null;
     els.endingModal.hidden = true;
-    shopsBuilt = false;
-    renderedRealmIndex = -1;
-    showToast(res.message || '轮回成功');
+    showToast(res.message || '进入轮回');
     setState(res.state);
   });
 
@@ -420,12 +733,14 @@
   });
 
   els.btnReset.addEventListener('click', () => {
-    if (!window.confirm('清除全部存档（含气运与结局收集）？')) return;
+    if (!window.confirm('清除全部存档（含气运、宝库、结局）？')) return;
     X.clearStorage();
     lastEndingShown = null;
     shopsBuilt = false;
+    treasuresBuilt = false;
     renderedRealmIndex = -1;
     eventModalOpen = false;
+    selectedBring = [];
     els.eventModal.hidden = true;
     els.endingModal.hidden = true;
     setState(X.createNewState());
@@ -437,22 +752,31 @@
       document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
       tab.classList.add('active');
-      const pane = document.getElementById(tab.dataset.tab === 'arts' ? 'tabArts' : 'tabCycle');
+      const map = { arts: 'tabArts', treasures: 'tabTreasures', cycle: 'tabCycle' };
+      const pane = document.getElementById(map[tab.dataset.tab]);
       if (pane) pane.classList.add('active');
     });
   });
 
-  // 启动
   state = X.loadFromStorage();
-  const boot = X.tick(state);
-  state = boot.state;
-  if (boot.offlineSeconds > 30 && boot.gained > 0) {
-    showToast('离线修炼约 ' + Math.floor(boot.cappedSeconds / 60) + ' 分钟，获得 ' + X.formatNumber(boot.gained) + ' 斗气');
+  if (state.phase === 'playing') {
+    const boot = X.tick(state);
+    state = boot.state;
+    if (boot.offlineSeconds > 30 && boot.gained > 0) {
+      showToast(
+        '离线约 ' +
+          Math.floor(boot.cappedSeconds / 60) +
+          ' 分钟，+' +
+          X.formatNumber(boot.gained) +
+          ' 灵气',
+      );
+    }
   }
   render();
   scheduleSave();
 
   setInterval(() => {
+    if (state.phase !== 'playing') return;
     const t = X.tick(state);
     if (t.gained > 0 || t.state.lastTickAt !== state.lastTickAt) {
       setState(t.state, { soft: true });

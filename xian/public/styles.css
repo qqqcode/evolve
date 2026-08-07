@@ -750,23 +750,123 @@ body {
   width: 100%;
 }
 
+.inline-hint {
+  color: var(--cinnabar);
+  letter-spacing: 0.06em;
+  font-weight: 400;
+}
+
+.attr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.attr-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.attr-row .attr-name {
+  color: var(--gold-soft);
+}
+
+.attr-row .attr-val {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.attr-row button {
+  border: 1px solid var(--line);
+  background: rgba(7, 11, 18, 0.7);
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+}
+
+.attr-row button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.combat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 8.5rem;
+  overflow: auto;
+}
+
+.combat-row {
+  text-align: left;
+  border: 1px solid rgba(201, 162, 39, 0.18);
+  background: rgba(7, 11, 18, 0.55);
+  color: inherit;
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+
+.combat-row:hover {
+  border-color: var(--cinnabar);
+}
+
+.combat-row strong {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--gold-soft);
+}
+
+.combat-row span {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.bring-box {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+.bring-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.bring-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--paper);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  padding: 0.25rem 0.45rem;
+  cursor: pointer;
+}
+
+.treasure-row .lore-tag {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  color: var(--jade);
+}
+
+.birth-card {
+  width: min(94vw, 520px);
+}
+
 @media (max-width: 960px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .resource-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .shop-list {
-    max-height: none;
-  }
-
-  .realm-rail {
+  .combat-list {
     max-height: none;
   }
 }
+
 
 @media (max-width: 520px) {
   .brand-title {

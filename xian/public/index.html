@@ -34,10 +34,10 @@
 
       <section class="resource-bar" aria-label="资源">
         <div class="res">
-          <span class="res-mark" aria-hidden="true">炁</span>
+          <span class="res-mark" aria-hidden="true">灵</span>
           <div>
-            <p class="res-label">斗气</p>
-            <p class="res-value" id="douqiVal">0</p>
+            <p class="res-label">灵气</p>
+            <p class="res-value" id="lingqiVal">0</p>
           </div>
         </div>
         <div class="res">
@@ -55,36 +55,42 @@
           </div>
         </div>
         <div class="res">
-          <span class="res-mark" aria-hidden="true">倍</span>
+          <span class="res-mark" aria-hidden="true">战</span>
           <div>
-            <p class="res-label">总倍率</p>
-            <p class="res-value" id="multVal">×1</p>
+            <p class="res-label">战力</p>
+            <p class="res-value" id="combatVal">0</p>
           </div>
         </div>
       </section>
 
       <div class="layout">
         <aside class="realm-panel">
-          <h2 class="pane-title">境界</h2>
+          <h2 class="pane-title">境界 · 凡人体系</h2>
           <div class="realm-rail" id="realmRail" aria-label="境界进度"></div>
           <p class="realm-blurb" id="realmBlurb"></p>
           <p class="path-line" id="pathLine"></p>
           <div class="realm-actions">
-            <button type="button" id="btnRaiseStar" class="action-btn">升星</button>
+            <button type="button" id="btnRaiseStar" class="action-btn">升层</button>
             <button type="button" id="btnBreak" class="action-btn primary">破境</button>
           </div>
           <p class="realm-hint" id="realmHint"></p>
+
+          <h2 class="pane-title">属性 <span id="freePointsHint" class="inline-hint"></span></h2>
+          <div id="attrList" class="attr-list"></div>
+
+          <h2 class="pane-title">随机对战</h2>
+          <div id="combatList" class="combat-list"></div>
         </aside>
 
         <section class="core-panel">
-          <p class="click-hint">点击吐纳，吸收斗气</p>
-          <button type="button" id="absorbBtn" class="absorb-btn" aria-label="吐纳吸收斗气">
+          <p class="click-hint">点击吐纳，吸收灵气</p>
+          <button type="button" id="absorbBtn" class="absorb-btn" aria-label="吐纳吸收灵气">
             <span class="absorb-ring"></span>
             <span class="absorb-core" id="absorbCore">炁</span>
             <span class="absorb-glow"></span>
           </button>
           <p class="click-power">
-            每次 <span id="clickPowerVal">1</span> 斗气
+            每次 <span id="clickPowerVal">1</span> 灵气
           </p>
           <div id="floatLayer" class="float-layer" aria-hidden="true"></div>
 
@@ -97,7 +103,8 @@
         <aside class="shop-panel">
           <div class="shop-tabs" role="tablist">
             <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
-            <button type="button" class="tab" data-tab="cycle" role="tab">轮回·结局</button>
+            <button type="button" class="tab" data-tab="treasures" role="tab">法宝</button>
+            <button type="button" class="tab" data-tab="cycle" role="tab">轮回</button>
           </div>
 
           <div id="tabArts" class="tab-pane active">
@@ -107,11 +114,21 @@
             <div id="passiveShop" class="shop-list"></div>
           </div>
 
+          <div id="tabTreasures" class="tab-pane">
+            <h2 class="pane-title">持有 / 装备（最多 3）</h2>
+            <div id="ownedTreasures" class="shop-list"></div>
+            <h2 class="pane-title">坊市法宝</h2>
+            <div id="shopTreasures" class="shop-list"></div>
+            <h2 class="pane-title">跨世宝库</h2>
+            <p class="realm-hint" id="vaultHint"></p>
+            <div id="vaultList" class="shop-list"></div>
+          </div>
+
           <div id="tabCycle" class="tab-pane">
             <div class="cycle-card">
               <h2 class="pane-title">轮回转世</h2>
               <p id="reincarnateStatus" class="cycle-status"></p>
-              <button type="button" id="btnReincarnate" class="action-btn primary">轮回</button>
+              <button type="button" id="btnReincarnate" class="action-btn primary">主动轮回</button>
             </div>
             <div class="cycle-card">
               <h2 class="pane-title">已收集结局</h2>
@@ -122,13 +139,28 @@
       </div>
 
       <footer class="foot">
-        <span>离线进度上限 8 小时 · 自动存档</span>
+        <span>凡人修仙体系 · 诸天梗融合 · 离线 8 小时</span>
         <span id="saveHint">已保存</span>
       </footer>
     </main>
 
+    <div id="birthModal" class="modal" hidden>
+      <div class="modal-card birth-card" role="dialog" aria-modal="true" aria-labelledby="birthTitle">
+        <p class="ending-eyebrow" id="birthEyebrow">轮回择生</p>
+        <h2 id="birthTitle" class="modal-title">选择出身</h2>
+        <p id="birthBody" class="modal-body"></p>
+        <p id="inheritInfo" class="realm-hint"></p>
+        <div id="bringTreasures" class="bring-box" hidden>
+          <p class="pane-title">携带宝库法宝</p>
+          <div id="bringList" class="bring-list"></div>
+        </div>
+        <div id="birthOptions" class="modal-options"></div>
+      </div>
+    </div>
+
     <div id="eventModal" class="modal" hidden>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="eventTitle">
+        <p class="ending-eyebrow" id="eventLore"></p>
         <h2 id="eventTitle" class="modal-title"></h2>
         <p id="eventBody" class="modal-body"></p>
         <div id="eventOptions" class="modal-options"></div>
@@ -141,7 +173,7 @@
         <h2 id="endingName" class="modal-title"></h2>
         <p id="endingTitle" class="ending-sub"></p>
         <p id="endingBody" class="modal-body"></p>
-        <button type="button" id="btnEndingOk" class="action-btn primary">继续观摩 / 可轮回</button>
+        <button type="button" id="btnEndingOk" class="action-btn primary">继续 / 可轮回</button>
       </div>
     </div>
 

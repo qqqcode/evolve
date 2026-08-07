@@ -3,8 +3,11 @@
  */
 import {
   ARTS,
+  BIRTHS,
   BRANCH_LABELS,
   ENDINGS,
+  ENEMIES,
+  MAX_EQUIP,
   MAX_OFFLINE_MS,
   MAX_STAR,
   QIYUN_BONUS_PER,
@@ -12,43 +15,58 @@ import {
   SAVE_VERSION,
   STORAGE_KEY,
   STORY_EVENTS,
+  TREASURES,
   getEnding,
+  getEnemy,
   getRealm,
+  getTreasure,
 } from './data';
 import {
+  allocatePoint,
   artAvailable,
   artCost,
+  beginReincarnation,
   breakthrough,
   breakthroughCost,
   buyArt,
+  buyTreasure,
+  calcCombatPower,
   calcQiyunGain,
+  chooseBirth,
   clickAbsorb,
   createNewState,
   derive,
+  die,
   findPendingEvent,
   formatNumber,
   getMeta,
+  listCombatEnemies,
   loadState,
   matchEnding,
   raiseStar,
   raiseStarCost,
-  reincarnate,
   resolveEvent,
+  startCombat,
   tick,
+  toggleEquip,
+  totalAttrs,
 } from './engine';
 import type { GameState } from './types';
+import { ATTR_KEYS, ATTR_LABELS } from './types';
 
 function saveToStorage(state: GameState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // 清理旧档键
+    localStorage.removeItem('xian-save-v1');
   } catch {
-    /* ignore quota */
+    /* ignore */
   }
 }
 
 function loadFromStorage(now = Date.now()): GameState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('xian-save-v1');
     if (!raw) return createNewState(now);
     return loadState(JSON.parse(raw), now);
   } catch {
@@ -59,6 +77,7 @@ function loadFromStorage(now = Date.now()): GameState {
 function clearStorage(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('xian-save-v1');
   } catch {
     /* ignore */
   }
@@ -66,8 +85,13 @@ function clearStorage(): void {
 
 const Xian = {
   ARTS,
+  ATTR_KEYS,
+  ATTR_LABELS,
+  BIRTHS,
   BRANCH_LABELS,
   ENDINGS,
+  ENEMIES,
+  MAX_EQUIP,
   MAX_OFFLINE_MS,
   MAX_STAR,
   QIYUN_BONUS_PER,
@@ -75,30 +99,42 @@ const Xian = {
   SAVE_VERSION,
   STORAGE_KEY,
   STORY_EVENTS,
+  TREASURES,
   getEnding,
+  getEnemy,
   getRealm,
+  getTreasure,
+  allocatePoint,
   artAvailable,
   artCost,
+  beginReincarnation,
   breakthrough,
   breakthroughCost,
   buyArt,
+  buyTreasure,
+  calcCombatPower,
   calcQiyunGain,
+  chooseBirth,
   clickAbsorb,
   createNewState,
   derive,
+  die,
   findPendingEvent,
   formatNumber,
   getMeta,
+  listCombatEnemies,
   loadState,
   loadFromStorage,
   matchEnding,
   raiseStar,
   raiseStarCost,
-  reincarnate,
   resolveEvent,
   saveToStorage,
   clearStorage,
+  startCombat,
   tick,
+  toggleEquip,
+  totalAttrs,
 };
 
 declare global {

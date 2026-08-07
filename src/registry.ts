@@ -33,7 +33,7 @@ export const GAMES: GameEntry[] = [
     id: 'xian',
     title: '斗气苍穹',
     path: '/xian/',
-    blurb: '修仙文字点击：十二境九星、六大道路与阵营抉择，多种结局可轮回收集。',
+    blurb: '凡人修仙体系：出身轮回、属性点与法宝对战；融合斗破/凡人/遮天/仙逆等诸天剧情梗。',
     ready: true,
   },
   {

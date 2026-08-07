@@ -1,33 +1,60 @@
-/** 功法类型：吐纳点击 / 运转被动 */
+/** 功法：吐纳点击 / 运转被动 */
 export type ArtKind = 'click' | 'passive';
 
-/** 道途分支（大斗师后选定） */
+/** 凡人修仙式大道倾向（中期选定） */
 export type BranchId =
-  | 'flame'
-  | 'alchemy'
-  | 'body'
-  | 'soul'
-  | 'beast'
-  | 'sword';
+  | 'flame' // 斗破·异火
+  | 'alchemy' // 凡人·炼丹
+  | 'body' // 遮天·体修
+  | 'soul' // 仙逆·神魂
+  | 'beast' // 凡人·驭兽
+  | 'sword'; // 诸天·剑修
 
-/** 阵营（斗皇后选定） */
 export type FactionId = 'orthodox' | 'dark' | 'hermit';
-
-/** 气运抉择（斗尊后选定） */
 export type DestinyId = 'emperor' | 'guardian' | 'void';
+
+/** 六维属性（对战拼点核心） */
+export type AttrKey = 'atk' | 'def' | 'spd' | 'spirit' | 'bone' | 'luck';
+
+export const ATTR_KEYS: AttrKey[] = ['atk', 'def', 'spd', 'spirit', 'bone', 'luck'];
+
+export const ATTR_LABELS: Record<AttrKey, string> = {
+  atk: '攻伐',
+  def: '护体',
+  spd: '身法',
+  spirit: '神识',
+  bone: '根骨',
+  luck: '气机',
+};
+
+export type AttrMap = Record<AttrKey, number>;
 
 export interface RealmDef {
   id: string;
   name: string;
-  /** 本境界总倍率 */
   mult: number;
-  /** 升星基础斗气消耗（一星→二星） */
   starCostBase: number;
-  /** 九星后破境消耗 */
   breakCost: number;
   blurb: string;
-  /** 主题色相 */
   hue: number;
+  /** 达到本境可继承的属性比例 0~1 */
+  inheritAttrRate: number;
+  /** 达到本境可从宝库携带的法宝数 */
+  inheritTreasureSlots: number;
+}
+
+export interface BirthDef {
+  id: string;
+  name: string;
+  blurb: string;
+  /** 出身赠送属性 */
+  attrs: Partial<AttrMap>;
+  /** 额外自由属性点 */
+  freePoints: number;
+  /** 开局灵气 */
+  startLingqi: number;
+  flags?: string[];
+  mark: string;
 }
 
 export interface ArtDef {
@@ -38,47 +65,84 @@ export interface ArtDef {
   baseCost: number;
   costMult: number;
   power: number;
-  /** 需要的最低境界下标；0 表示无 */
   minRealm: number;
-  /** 需要的道途；空表示通用 */
   branch?: BranchId;
-  /** 需要的阵营 */
   faction?: FactionId;
+  /** 每级额外属性 */
+  attrs?: Partial<AttrMap>;
   mark: string;
+}
+
+export interface TreasureDef {
+  id: string;
+  name: string;
+  description: string;
+  /** 出处梗标签 */
+  lore: string;
+  /** 获得价格（灵气）；0 表示仅剧情/掉落 */
+  cost: number;
+  minRealm: number;
+  attrs: Partial<AttrMap>;
+  /** 对战斗力额外乘区 */
+  combatMult?: number;
+  mark: string;
+  /** 可跨世存入宝库（达到继承境界后） */
+  vaultable: boolean;
+}
+
+export interface EnemyDef {
+  id: string;
+  name: string;
+  blurb: string;
+  minRealm: number;
+  maxRealm: number;
+  /** 敌人基础属性 */
+  attrs: AttrMap;
+  /** 战胜奖励灵气 */
+  rewardLingqi: number;
+  /** 战胜奖励自由属性点 */
+  rewardPoints?: number;
+  /** 可能掉落法宝 */
+  dropTreasureId?: string;
+  dropChance?: number;
+  lore: string;
 }
 
 export interface ChoiceOption {
   id: string;
   label: string;
   blurb: string;
-  /** 选择后写入的字段 */
   set?: Partial<{
     branchId: BranchId;
     factionId: FactionId;
     destinyId: DestinyId;
   }>;
-  /** 额外标记 */
   flags?: string[];
-  /** 即时斗气奖励/惩罚 */
-  douqiDelta?: number;
-  /** 气运奖励 */
+  lingqiDelta?: number;
   qiyunDelta?: number;
+  freePointsDelta?: number;
+  attrsDelta?: Partial<AttrMap>;
+  grantTreasureId?: string;
+  /** 触发一场对战 */
+  combatEnemyId?: string;
+  /** 失败则死亡 */
+  deathOnLose?: boolean;
+  /** 直接死亡（作死选项） */
+  forceDeath?: boolean;
+  deathReason?: string;
 }
 
 export interface StoryEventDef {
   id: string;
   title: string;
   body: string;
-  /** 触发：达到该境界下标且尚未做过此事件 */
   minRealm: number;
-  /** 可选：需要已选道途 */
   requireBranch?: BranchId;
-  /** 可选：需要已选阵营 */
   requireFaction?: FactionId;
-  /** 可选：需要星级 */
   minStar?: number;
-  /** 可选：需要旗帜 */
   requireFlags?: string[];
+  requireBirth?: string;
+  lore?: string;
   options: ChoiceOption[];
 }
 
@@ -87,23 +151,26 @@ export interface EndingDef {
   name: string;
   title: string;
   body: string;
-  /** 优先级：越大越优先匹配 */
   priority: number;
-  /** 需要境界下标 */
   minRealm: number;
   requireBranch?: BranchId;
   requireFaction?: FactionId;
   requireDestiny?: DestinyId;
   requireFlags?: string[];
-  /** 需要某功法持有数 */
   requireArts?: Record<string, number>;
-  /** 需要最低气运 */
+  requireTreasures?: string[];
   minQiyun?: number;
+  minAttrs?: Partial<AttrMap>;
 }
 
+/** 轮回待选阶段（死亡或主动轮回后） */
+export type LifePhase = 'playing' | 'rebirth' | 'ended';
+
 export interface GameState {
-  douqi: number;
-  totalDouqi: number;
+  /** 灵气（本世资源） */
+  lingqi: number;
+  totalLingqi: number;
+  /** 跨世气运（永久产出加成） */
   qiyun: number;
   owned: Record<string, number>;
   realmIndex: number;
@@ -111,24 +178,43 @@ export interface GameState {
   branchId: BranchId | null;
   factionId: FactionId | null;
   destinyId: DestinyId | null;
-  /** 已完成的事件 id */
   doneEvents: string[];
-  /** 叙事旗帜 */
   flags: string[];
-  /** 已达成结局（可多次轮回收集） */
   endingsUnlocked: string[];
-  /** 当前周目是否已触发结局展示 */
   endingId: string | null;
   lastTickAt: number;
   reincarnations: number;
   saveVersion: number;
-  /** 近期叙事日志（最多保留若干条） */
   chronicle: string[];
+
+  /** 出身 */
+  birthId: string | null;
+  /** 本世分配后的属性 */
+  attrs: AttrMap;
+  /** 未分配自由点 */
+  freePoints: number;
+  /** 本世持有法宝 id */
+  treasures: string[];
+  /** 装备中的法宝（最多 3） */
+  equipped: string[];
+  /** 跨世宝库 */
+  vault: string[];
+  /** 跨世永久属性（继承累积） */
+  legacyAttrs: AttrMap;
+  /** 本世峰值境界（用于继承结算） */
+  peakRealmIndex: number;
+  /** 生命阶段 */
+  phase: LifePhase;
+  /** 死亡原因 */
+  deathReason: string | null;
+  /** 本世战斗胜场 */
+  combatWins: number;
+  combatLosses: number;
 }
 
 export interface DerivedStats {
   clickPower: number;
-  douqiPerSec: number;
+  lingqiPerSec: number;
   qiyunMult: number;
   realmMult: number;
   starMult: number;
@@ -142,6 +228,11 @@ export interface DerivedStats {
   canReincarnate: boolean;
   pendingEvent: StoryEventDef | null;
   matchedEnding: EndingDef | null;
+  /** 属性 = 本世 + 永久 + 法宝 */
+  totalAttrs: AttrMap;
+  treasureAttrs: AttrMap;
+  combatPower: number;
+  inheritPreview: { attrRate: number; treasureSlots: number };
 }
 
 export interface TickResult {
@@ -156,4 +247,10 @@ export interface ActionResult {
   state: GameState;
   reason?: string;
   message?: string;
+}
+
+export interface CombatResult extends ActionResult {
+  won?: boolean;
+  playerPower?: number;
+  enemyPower?: number;
 }
