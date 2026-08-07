@@ -23,6 +23,7 @@ import {
   SAVE_VERSION,
   STORY_EVENTS,
   TREASURES,
+  TRIAD_INTERFERE_CAP,
   addAttrs,
   artChannel,
   bodyAttrsBonus,
@@ -743,6 +744,79 @@ export function resourceAttrsFromTotals(state: GameState): AttrMap {
   };
 }
 
+/** 三资源累计占比（全空时均分） */
+export function resourceShares(state: GameState): ResourceMap {
+  const L = Math.max(0, state.totalLingqi);
+  const T = Math.max(0, state.totalTishu);
+  const J = Math.max(0, state.totalJingshen);
+  const sum = L + T + J;
+  if (sum <= 1e-9) return { lingli: 1 / 3, tishu: 1 / 3, jingshen: 1 / 3 };
+  return { lingli: L / sum, tishu: T / sum, jingshen: J / sum };
+}
+
+/** 相对均分的超额（0 均分，1 独占） */
+function shareExcess(share: number): number {
+  return (share - 1 / 3) / (2 / 3);
+}
+
+function clampTriad(n: number): number {
+  return Math.max(-TRIAD_INTERFERE_CAP, Math.min(TRIAD_INTERFERE_CAP, n));
+}
+
+/** 法宝三才调和：阻尼 + 偏置 */
+export function treasureTriadSupport(state: GameState): {
+  damp: number;
+  bias: ResourceMap;
+} {
+  let damp = 0;
+  const bias = zeroResources();
+  for (const id of listEquippedIds(state.equipped)) {
+    const t = getTreasure(id);
+    if (!t) continue;
+    damp += t.triadDamp || 0;
+    if (t.triadBias) {
+      for (const key of RESOURCE_KEYS) {
+        bias[key] += t.triadBias[key] || 0;
+      }
+    }
+  }
+  return { damp: Math.min(0.85, damp), bias };
+}
+
+/**
+ * 三才互扰：某途偏高会比例影响另两途产出（封顶 ±15%）
+ * 循环：神助灵抑体 · 灵助体抑神 · 体助神抑灵
+ * 法宝可 damp 削弱互扰，并以 triadBias 微调
+ */
+export function calcTriadMods(state: GameState): {
+  mods: ResourceMap;
+  shares: ResourceMap;
+  damp: number;
+} {
+  const shares = resourceShares(state);
+  const eL = shareExcess(shares.lingli);
+  const eT = shareExcess(shares.tishu);
+  const eJ = shareExcess(shares.jingshen);
+  const cap = TRIAD_INTERFERE_CAP;
+
+  // 原始互扰（比例）：高神 → +灵 -体；高灵 → +体 -神；高体 → +神 -灵
+  let lingli = eJ * cap - eT * cap;
+  let tishu = eL * cap - eJ * cap;
+  let jingshen = eT * cap - eL * cap;
+
+  const { damp, bias } = treasureTriadSupport(state);
+  const keep = 1 - damp;
+  lingli = clampTriad(lingli * keep + bias.lingli);
+  tishu = clampTriad(tishu * keep + bias.tishu);
+  jingshen = clampTriad(jingshen * keep + bias.jingshen);
+
+  return {
+    mods: { lingli, tishu, jingshen },
+    shares,
+    damp,
+  };
+}
+
 function grantTreasure(state: GameState, id: string): GameState {
   if (!getTreasure(id)) return state;
   if (state.treasures.includes(id)) return state;
@@ -850,16 +924,19 @@ export function derive(state: GameState): DerivedStats {
   const bodyMult = bodyMultipliers(state.bodyStage).tishuMult;
   const alchemyMult = 1 + state.alchemyMastery * 0.01;
   const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
+  const triad = calcTriadMods(state);
+  const triadFactor = (key: ResourceKey) => 1 + triad.mods[key];
 
   const clickPowers: ResourceMap = {
-    lingli: clickBase.lingli * scale,
-    tishu: clickBase.tishu * scale * bodyMult,
-    jingshen: clickBase.jingshen * scale * alchemyMult,
+    lingli: clickBase.lingli * scale * triadFactor('lingli'),
+    tishu: clickBase.tishu * scale * bodyMult * triadFactor('tishu'),
+    jingshen: clickBase.jingshen * scale * alchemyMult * triadFactor('jingshen'),
   };
   const perSec: ResourceMap = {
-    lingli: passiveBase.lingli * scale * spiritFactor * luckFactor,
-    tishu: passiveBase.tishu * scale * bodyMult * luckFactor,
-    jingshen: passiveBase.jingshen * scale * spiritFactor * alchemyMult,
+    lingli: passiveBase.lingli * scale * spiritFactor * luckFactor * triadFactor('lingli'),
+    tishu: passiveBase.tishu * scale * bodyMult * luckFactor * triadFactor('tishu'),
+    jingshen:
+      passiveBase.jingshen * scale * spiritFactor * alchemyMult * triadFactor('jingshen'),
   };
 
   const nextStarCost = raiseStarCost(state);
@@ -880,6 +957,9 @@ export function derive(state: GameState): DerivedStats {
     perSec,
     clickPower: clickPowers.lingli,
     lingqiPerSec: perSec.lingli,
+    triadMods: triad.mods,
+    resourceShares: triad.shares,
+    triadDamp: triad.damp,
     qiyunMult,
     realmMult,
     starMult,
@@ -1455,15 +1535,14 @@ export function chooseBirth(
   }
 
   const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
-  const startTishu = birth.freePoints * FREE_POINT_TO_RESOURCE;
-  const startJingshen = birth.freePoints * FREE_POINT_TO_RESOURCE;
+  // 开局三资源皆空，需吐纳/锤炼/凝神点击获取；出身自由点只作叙事，不再赠资源
   const next: GameState = {
-    lingqi: birth.startLingqi,
-    totalLingqi: birth.startLingqi,
-    tishu: startTishu,
-    totalTishu: startTishu,
-    jingshen: startJingshen,
-    totalJingshen: startJingshen,
+    lingqi: 0,
+    totalLingqi: 0,
+    tishu: 0,
+    totalTishu: 0,
+    jingshen: 0,
+    totalJingshen: 0,
     qiyun: state.qiyun,
     owned: emptyOwned(),
     realmIndex: 0,
@@ -1483,7 +1562,7 @@ export function chooseBirth(
       inheritRate > 0
         ? `继承永久属性（${Math.floor(inheritRate * 100)}%），携法宝 ${bring.length}/${slots}。`
         : '初入仙途，尚无继承。好好活着。',
-      `三才开局：灵力 ${birth.startLingqi} · 体术 ${startTishu} · 精神力 ${startJingshen}（属性随三资源自动增长）。`,
+      '三才皆空：点击「灵 / 体 / 神」吐纳获取。偏科会比例牵制另两途（最多 ±15%），法宝可调和。',
     ],
     birthId,
     attrs,

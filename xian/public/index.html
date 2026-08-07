@@ -38,7 +38,7 @@
           <div>
             <p class="res-label">灵力</p>
             <p class="res-value" id="lingqiVal">0</p>
-            <p class="res-sub">+<span id="lingliDps">0</span>/秒</p>
+            <p class="res-sub">+<span id="lingliDps">0</span>/秒 · <span id="lingliTriad">×1.00</span></p>
           </div>
         </div>
         <div class="res res-tishu">
@@ -46,7 +46,7 @@
           <div>
             <p class="res-label">体术</p>
             <p class="res-value" id="tishuVal">0</p>
-            <p class="res-sub">+<span id="tishuDps">0</span>/秒</p>
+            <p class="res-sub">+<span id="tishuDps">0</span>/秒 · <span id="tishuTriad">×1.00</span></p>
           </div>
         </div>
         <div class="res res-jingshen">
@@ -54,7 +54,7 @@
           <div>
             <p class="res-label">精神力</p>
             <p class="res-value" id="jingshenVal">0</p>
-            <p class="res-sub">+<span id="jingshenDps">0</span>/秒</p>
+            <p class="res-sub">+<span id="jingshenDps">0</span>/秒 · <span id="jingshenTriad">×1.00</span></p>
           </div>
         </div>
         <div class="res">
@@ -94,7 +94,7 @@
         </aside>
 
         <section class="core-panel">
-          <p class="click-hint">三途吐纳：灵力 · 体术 · 精神力（偶遇奇事）</p>
+          <p class="click-hint">三才皆空，点按获取。偏科会比例牵制另两途（最多±15%），法宝可调和</p>
           <div class="absorb-grid" id="absorbGrid">
             <button type="button" class="absorb-btn channel-lingli" data-channel="lingli" aria-label="吐纳灵力">
               <span class="absorb-ring"></span>
@@ -116,6 +116,7 @@
             每次 灵 <span id="clickPowerLingli">1</span> · 体 <span id="clickPowerTishu">1</span> · 神
             <span id="clickPowerJingshen">1</span>
           </p>
+          <p class="triad-hint" id="triadHint"></p>
           <div id="floatLayer" class="float-layer" aria-hidden="true"></div>
 
           <section class="main-timeline" aria-label="主线时间线">

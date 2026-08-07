@@ -349,6 +349,23 @@ body {
   letter-spacing: 0.04em;
 }
 
+.triad-up {
+  color: var(--jade) !important;
+}
+
+.triad-down {
+  color: var(--cinnabar) !important;
+}
+
+.triad-hint {
+  margin: 0.35rem 0 0;
+  max-width: 22rem;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
 .res-lingli .res-mark {
   color: var(--gold);
   border-color: rgba(201, 162, 39, 0.45);

@@ -45,6 +45,7 @@ import {
   buyTreasure,
   calcCombatPower,
   calcQiyunGain,
+  calcTriadMods,
   chooseBirth,
   clickAbsorb,
   craftPill,
@@ -82,6 +83,7 @@ import {
 } from './types';
 
 const LEGACY_SAVE_KEYS = [
+  'xian-save-v7',
   'xian-save-v6',
   'xian-save-v5',
   'xian-save-v4',
@@ -172,6 +174,7 @@ const Xian = {
   buyTreasure,
   calcCombatPower,
   calcQiyunGain,
+  calcTriadMods,
   chooseBirth,
   clickAbsorb,
   craftPill,

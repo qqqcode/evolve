@@ -322,7 +322,7 @@
     {
       id: "small_bottle",
       name: "\u7EFF\u6DB2\u5C0F\u74F6",
-      description: "\u4FEE\u70BC\u69FD\u3002\u6EF4\u8349\u6728\u75AF\u957F\uFF0C\u5410\u7EB3\u4E5F\u8DDF\u7740\u5F00\u6302\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u6EF4\u8349\u6728\u75AF\u957F\uFF1B\u7565\u5FAE\u8C03\u548C\u4E09\u624D\uFF0C\u4E0D\u81F3\u4E8E\u504F\u79D1\u592A\u72E0\u3002",
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 0,
       minRealm: 0,
@@ -330,13 +330,14 @@
       attrs: { luck: 3, bone: 2, spirit: 1 },
       cultivateClick: 2,
       cultivatePassive: 1.5,
+      triadDamp: 0.12,
       mark: "\u74F6",
       vaultable: true
     },
     {
       id: "spirit_gather_jade",
       name: "\u805A\u7075\u7389\u7B80",
-      description: "\u4FEE\u70BC\u69FD\u3002\u7389\u7B80\u8D34\u8EAB\uFF0C\u88AB\u52A8\u805A\u7075\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u7389\u7B80\u8D34\u8EAB\u805A\u7075\uFF1B\u504F\u52A9\u7075\u529B\uFF0C\u7A0D\u6291\u4F53\u672F\u4E92\u6270\u3002",
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 1800,
       minRealm: 0,
@@ -344,13 +345,15 @@
       attrs: { spirit: 2 },
       cultivateClick: 1,
       cultivatePassive: 2.5,
+      triadDamp: 0.08,
+      triadBias: { lingli: 0.04, tishu: -0.02 },
       mark: "\u7389",
       vaultable: true
     },
     {
       id: "desolate_bone",
       name: "\u8352\u53E4\u6B8B\u9AA8",
-      description: "\u4FEE\u70BC\u69FD\u3002\u6478\u4E00\u4E0B\u6839\u9AA8\u90FD\u5728\u53D1\u5149\uFF0C\u6253\u5750\u4E8B\u534A\u529F\u500D\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u6839\u9AA8\u53D1\u5149\uFF1B\u504F\u52A9\u4F53\u672F\uFF0C\u8C03\u548C\u7CBE\u795E\u8FC7\u65FA\u7684\u538B\u5236\u3002",
       lore: "\u906E\u5929",
       cost: 12e3,
       minRealm: 2,
@@ -358,13 +361,15 @@
       attrs: { bone: 5, def: 2 },
       cultivateClick: 3,
       cultivatePassive: 4,
+      triadDamp: 0.1,
+      triadBias: { tishu: 0.06, jingshen: -0.02 },
       mark: "\u8352",
       vaultable: true
     },
     {
       id: "mountain_river",
       name: "\u5C71\u6CB3\u8F66\u6B8B\u8F6E",
-      description: "\u4FEE\u70BC\u69FD\u3002\u8F6C\u4E00\u4E0B\uFF0C\u7075\u6C14\u5C31\u6C89\u91CD\u5730\u6D8C\u6765\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u5C71\u6CB3\u8F6E\u8F6C\uFF0C\u4E09\u624D\u4E92\u6270\u663E\u8457\u51CF\u5F31\u3002",
       lore: "\u4ED9\u9006",
       cost: 2e4,
       minRealm: 3,
@@ -372,13 +377,14 @@
       attrs: { spirit: 4 },
       cultivateClick: 2,
       cultivatePassive: 6,
+      triadDamp: 0.28,
       mark: "\u8F66",
       vaultable: true
     },
     {
       id: "dao_seed",
       name: "\u9053\u79CD\u4E00\u679A",
-      description: "\u4FEE\u70BC\u69FD\u3002\u5927\u9053\u5C06\u6210\u65F6\u663E\u5316\u7684\u79CD\u5B50\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u5927\u9053\u5C06\u6210\uFF1B\u8FD1\u4E4E\u62B9\u5E73\u4E09\u624D\u504F\u79D1\uFF0C\u4EA6\u7565\u63D0\u4E09\u9014\u3002",
       lore: "\u5927\u9053",
       cost: 0,
       minRealm: 10,
@@ -386,6 +392,8 @@
       attrs: { spirit: 8, bone: 8, luck: 5 },
       cultivateClick: 20,
       cultivatePassive: 40,
+      triadDamp: 0.55,
+      triadBias: { lingli: 0.03, tishu: 0.03, jingshen: 0.03 },
       mark: "\u79CD",
       vaultable: true
     },
@@ -393,32 +401,34 @@
     {
       id: "storage_pouch",
       name: "\u4E0B\u54C1\u50A8\u7269\u888B",
-      description: "\u8F85\u52A9\u69FD\u3002\u80FD\u88C5\u7075\u8349\uFF0C\u4E5F\u80FD\u88C5\u68A6\u60F3\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u80FD\u88C5\u7075\u8349\uFF1B\u5FAE\u5F31\u8C03\u548C\u3002",
       lore: "\u8BF8\u5929\u901A\u7528",
       cost: 400,
       minRealm: 0,
       slot: "assist",
       attrs: { luck: 2 },
+      triadDamp: 0.05,
       mark: "\u888B",
       vaultable: false
     },
     {
       id: "spirit_boat",
       name: "\u7834\u65E7\u7075\u821F",
-      description: "\u8F85\u52A9\u69FD\u3002\u901F\u5EA6\u4E00\u822C\uFF0C\u9003\u547D\u4E00\u6D41\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u9003\u547D\u4E00\u6D41\uFF1B\u504F\u8EAB\u6CD5\uFF0C\u7565\u52A9\u4F53\u672F\u4EA7\u51FA\u3002",
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 8e3,
       minRealm: 2,
       slot: "assist",
       attrs: { spd: 6, def: 1 },
       combatEdges: { dodgeChance: 0.22 },
+      triadBias: { tishu: 0.04, lingli: -0.02 },
       mark: "\u821F",
       vaultable: true
     },
     {
       id: "soul_lamp",
       name: "\u9B42\u706F\u4E00\u76CF",
-      description: "\u8F85\u52A9\u69FD\u3002\u7167\u89C1\u5FC3\u9B54\uFF0C\u4E5F\u7167\u89C1\u5077\u529F\u6CD5\u7684\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u7167\u89C1\u5FC3\u9B54\uFF1B\u504F\u795E\u8BC6\uFF0C\u52A9\u7CBE\u795E\u3001\u6291\u4F53\u672F\u8FC7\u70ED\u3002",
       lore: "\u4ED9\u9006",
       cost: 0,
       minRealm: 4,
@@ -426,13 +436,15 @@
       attrs: { spirit: 6, luck: 2 },
       combatMult: 1.03,
       combatEdges: { dodgeChance: 0.1, plotArmorChance: 0.12 },
+      triadDamp: 0.1,
+      triadBias: { jingshen: 0.05, tishu: -0.03 },
       mark: "\u706F",
       vaultable: true
     },
     {
       id: "plot_armor",
       name: "\u5267\u60C5\u62A4\u7532",
-      description: "\u8F85\u52A9\u69FD\u3002\u4F5C\u8005\u4EB2\u5973\u513F\u9650\u5B9A\u3002\u6328\u6253\u4E5F\u80FD\u7AD9\u8D77\u6765\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u4F5C\u8005\u4EB2\u5973\u513F\u9650\u5B9A\uFF1B\u5F3A\u529B\u62B9\u5E73\u4E09\u624D\u504F\u79D1\u3002",
       lore: "\u5143\u6897",
       cost: 0,
       minRealm: 0,
@@ -440,26 +452,29 @@
       attrs: { def: 5, luck: 6 },
       combatMult: 1.06,
       combatEdges: { plotArmorChance: 0.35, dodgeChance: 0.08 },
+      triadDamp: 0.35,
       mark: "\u7532",
       vaultable: true
     },
     {
       id: "cauldron_lid",
       name: "\u9752\u94DC\u9F0E\u76D6",
-      description: "\u8F85\u52A9\u69FD\u3002\u76D6\u4E0A\u80FD\u7838\u4EBA\uFF0C\u63ED\u5F00\u80FD\u88C5\u903C\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u76D6\u4E0A\u80FD\u7838\u4EBA\uFF1B\u4E39\u9053\u8C03\u548C\uFF0C\u7565\u52A9\u7CBE\u795E\u4E0E\u7075\u529B\u3002",
       lore: "\u906E\u5929",
       cost: 4e4,
       minRealm: 4,
       slot: "assist",
       attrs: { def: 6, spirit: 3, luck: 1 },
       combatEdges: { plotArmorChance: 0.15 },
+      triadDamp: 0.15,
+      triadBias: { jingshen: 0.03, lingli: 0.03, tishu: -0.02 },
       mark: "\u9F0E",
       vaultable: true
     },
     {
       id: "heaven_stele",
       name: "\u6B8B\u7834\u5929\u7891",
-      description: "\u8F85\u52A9\u69FD\u3002\u7891\u4E0A\u5B57\u770B\u4E0D\u6E05\uFF0C\u4F46\u4F60\u611F\u5230\u300C\u9053\u300D\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u7891\u4E0A\u6709\u300C\u9053\u300D\uFF1B\u5F3A\u529B\u8C03\u548C\u4E09\u624D\u3002",
       lore: "\u906E\u5929/\u8BF8\u5929",
       cost: 5e5,
       minRealm: 6,
@@ -467,6 +482,7 @@
       attrs: { spirit: 8, bone: 3, luck: 3 },
       combatMult: 1.05,
       combatEdges: { firstStrikeChance: 0.15, firstStrikeBonus: 0.1, plotArmorChance: 0.1 },
+      triadDamp: 0.4,
       mark: "\u7891",
       vaultable: true
     }
@@ -734,13 +750,14 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 7;
-  var STORAGE_KEY = "xian-save-v7";
+  var SAVE_VERSION = 8;
+  var STORAGE_KEY = "xian-save-v8";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_MILESTONES = 40;
   var MAX_EQUIP_PER_SLOT = 3;
   var FREE_POINT_TO_RESOURCE = 100;
+  var TRIAD_INTERFERE_CAP = 0.15;
   var RANDOM_COOLDOWN_MS = 18e3;
   var RANDOM_CHANCE = {
     click: 0.07,
@@ -3226,6 +3243,55 @@
       luck: Math.floor(J * 0.55 + L * 0.4)
     };
   }
+  function resourceShares(state) {
+    const L = Math.max(0, state.totalLingqi);
+    const T = Math.max(0, state.totalTishu);
+    const J = Math.max(0, state.totalJingshen);
+    const sum = L + T + J;
+    if (sum <= 1e-9) return { lingli: 1 / 3, tishu: 1 / 3, jingshen: 1 / 3 };
+    return { lingli: L / sum, tishu: T / sum, jingshen: J / sum };
+  }
+  function shareExcess(share) {
+    return (share - 1 / 3) / (2 / 3);
+  }
+  function clampTriad(n) {
+    return Math.max(-TRIAD_INTERFERE_CAP, Math.min(TRIAD_INTERFERE_CAP, n));
+  }
+  function treasureTriadSupport(state) {
+    let damp = 0;
+    const bias = zeroResources();
+    for (const id of listEquippedIds(state.equipped)) {
+      const t = getTreasure(id);
+      if (!t) continue;
+      damp += t.triadDamp || 0;
+      if (t.triadBias) {
+        for (const key of RESOURCE_KEYS) {
+          bias[key] += t.triadBias[key] || 0;
+        }
+      }
+    }
+    return { damp: Math.min(0.85, damp), bias };
+  }
+  function calcTriadMods(state) {
+    const shares = resourceShares(state);
+    const eL = shareExcess(shares.lingli);
+    const eT = shareExcess(shares.tishu);
+    const eJ = shareExcess(shares.jingshen);
+    const cap = TRIAD_INTERFERE_CAP;
+    let lingli = eJ * cap - eT * cap;
+    let tishu = eL * cap - eJ * cap;
+    let jingshen = eT * cap - eL * cap;
+    const { damp, bias } = treasureTriadSupport(state);
+    const keep = 1 - damp;
+    lingli = clampTriad(lingli * keep + bias.lingli);
+    tishu = clampTriad(tishu * keep + bias.tishu);
+    jingshen = clampTriad(jingshen * keep + bias.jingshen);
+    return {
+      mods: { lingli, tishu, jingshen },
+      shares,
+      damp
+    };
+  }
   function grantTreasure(state, id) {
     if (!getTreasure(id)) return state;
     if (state.treasures.includes(id)) return state;
@@ -3312,15 +3378,17 @@
     const bodyMult = bodyMultipliers(state.bodyStage).tishuMult;
     const alchemyMult = 1 + state.alchemyMastery * 0.01;
     const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
+    const triad = calcTriadMods(state);
+    const triadFactor = (key) => 1 + triad.mods[key];
     const clickPowers = {
-      lingli: clickBase.lingli * scale,
-      tishu: clickBase.tishu * scale * bodyMult,
-      jingshen: clickBase.jingshen * scale * alchemyMult
+      lingli: clickBase.lingli * scale * triadFactor("lingli"),
+      tishu: clickBase.tishu * scale * bodyMult * triadFactor("tishu"),
+      jingshen: clickBase.jingshen * scale * alchemyMult * triadFactor("jingshen")
     };
     const perSec = {
-      lingli: passiveBase.lingli * scale * spiritFactor * luckFactor,
-      tishu: passiveBase.tishu * scale * bodyMult * luckFactor,
-      jingshen: passiveBase.jingshen * scale * spiritFactor * alchemyMult
+      lingli: passiveBase.lingli * scale * spiritFactor * luckFactor * triadFactor("lingli"),
+      tishu: passiveBase.tishu * scale * bodyMult * luckFactor * triadFactor("tishu"),
+      jingshen: passiveBase.jingshen * scale * spiritFactor * alchemyMult * triadFactor("jingshen")
     };
     const nextStarCost = raiseStarCost(state);
     const breakCost = breakthroughCost(state);
@@ -3336,6 +3404,9 @@
       perSec,
       clickPower: clickPowers.lingli,
       lingqiPerSec: perSec.lingli,
+      triadMods: triad.mods,
+      resourceShares: triad.shares,
+      triadDamp: triad.damp,
       qiyunMult,
       realmMult,
       starMult,
@@ -3846,15 +3917,13 @@
       if (emptyIdx >= 0) equipped[t.slot][emptyIdx] = id;
     }
     const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
-    const startTishu = birth.freePoints * FREE_POINT_TO_RESOURCE;
-    const startJingshen = birth.freePoints * FREE_POINT_TO_RESOURCE;
     const next = {
-      lingqi: birth.startLingqi,
-      totalLingqi: birth.startLingqi,
-      tishu: startTishu,
-      totalTishu: startTishu,
-      jingshen: startJingshen,
-      totalJingshen: startJingshen,
+      lingqi: 0,
+      totalLingqi: 0,
+      tishu: 0,
+      totalTishu: 0,
+      jingshen: 0,
+      totalJingshen: 0,
       qiyun: state.qiyun,
       owned: emptyOwned(),
       realmIndex: 0,
@@ -3872,7 +3941,7 @@
       chronicle: [
         `\u7B2C ${lifeNo} \u4E16\uFF1A\u51FA\u8EAB\u300C${birth.name}\u300D\u3002${birth.blurb}`,
         inheritRate > 0 ? `\u7EE7\u627F\u6C38\u4E45\u5C5E\u6027\uFF08${Math.floor(inheritRate * 100)}%\uFF09\uFF0C\u643A\u6CD5\u5B9D ${bring.length}/${slots}\u3002` : "\u521D\u5165\u4ED9\u9014\uFF0C\u5C1A\u65E0\u7EE7\u627F\u3002\u597D\u597D\u6D3B\u7740\u3002",
-        `\u4E09\u624D\u5F00\u5C40\uFF1A\u7075\u529B ${birth.startLingqi} \xB7 \u4F53\u672F ${startTishu} \xB7 \u7CBE\u795E\u529B ${startJingshen}\uFF08\u5C5E\u6027\u968F\u4E09\u8D44\u6E90\u81EA\u52A8\u589E\u957F\uFF09\u3002`
+        "\u4E09\u624D\u7686\u7A7A\uFF1A\u70B9\u51FB\u300C\u7075 / \u4F53 / \u795E\u300D\u5410\u7EB3\u83B7\u53D6\u3002\u504F\u79D1\u4F1A\u6BD4\u4F8B\u7275\u5236\u53E6\u4E24\u9014\uFF08\u6700\u591A \xB115%\uFF09\uFF0C\u6CD5\u5B9D\u53EF\u8C03\u548C\u3002"
       ],
       birthId,
       attrs,
@@ -4211,6 +4280,7 @@
 
   // xian/src/game/browser.ts
   var LEGACY_SAVE_KEYS = [
+    "xian-save-v7",
     "xian-save-v6",
     "xian-save-v5",
     "xian-save-v4",
@@ -4295,6 +4365,7 @@
     buyTreasure,
     calcCombatPower,
     calcQiyunGain,
+    calcTriadMods,
     chooseBirth,
     clickAbsorb,
     craftPill,

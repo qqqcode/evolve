@@ -117,6 +117,16 @@ export interface TreasureDef {
     firstStrikeChance?: number;
     firstStrikeBonus?: number;
   };
+  /**
+   * 三才调和：削弱互扰幅度（0~1，叠加后封顶）
+   * 1 = 完全抹平互扰
+   */
+  triadDamp?: number;
+  /**
+   * 三才偏置：直接微调某通道产出比例（仍受总帽 ±15%）
+   * 例：{ tishu: 0.05 } 表示体术产出额外 +5%
+   */
+  triadBias?: Partial<ResourceMap>;
   /** 修炼槽：点击加成（默认加在灵力通道） */
   cultivateClick?: number;
   /** 修炼槽：被动每秒加成（默认加在灵力通道） */
@@ -357,6 +367,15 @@ export interface DerivedStats {
   clickPower: number;
   /** @deprecated 等同 perSec.lingli */
   lingqiPerSec: number;
+  /**
+   * 三才互扰乘区偏移：-0.15~+0.15（已含法宝调和）
+   * 实际产出 = 基础 × (1 + triadMods[ch])
+   */
+  triadMods: ResourceMap;
+  /** 三资源累计占比 */
+  resourceShares: ResourceMap;
+  /** 法宝提供的互扰阻尼 0~1 */
+  triadDamp: number;
   qiyunMult: number;
   realmMult: number;
   starMult: number;

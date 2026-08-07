@@ -47,15 +47,17 @@ export {
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 7;
-export const STORAGE_KEY = 'xian-save-v7';
+export const SAVE_VERSION = 8;
+export const STORAGE_KEY = 'xian-save-v8';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_MILESTONES = 40;
 /** 单类槽位最大格数（随境界逐步解锁） */
 export const MAX_EQUIP_PER_SLOT = 3;
-/** 旧版 1 自由点折算为各资源量 */
+/** 旧版 1 自由点折算为各资源量（现仅用于事件折算，开局不再赠资源） */
 export const FREE_POINT_TO_RESOURCE = 100;
+/** 三才互扰最大幅度（比例） */
+export const TRIAD_INTERFERE_CAP = 0.15;
 /** 随机奇遇冷却（毫秒） */
 export const RANDOM_COOLDOWN_MS = 18_000;
 export const RANDOM_CHANCE = {

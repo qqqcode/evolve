@@ -30,6 +30,10 @@
     lingliDps: document.getElementById('lingliDps'),
     tishuDps: document.getElementById('tishuDps'),
     jingshenDps: document.getElementById('jingshenDps'),
+    lingliTriad: document.getElementById('lingliTriad'),
+    tishuTriad: document.getElementById('tishuTriad'),
+    jingshenTriad: document.getElementById('jingshenTriad'),
+    triadHint: document.getElementById('triadHint'),
     qiyunVal: document.getElementById('qiyunVal'),
     combatVal: document.getElementById('combatVal'),
     clickPowerLingli: document.getElementById('clickPowerLingli'),
@@ -821,9 +825,7 @@
         b.name +
         '</strong><span>' +
         b.blurb +
-        ' · 开局体神 ' +
-        b.freePoints * 100 +
-        '</span>';
+        ' · 出身禀赋（三才皆空，点按获取）</span>';
       els.birthOptions.appendChild(btn);
     });
   }
@@ -968,6 +970,39 @@
     if (els.lingliDps) els.lingliDps.textContent = X.formatNumber(per.lingli || 0);
     if (els.tishuDps) els.tishuDps.textContent = X.formatNumber(per.tishu || 0);
     if (els.jingshenDps) els.jingshenDps.textContent = X.formatNumber(per.jingshen || 0);
+
+    const mods = stats.triadMods || { lingli: 0, tishu: 0, jingshen: 0 };
+    const shares = stats.resourceShares || { lingli: 1 / 3, tishu: 1 / 3, jingshen: 1 / 3 };
+    const fmtMod = (m) => {
+      const f = 1 + (m || 0);
+      const pct = Math.round((m || 0) * 1000) / 10;
+      const sign = pct > 0 ? '+' : '';
+      return '×' + f.toFixed(2) + '(' + sign + pct + '%)';
+    };
+    const paintTriad = (el, m) => {
+      if (!el) return;
+      el.textContent = fmtMod(m);
+      el.classList.toggle('triad-up', m > 0.005);
+      el.classList.toggle('triad-down', m < -0.005);
+    };
+    paintTriad(els.lingliTriad, mods.lingli);
+    paintTriad(els.tishuTriad, mods.tishu);
+    paintTriad(els.jingshenTriad, mods.jingshen);
+    if (els.triadHint) {
+      const pct = (s) => Math.round(s * 100) + '%';
+      const damp = Math.round((stats.triadDamp || 0) * 100);
+      els.triadHint.textContent =
+        '三才占比 灵' +
+        pct(shares.lingli) +
+        ' / 体' +
+        pct(shares.tishu) +
+        ' / 神' +
+        pct(shares.jingshen) +
+        ' · 法宝调和 ' +
+        damp +
+        '%（神↑灵+体− · 灵↑体+神− · 体↑神+灵−）';
+    }
+
     els.qiyunVal.textContent = String(state.qiyun);
     els.combatVal.textContent = X.formatNumber(stats.combatPower);
     if (els.clickPowerLingli) els.clickPowerLingli.textContent = X.formatNumber(clicks.lingli || 0);
