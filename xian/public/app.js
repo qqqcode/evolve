@@ -19,6 +19,7 @@
   let eventModalOpen = false;
   let selectedBring = [];
   let lastEquipSig = '';
+  let lastTreasureSig = '';
   let lastCombatSig = '';
   let timeRandomAcc = 0;
 
@@ -395,40 +396,88 @@
     }
   }
 
+  function isTreasureEquipped(id) {
+    if (!state.equipped) return false;
+    for (const slot of X.EQUIP_SLOTS) {
+      const arr = state.equipped[slot];
+      if (Array.isArray(arr) ? arr.includes(id) : arr === id) return true;
+    }
+    return false;
+  }
+
+  function equipmentSignature() {
+    return X.EQUIP_SLOTS.map((s) => {
+      const arr = (state.equipped && state.equipped[s]) || [];
+      return s + ':' + (Array.isArray(arr) ? arr.join('/') : arr || '');
+    }).join('|');
+  }
+
   function renderEquipBar() {
     if (!els.equipSlots) return;
+    const cap = X.slotCapacity ? X.slotCapacity(state.realmIndex) : { combat: 1, cultivate: 1, assist: 1 };
     const sig =
-      X.EQUIP_SLOTS.map((s) => state.equipped[s] || '').join(',') +
+      equipmentSignature() +
       '|' +
       state.naturals.join(',') +
       '|' +
-      state.naturalPassive;
+      state.naturalPassive +
+      '|' +
+      state.realmIndex +
+      '|' +
+      JSON.stringify(cap);
+    if (sig === lastEquipSig && els.equipSlots.childElementCount) return;
+
     els.equipSlots.innerHTML = '';
+    const unlockHint =
+      '战斗 ' +
+      cap.combat +
+      ' · 修炼 ' +
+      cap.cultivate +
+      ' · 辅助 ' +
+      cap.assist;
+    const hintEl = document.getElementById('equipHint');
+    if (hintEl) hintEl.textContent = unlockHint;
+
     X.EQUIP_SLOTS.forEach((slot) => {
-      const id = state.equipped[slot];
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'equip-slot' + (id ? ' filled' : '');
-      const label = X.EQUIP_SLOT_LABELS[slot];
-      if (id) {
-        const t = X.getTreasure(id);
-        btn.dataset.treasureId = id;
-        btn.innerHTML =
-          '<span class="slot-mark">' +
-          (t ? t.mark : '?') +
-          '</span><span class="slot-name">〔' +
-          label +
-          '〕' +
-          (t ? t.name : id) +
-          '</span><span class="slot-lore">' +
-          (t ? t.lore + ' · 点击卸下' : '') +
-          '</span>';
-      } else {
-        btn.disabled = true;
-        btn.innerHTML =
-          '<span class="slot-empty">〔' + label + '〕空 · 坊市装备</span>';
+      const group = document.createElement('div');
+      group.className = 'equip-slot-group';
+      const title = document.createElement('p');
+      title.className = 'equip-slot-group-title';
+      title.textContent =
+        (X.EQUIP_SLOT_LABELS[slot] || slot) + ' · ' + (cap[slot] || 1) + ' 格';
+      group.appendChild(title);
+
+      let arr = (state.equipped && state.equipped[slot]) || [];
+      if (!Array.isArray(arr)) arr = [arr];
+      const count = Math.max(cap[slot] || 1, arr.length);
+      for (let i = 0; i < count; i++) {
+        const id = arr[i] || null;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'equip-slot' + (id ? ' filled' : '');
+        btn.dataset.slot = slot;
+        btn.dataset.slotIndex = String(i);
+        const label = (X.EQUIP_SLOT_LABELS[slot] || slot) + (i + 1);
+        if (id) {
+          const t = X.getTreasure(id);
+          btn.dataset.treasureId = id;
+          btn.innerHTML =
+            '<span class="slot-mark">' +
+            (t ? t.mark : '?') +
+            '</span><span class="slot-name">' +
+            (t ? t.name : id) +
+            '</span><span class="slot-lore">' +
+            label +
+            (t && t.combatEdges ? ' · 有特效' : '') +
+            ' · 点卸</span>';
+        } else {
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="slot-empty">' + label + ' 空</span>';
+        }
+        group.appendChild(btn);
       }
-      els.equipSlots.appendChild(btn);
+      els.equipSlots.appendChild(group);
     });
     if (els.naturalHint) {
       els.naturalHint.textContent = state.naturals.length
@@ -436,10 +485,8 @@
           state.naturals.length +
           ' 种 · 永久被动 +' +
           (Math.round(state.naturalPassive * 10) / 10) +
-          '/秒（主线章 ' +
-          state.mainChapter +
-          '）'
-        : '尚未获得天才地宝 · 主线进度第 ' + state.mainChapter + ' 章';
+          '/秒'
+        : '尚未获得天才地宝 · 主线第 ' + state.mainChapter + ' 章';
     }
     lastEquipSig = sig;
   }
@@ -469,13 +516,27 @@
       btn.type = 'button';
       btn.className = 'combat-row';
       btn.dataset.enemyId = enemy.id;
+      const ePower = X.enemyPower
+        ? X.enemyPower(enemy.attrs, state.realmIndex)
+        : X.calcCombatPower
+          ? Math.floor(X.calcCombatPower(state) * 0.8)
+          : '?';
+      const myPower = Math.floor(X.calcCombatPower(state));
+      const ratio = typeof ePower === 'number' ? myPower / Math.max(1, ePower) : 1;
+      let odds = '均势';
+      if (ratio >= 1.25) odds = '占优';
+      else if (ratio <= 0.8) odds = '凶险';
       btn.innerHTML =
         '<strong>' +
         enemy.name +
-        '</strong><span>' +
+        '</strong><span>敌战力 ' +
+        (typeof ePower === 'number' ? X.formatNumber(ePower) : ePower) +
+        ' · 我 ' +
+        X.formatNumber(myPower) +
+        '（' +
+        odds +
+        '）</span><span>' +
         enemy.blurb +
-        ' · ' +
-        enemy.lore +
         ' · 赏 ' +
         X.formatNumber(enemy.rewardLingqi) +
         '</span>';
@@ -491,7 +552,7 @@
     state.treasures.forEach((id) => {
       const t = X.getTreasure(id);
       if (!t) return;
-      const eq = state.equipped[t.slot] === id;
+      const eq = isTreasureEquipped(id);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'art-row treasure-row';
@@ -767,6 +828,71 @@
     });
   }
 
+  function describeOptionOutcomes(opt) {
+    const tags = [];
+    const fmt = (n) => (n > 0 ? '+' : '') + X.formatNumber(n);
+    if (opt.lingqiDelta) tags.push('灵力 ' + fmt(opt.lingqiDelta));
+    if (opt.tishuDelta) tags.push('体术 ' + fmt(opt.tishuDelta));
+    if (opt.jingshenDelta) tags.push('精神力 ' + fmt(opt.jingshenDelta));
+    if (opt.qiyunDelta) tags.push('气运 ' + fmt(opt.qiyunDelta));
+    if (opt.freePointsDelta && opt.freePointsDelta > 0) {
+      tags.push('三资源各 +' + opt.freePointsDelta * 100);
+    }
+    if (opt.attrsDelta) {
+      const parts = [];
+      X.ATTR_KEYS.forEach((k) => {
+        if (opt.attrsDelta[k]) parts.push(X.ATTR_LABELS[k] + fmt(opt.attrsDelta[k]));
+      });
+      if (parts.length) tags.push(parts.join('、'));
+    }
+    if (opt.grantTreasureId) {
+      const t = X.getTreasure(opt.grantTreasureId);
+      tags.push('获法宝「' + (t ? t.name : opt.grantTreasureId) + '」');
+    }
+    if (opt.grantNaturalId) {
+      const n = X.getNatural(opt.grantNaturalId);
+      tags.push('获地宝「' + (n ? n.name : opt.grantNaturalId) + '」');
+    }
+    if (opt.grantHerbId) {
+      const h = X.getHerb(opt.grantHerbId);
+      tags.push(
+        '获药材「' +
+          (h ? h.name : opt.grantHerbId) +
+          '」×' +
+          (opt.grantHerbCount || 1),
+      );
+    }
+    if (opt.set) {
+      if (opt.set.branchId && X.BRANCH_LABELS[opt.set.branchId]) {
+        tags.push('道途→' + X.BRANCH_LABELS[opt.set.branchId].name);
+      }
+      if (opt.set.factionId) {
+        const f =
+          opt.set.factionId === 'orthodox'
+            ? '正道'
+            : opt.set.factionId === 'dark'
+              ? '魔道'
+              : '隐世';
+        tags.push('阵营→' + f);
+      }
+      if (opt.set.destinyId) tags.push('气运落定');
+    }
+    if (opt.combatEnemyId) {
+      const enemy = X.getEnemy(opt.combatEnemyId);
+      if (enemy) {
+        const ep = X.enemyPower(enemy.attrs, state.realmIndex);
+        tags.push(
+          '对战「' + enemy.name + '」·敌战力 ' + X.formatNumber(ep),
+        );
+      } else {
+        tags.push('含对战');
+      }
+      if (opt.deathOnLose) tags.push('败则身死');
+    }
+    if (opt.forceDeath) tags.push('结果：立即身死');
+    return tags;
+  }
+
   function syncEventModal(stats) {
     if (state.phase !== 'playing') {
       els.eventModal.hidden = true;
@@ -794,10 +920,19 @@
       btn.className = 'option-btn';
       btn.dataset.eventId = ev.id;
       btn.dataset.optionId = opt.id;
-      let extra = opt.blurb;
-      if (opt.combatEnemyId) extra += '（含对战）';
-      if (opt.deathOnLose) extra += '（败则死）';
-      btn.innerHTML = '<strong>' + opt.label + '</strong><span>' + extra + '</span>';
+      const tags = describeOptionOutcomes(opt);
+      const outcomeHtml = tags.length
+        ? '<span class="option-outcomes">' +
+          tags.map((t) => '<em>' + t + '</em>').join('') +
+          '</span>'
+        : '';
+      btn.innerHTML =
+        '<strong>' +
+        opt.label +
+        '</strong><span>' +
+        opt.blurb +
+        '</span>' +
+        outcomeHtml;
       els.eventOptions.appendChild(btn);
     });
   }
@@ -888,12 +1023,10 @@
         renderChronicle();
       }
       renderCombat(false);
-      // 装备变化时刷新
-      const sig =
-        X.EQUIP_SLOTS.map((s) => state.equipped[s] || '').join(',') +
-        '|' +
-        state.treasures.join(',');
-      if (sig !== lastEquipSig) {
+      // 装备/法宝变化时刷新坊市列表（与装备栏签名分离，避免每 tick 重建装备 DOM）
+      const treasureSig = equipmentSignature() + '|' + state.treasures.join(',');
+      if (treasureSig !== lastTreasureSig) {
+        lastTreasureSig = treasureSig;
         treasuresBuilt = false;
         buildTreasures();
       }
@@ -975,6 +1108,7 @@
         Math.floor(res.playerPower) +
         ' vs ' +
         Math.floor(res.enemyPower) +
+        (res.edgeEvents && res.edgeEvents.length ? ' · ' + res.edgeEvents.join('、') : '') +
         (res.loot ? ' · 获 ' + res.loot : ''),
     );
     treasuresBuilt = false;
@@ -1164,6 +1298,7 @@
     selectedBring = [];
     lastCombatSig = '';
     lastEquipSig = '';
+    lastTreasureSig = '';
     timeRandomAcc = 0;
     els.eventModal.hidden = true;
     els.endingModal.hidden = true;

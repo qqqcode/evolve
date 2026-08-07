@@ -23,7 +23,7 @@ import {
   getHerb,
   getPillRecipe,
 } from './craft';
-import { MAIN_STORY, NATURALS, TREASURES, emptyEquipped, getNatural } from './loot';
+import { MAIN_STORY, NATURALS, TREASURES, emptyEquipped, getNatural, listEquippedIds, slotCapacity } from './loot';
 
 export {
   MAIN_STORY,
@@ -31,6 +31,8 @@ export {
   TREASURES,
   emptyEquipped,
   getNatural,
+  listEquippedIds,
+  slotCapacity,
   BODY_STAGES,
   HERBS,
   PILL_RECIPES,
@@ -45,12 +47,13 @@ export {
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 6;
-export const STORAGE_KEY = 'xian-save-v6';
+export const SAVE_VERSION = 7;
+export const STORAGE_KEY = 'xian-save-v7';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_MILESTONES = 40;
-export const MAX_EQUIP = 3;
+/** 单类槽位最大格数（随境界逐步解锁） */
+export const MAX_EQUIP_PER_SLOT = 3;
 /** 旧版 1 自由点折算为各资源量 */
 export const FREE_POINT_TO_RESOURCE = 100;
 /** 随机奇遇冷却（毫秒） */

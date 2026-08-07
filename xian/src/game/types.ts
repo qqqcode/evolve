@@ -105,6 +105,18 @@ export interface TreasureDef {
   slot: EquipSlot;
   /** 对战斗力额外乘区（战斗槽为主） */
   combatMult?: number;
+  /**
+   * 越界战斗特效（概率触发，不只比战力）
+   * crit：暴击加乘；dodge：闪避重掷；plotArmor：免死；firstStrike：先手加力
+   */
+  combatEdges?: {
+    critChance?: number;
+    critMult?: number;
+    dodgeChance?: number;
+    plotArmorChance?: number;
+    firstStrikeChance?: number;
+    firstStrikeBonus?: number;
+  };
   /** 修炼槽：点击加成（默认加在灵力通道） */
   cultivateClick?: number;
   /** 修炼槽：被动每秒加成（默认加在灵力通道） */
@@ -125,7 +137,11 @@ export const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
   assist: '辅助',
 };
 
-export type EquippedMap = Record<EquipSlot, string | null>;
+/**
+ * 每类槽位为数组：下标 0 为基础槽，随境界解锁更多格
+ * 旧档 string|null 会在 migrate 时包成单元素数组
+ */
+export type EquippedMap = Record<EquipSlot, (string | null)[]>;
 
 /** 天才地宝：不占装备槽，直接提升灵力/永久被动 */
 export interface NaturalDef {
@@ -388,4 +404,6 @@ export interface CombatResult extends ActionResult {
   loot?: string;
   /** 战败后果 */
   defeatOutcome?: 'death' | 'demote' | 'bruise';
+  /** 法宝越界特效描述 */
+  edgeEvents?: string[];
 }

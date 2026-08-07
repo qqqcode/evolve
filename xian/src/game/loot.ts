@@ -1,10 +1,41 @@
-import type { EquippedMap, NaturalDef, StoryEventDef, TreasureDef } from './types';
+import type { EquipSlot, EquippedMap, NaturalDef, StoryEventDef, TreasureDef } from './types';
+import { EQUIP_SLOTS } from './types';
 
-export function emptyEquipped(): EquippedMap {
-  return { combat: null, cultivate: null, assist: null };
+/**
+ * 各槽容量随境界扩充：
+ * 战斗：0→1，3→2，7→3
+ * 修炼：0→1，2→2，6→3
+ * 辅助：0→1，4→2，8→3
+ */
+export function slotCapacity(realmIndex: number): Record<EquipSlot, number> {
+  return {
+    combat: 1 + (realmIndex >= 3 ? 1 : 0) + (realmIndex >= 7 ? 1 : 0),
+    cultivate: 1 + (realmIndex >= 2 ? 1 : 0) + (realmIndex >= 6 ? 1 : 0),
+    assist: 1 + (realmIndex >= 4 ? 1 : 0) + (realmIndex >= 8 ? 1 : 0),
+  };
 }
 
-/** 法宝：分战斗 / 修炼 / 辅助三槽，互不干扰 */
+export function emptyEquipped(realmIndex = 0): EquippedMap {
+  const cap = slotCapacity(realmIndex);
+  const eq = {} as EquippedMap;
+  for (const slot of EQUIP_SLOTS) {
+    eq[slot] = Array.from({ length: cap[slot] }, () => null);
+  }
+  return eq;
+}
+
+/** 展平已装备法宝 id（去空） */
+export function listEquippedIds(equipped: EquippedMap): string[] {
+  const ids: string[] = [];
+  for (const slot of EQUIP_SLOTS) {
+    for (const id of equipped[slot] || []) {
+      if (id) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/** 法宝：分战斗 / 修炼 / 辅助，槽位随境界扩充 */
 export const TREASURES: TreasureDef[] = [
   // —— 战斗 ——
   {
@@ -17,6 +48,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'combat',
     attrs: { atk: 4, spd: 2 },
     combatMult: 1.08,
+    combatEdges: { firstStrikeChance: 0.18, firstStrikeBonus: 0.12 },
     mark: '竹',
     vaultable: true,
   },
@@ -30,6 +62,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'combat',
     attrs: { atk: 6, bone: 1 },
     combatMult: 1.1,
+    combatEdges: { critChance: 0.16, critMult: 1.45 },
     mark: '焚',
     vaultable: true,
   },
@@ -43,6 +76,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'combat',
     attrs: { atk: 8, spirit: 2 },
     combatMult: 1.14,
+    combatEdges: { critChance: 0.22, critMult: 1.55 },
     mark: '莲',
     vaultable: true,
   },
@@ -56,6 +90,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'combat',
     attrs: { atk: 3, luck: 2 },
     combatMult: 1.07,
+    combatEdges: { critChance: 0.2, critMult: 1.35, firstStrikeChance: 0.12, firstStrikeBonus: 0.08 },
     mark: '扇',
     vaultable: true,
   },
@@ -69,6 +104,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'combat',
     attrs: { atk: 12, spd: 4 },
     combatMult: 1.16,
+    combatEdges: { critChance: 0.25, critMult: 1.65, firstStrikeChance: 0.2, firstStrikeBonus: 0.15 },
     mark: '刃',
     vaultable: true,
   },
@@ -165,6 +201,7 @@ export const TREASURES: TreasureDef[] = [
     minRealm: 2,
     slot: 'assist',
     attrs: { spd: 6, def: 1 },
+    combatEdges: { dodgeChance: 0.22 },
     mark: '舟',
     vaultable: true,
   },
@@ -178,6 +215,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'assist',
     attrs: { spirit: 6, luck: 2 },
     combatMult: 1.03,
+    combatEdges: { dodgeChance: 0.1, plotArmorChance: 0.12 },
     mark: '灯',
     vaultable: true,
   },
@@ -191,6 +229,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'assist',
     attrs: { def: 5, luck: 6 },
     combatMult: 1.06,
+    combatEdges: { plotArmorChance: 0.35, dodgeChance: 0.08 },
     mark: '甲',
     vaultable: true,
   },
@@ -203,6 +242,7 @@ export const TREASURES: TreasureDef[] = [
     minRealm: 4,
     slot: 'assist',
     attrs: { def: 6, spirit: 3, luck: 1 },
+    combatEdges: { plotArmorChance: 0.15 },
     mark: '鼎',
     vaultable: true,
   },
@@ -216,6 +256,7 @@ export const TREASURES: TreasureDef[] = [
     slot: 'assist',
     attrs: { spirit: 8, bone: 3, luck: 3 },
     combatMult: 1.05,
+    combatEdges: { firstStrikeChance: 0.15, firstStrikeBonus: 0.1, plotArmorChance: 0.1 },
     mark: '碑',
     vaultable: true,
   },

@@ -198,9 +198,53 @@
     return sum;
   }
 
+  // xian/src/game/types.ts
+  var RESOURCE_KEYS = ["lingli", "tishu", "jingshen"];
+  var RESOURCE_LABELS = {
+    lingli: "\u7075\u529B",
+    tishu: "\u4F53\u672F",
+    jingshen: "\u7CBE\u795E\u529B"
+  };
+  var ATTR_KEYS = ["atk", "def", "spd", "spirit", "bone", "luck"];
+  var ATTR_LABELS = {
+    atk: "\u653B\u4F10",
+    def: "\u62A4\u4F53",
+    spd: "\u8EAB\u6CD5",
+    spirit: "\u795E\u8BC6",
+    bone: "\u6839\u9AA8",
+    luck: "\u6C14\u673A"
+  };
+  var EQUIP_SLOTS = ["combat", "cultivate", "assist"];
+  var EQUIP_SLOT_LABELS = {
+    combat: "\u6218\u6597",
+    cultivate: "\u4FEE\u70BC",
+    assist: "\u8F85\u52A9"
+  };
+
   // xian/src/game/loot.ts
-  function emptyEquipped() {
-    return { combat: null, cultivate: null, assist: null };
+  function slotCapacity(realmIndex) {
+    return {
+      combat: 1 + (realmIndex >= 3 ? 1 : 0) + (realmIndex >= 7 ? 1 : 0),
+      cultivate: 1 + (realmIndex >= 2 ? 1 : 0) + (realmIndex >= 6 ? 1 : 0),
+      assist: 1 + (realmIndex >= 4 ? 1 : 0) + (realmIndex >= 8 ? 1 : 0)
+    };
+  }
+  function emptyEquipped(realmIndex = 0) {
+    const cap = slotCapacity(realmIndex);
+    const eq = {};
+    for (const slot of EQUIP_SLOTS) {
+      eq[slot] = Array.from({ length: cap[slot] }, () => null);
+    }
+    return eq;
+  }
+  function listEquippedIds(equipped) {
+    const ids = [];
+    for (const slot of EQUIP_SLOTS) {
+      for (const id of equipped[slot] || []) {
+        if (id) ids.push(id);
+      }
+    }
+    return ids;
   }
   var TREASURES = [
     // —— 战斗 ——
@@ -214,6 +258,7 @@
       slot: "combat",
       attrs: { atk: 4, spd: 2 },
       combatMult: 1.08,
+      combatEdges: { firstStrikeChance: 0.18, firstStrikeBonus: 0.12 },
       mark: "\u7AF9",
       vaultable: true
     },
@@ -227,6 +272,7 @@
       slot: "combat",
       attrs: { atk: 6, bone: 1 },
       combatMult: 1.1,
+      combatEdges: { critChance: 0.16, critMult: 1.45 },
       mark: "\u711A",
       vaultable: true
     },
@@ -240,6 +286,7 @@
       slot: "combat",
       attrs: { atk: 8, spirit: 2 },
       combatMult: 1.14,
+      combatEdges: { critChance: 0.22, critMult: 1.55 },
       mark: "\u83B2",
       vaultable: true
     },
@@ -253,6 +300,7 @@
       slot: "combat",
       attrs: { atk: 3, luck: 2 },
       combatMult: 1.07,
+      combatEdges: { critChance: 0.2, critMult: 1.35, firstStrikeChance: 0.12, firstStrikeBonus: 0.08 },
       mark: "\u6247",
       vaultable: true
     },
@@ -266,6 +314,7 @@
       slot: "combat",
       attrs: { atk: 12, spd: 4 },
       combatMult: 1.16,
+      combatEdges: { critChance: 0.25, critMult: 1.65, firstStrikeChance: 0.2, firstStrikeBonus: 0.15 },
       mark: "\u5203",
       vaultable: true
     },
@@ -362,6 +411,7 @@
       minRealm: 2,
       slot: "assist",
       attrs: { spd: 6, def: 1 },
+      combatEdges: { dodgeChance: 0.22 },
       mark: "\u821F",
       vaultable: true
     },
@@ -375,6 +425,7 @@
       slot: "assist",
       attrs: { spirit: 6, luck: 2 },
       combatMult: 1.03,
+      combatEdges: { dodgeChance: 0.1, plotArmorChance: 0.12 },
       mark: "\u706F",
       vaultable: true
     },
@@ -388,6 +439,7 @@
       slot: "assist",
       attrs: { def: 5, luck: 6 },
       combatMult: 1.06,
+      combatEdges: { plotArmorChance: 0.35, dodgeChance: 0.08 },
       mark: "\u7532",
       vaultable: true
     },
@@ -400,6 +452,7 @@
       minRealm: 4,
       slot: "assist",
       attrs: { def: 6, spirit: 3, luck: 1 },
+      combatEdges: { plotArmorChance: 0.15 },
       mark: "\u9F0E",
       vaultable: true
     },
@@ -413,6 +466,7 @@
       slot: "assist",
       attrs: { spirit: 8, bone: 3, luck: 3 },
       combatMult: 1.05,
+      combatEdges: { firstStrikeChance: 0.15, firstStrikeBonus: 0.1, plotArmorChance: 0.1 },
       mark: "\u7891",
       vaultable: true
     }
@@ -680,12 +734,12 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 6;
-  var STORAGE_KEY = "xian-save-v6";
+  var SAVE_VERSION = 7;
+  var STORAGE_KEY = "xian-save-v7";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_MILESTONES = 40;
-  var MAX_EQUIP = 3;
+  var MAX_EQUIP_PER_SLOT = 3;
   var FREE_POINT_TO_RESOURCE = 100;
   var RANDOM_COOLDOWN_MS = 18e3;
   var RANDOM_CHANCE = {
@@ -2617,29 +2671,6 @@
     return ENDINGS.find((e) => e.id === id);
   }
 
-  // xian/src/game/types.ts
-  var RESOURCE_KEYS = ["lingli", "tishu", "jingshen"];
-  var RESOURCE_LABELS = {
-    lingli: "\u7075\u529B",
-    tishu: "\u4F53\u672F",
-    jingshen: "\u7CBE\u795E\u529B"
-  };
-  var ATTR_KEYS = ["atk", "def", "spd", "spirit", "bone", "luck"];
-  var ATTR_LABELS = {
-    atk: "\u653B\u4F10",
-    def: "\u62A4\u4F53",
-    spd: "\u8EAB\u6CD5",
-    spirit: "\u795E\u8BC6",
-    bone: "\u6839\u9AA8",
-    luck: "\u6C14\u673A"
-  };
-  var EQUIP_SLOTS = ["combat", "cultivate", "assist"];
-  var EQUIP_SLOT_LABELS = {
-    combat: "\u6218\u6597",
-    cultivate: "\u4FEE\u70BC",
-    assist: "\u8F85\u52A9"
-  };
-
   // xian/src/game/engine.ts
   function emptyOwned() {
     const owned = {};
@@ -2660,26 +2691,55 @@
     }
     return base;
   }
-  function migrateEquipped(raw, treasures) {
-    const eq = emptyEquipped();
+  function migrateEquipped(raw, treasures, realmIndex = 0) {
+    const eq = emptyEquipped(realmIndex);
+    const place = (id) => {
+      if (!treasures.includes(id)) return;
+      const t = getTreasure(id);
+      if (!t) return;
+      const arr = eq[t.slot];
+      const emptyIdx = arr.findIndex((x) => !x);
+      if (emptyIdx >= 0 && !listEquippedIds(eq).includes(id)) arr[emptyIdx] = id;
+    };
     if (Array.isArray(raw)) {
       for (const id of raw) {
-        if (typeof id !== "string" || !treasures.includes(id)) continue;
-        const t = getTreasure(id);
-        if (t && !eq[t.slot]) eq[t.slot] = id;
+        if (typeof id === "string") place(id);
       }
       return eq;
     }
     if (raw && typeof raw === "object") {
       const o = raw;
       for (const slot of EQUIP_SLOTS) {
-        const id = o[slot];
-        if (typeof id === "string" && treasures.includes(id) && getTreasure(id)?.slot === slot) {
-          eq[slot] = id;
+        const val = o[slot];
+        if (typeof val === "string") {
+          place(val);
+        } else if (Array.isArray(val)) {
+          for (const id of val) {
+            if (typeof id === "string") place(id);
+          }
         }
       }
     }
     return eq;
+  }
+  function syncEquipCapacity(state) {
+    const cap = slotCapacity(state.realmIndex);
+    let changed = false;
+    const equipped = { ...state.equipped };
+    for (const slot of EQUIP_SLOTS) {
+      const cur = [...equipped[slot] || []];
+      const need = cap[slot];
+      if (cur.length < need) {
+        while (cur.length < need) cur.push(null);
+        changed = true;
+      } else if (cur.length > need) {
+        equipped[slot] = cur.slice(0, need);
+        changed = true;
+        continue;
+      }
+      equipped[slot] = cur;
+    }
+    return changed ? { ...state, equipped } : state;
   }
   function parseMilestones(raw) {
     if (!Array.isArray(raw)) return [];
@@ -2780,7 +2840,11 @@
     const chronicle = Array.isArray(data.chronicle) ? data.chronicle.filter((f) => typeof f === "string").slice(-MAX_CHRONICLE) : fresh.chronicle;
     const milestones = parseMilestones(data.milestones);
     const treasures = Array.isArray(data.treasures) ? data.treasures.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
-    const equipped = migrateEquipped(data.equipped, treasures);
+    const equipped = migrateEquipped(
+      data.equipped,
+      treasures,
+      clampInt(data.realmIndex, 0, REALMS.length - 1)
+    );
     const vault = Array.isArray(data.vault) ? data.vault.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
     const naturals = Array.isArray(data.naturals) ? data.naturals.filter((f) => typeof f === "string" && !!getNatural(f)) : [];
     const lastTickAt = Number(data.lastTickAt);
@@ -2814,7 +2878,7 @@
       }
     }
     const phase = data.phase === "playing" || data.phase === "rebirth" || data.phase === "ended" ? data.phase : data.birthId ? "playing" : "rebirth";
-    return {
+    const loaded = {
       lingqi,
       totalLingqi,
       tishu,
@@ -2860,6 +2924,7 @@
       bodyStage: clampInt(data.bodyStage, 0, BODY_STAGES.length),
       bodyProgress: Math.max(0, Number(data.bodyProgress) || 0)
     };
+    return syncEquipCapacity(loaded);
   }
   function artAvailable(state, art) {
     if (state.realmIndex < art.minRealm) return false;
@@ -2915,9 +2980,7 @@
   }
   function treasureAttrBonus(state) {
     let sum = zeroAttrs();
-    for (const slot of EQUIP_SLOTS) {
-      const id = state.equipped[slot];
-      if (!id) continue;
+    for (const id of listEquippedIds(state.equipped)) {
       const t = getTreasure(id);
       if (t) sum = addAttrs(sum, t.attrs);
     }
@@ -2926,9 +2989,7 @@
   function cultivateBonuses(state) {
     let click = 0;
     let passive = 0;
-    for (const slot of EQUIP_SLOTS) {
-      const id = state.equipped[slot];
-      if (!id) continue;
+    for (const id of listEquippedIds(state.equipped)) {
       const t = getTreasure(id);
       if (!t) continue;
       click += t.cultivateClick || 0;
@@ -2968,15 +3029,39 @@
     const a = attrs || totalAttrs(state);
     const weighted = a.atk * 1.2 + a.def * 1 + a.spd * 0.9 + a.spirit * 1.1 + a.bone * 0.8 + a.luck * 0.6;
     let mult = 1;
-    for (const slot of EQUIP_SLOTS) {
-      const id = state.equipped[slot];
-      if (!id) continue;
+    for (const id of listEquippedIds(state.equipped)) {
       const t = getTreasure(id);
       if (t?.combatMult) mult *= t.combatMult;
     }
     const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
     const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
     return Math.max(1, weighted * mult * realmMult * bodyMult);
+  }
+  function gatherCombatEdges(state) {
+    let critChance = 0;
+    let critMult = 1.4;
+    let dodgeChance = 0;
+    let plotArmorChance = 0;
+    let firstStrikeChance = 0;
+    let firstStrikeBonus = 0.1;
+    for (const id of listEquippedIds(state.equipped)) {
+      const e = getTreasure(id)?.combatEdges;
+      if (!e) continue;
+      critChance += e.critChance || 0;
+      if (e.critMult && e.critMult > critMult) critMult = e.critMult;
+      dodgeChance += e.dodgeChance || 0;
+      plotArmorChance += e.plotArmorChance || 0;
+      firstStrikeChance += e.firstStrikeChance || 0;
+      if (e.firstStrikeBonus && e.firstStrikeBonus > firstStrikeBonus) {
+        firstStrikeBonus = e.firstStrikeBonus;
+      }
+    }
+    const luck = totalAttrs(state).luck;
+    critChance = Math.min(0.55, critChance + luck * 2e-3);
+    dodgeChance = Math.min(0.45, dodgeChance + luck * 15e-4);
+    plotArmorChance = Math.min(0.5, plotArmorChance + luck * 1e-3);
+    firstStrikeChance = Math.min(0.45, firstStrikeChance);
+    return { critChance, critMult, dodgeChance, plotArmorChance, firstStrikeChance, firstStrikeBonus };
   }
   function enemyPower(enemyAttrs, realmIndex) {
     const weighted = enemyAttrs.atk * 1.2 + enemyAttrs.def * 1 + enemyAttrs.spd * 0.9 + enemyAttrs.spirit * 1.1 + enemyAttrs.bone * 0.8 + enemyAttrs.luck * 0.6;
@@ -3146,10 +3231,18 @@
     if (state.treasures.includes(id)) return state;
     const t = getTreasure(id);
     const treasures = [...state.treasures, id];
-    const equipped = { ...state.equipped };
-    if (!equipped[t.slot]) equipped[t.slot] = id;
+    let next = syncEquipCapacity({ ...state, treasures });
+    const equipped = {
+      combat: [...next.equipped.combat],
+      cultivate: [...next.equipped.cultivate],
+      assist: [...next.equipped.assist]
+    };
+    if (!listEquippedIds(equipped).includes(id)) {
+      const emptyIdx = equipped[t.slot].findIndex((x) => !x);
+      if (emptyIdx >= 0) equipped[t.slot][emptyIdx] = id;
+    }
     return pushChronicle(
-      { ...state, treasures, equipped },
+      { ...next, equipped },
       `\u83B7\u5F97\u6CD5\u5B9D\u300C${t.name}\u300D\u3014${t.slot === "combat" ? "\u6218\u6597" : t.slot === "cultivate" ? "\u4FEE\u70BC" : "\u8F85\u52A9"}\u3015\u3010${t.lore}\u3011`
     );
   }
@@ -3365,22 +3458,37 @@
     next = grantTreasure(next, treasureId);
     return { ok: true, state: next, message: `\u8D2D\u5F97\u300C${def.name}\u300D` };
   }
-  function toggleEquip(state, treasureId) {
+  function toggleEquip(state, treasureId, slotIndex) {
     const def = getTreasure(treasureId);
     if (!def || !state.treasures.includes(treasureId)) {
       return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
     }
+    let next = syncEquipCapacity(state);
     const slot = def.slot;
-    const equipped = { ...state.equipped };
-    if (equipped[slot] === treasureId) {
-      equipped[slot] = null;
-      return { ok: true, state: { ...state, equipped }, message: `\u5DF2\u5378\u4E0B\u3014${slotLabel(slot)}\u3015` };
+    const equipped = {
+      combat: [...next.equipped.combat],
+      cultivate: [...next.equipped.cultivate],
+      assist: [...next.equipped.assist]
+    };
+    const arr = equipped[slot];
+    const wornAt = arr.findIndex((id) => id === treasureId);
+    if (wornAt >= 0) {
+      arr[wornAt] = null;
+      return {
+        ok: true,
+        state: { ...next, equipped },
+        message: `\u5DF2\u5378\u4E0B\u3014${slotLabel(slot)}\u3015`
+      };
     }
-    equipped[slot] = treasureId;
+    let target = typeof slotIndex === "number" && slotIndex >= 0 && slotIndex < arr.length ? slotIndex : arr.findIndex((x) => !x);
+    if (target < 0) {
+      target = 0;
+    }
+    arr[target] = treasureId;
     return {
       ok: true,
-      state: { ...state, equipped },
-      message: `\u5DF2\u88C5\u5907\u81F3\u3014${slotLabel(slot)}\u3015\u69FD`
+      state: { ...next, equipped },
+      message: `\u5DF2\u88C5\u5907\u81F3\u3014${slotLabel(slot)}\u3015\u69FD${target + 1}`
     };
   }
   function slotLabel(slot) {
@@ -3438,6 +3546,7 @@
       star: 1
     });
     next = grantFromFreePoints(next, 2);
+    next = syncEquipCapacity(next);
     next = pushChronicle(next, `\u7834\u5883\u6210\u529F\uFF1A${nextRealm.name}\u3002${nextRealm.blurb}`);
     if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
       next = pushMilestone(
@@ -3484,12 +3593,29 @@
     if (blocked) return blocked;
     const enemy = getEnemy(enemyId);
     if (!enemy) return { ok: false, state, reason: "\u672A\u77E5\u5BF9\u624B" };
-    const ticked = tick(state, now).state;
-    const pPower = calcCombatPower(ticked);
+    const ticked = syncEquipCapacity(tick(state, now).state);
+    const basePower = calcCombatPower(ticked);
     const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
     const luck = totalAttrs(ticked).luck;
-    const roll = 0.85 + Math.random() * 0.3 + Math.min(0.15, luck * 5e-3);
-    const won = pPower * roll >= ePower;
+    const edges = gatherCombatEdges(ticked);
+    const edgeEvents = [];
+    let pPower = basePower;
+    if (Math.random() < edges.firstStrikeChance) {
+      pPower *= 1 + edges.firstStrikeBonus;
+      edgeEvents.push(`\u5148\u624B\xB7\u6218\u529B\xD7${(1 + edges.firstStrikeBonus).toFixed(2)}`);
+    }
+    if (Math.random() < edges.critChance) {
+      pPower *= edges.critMult;
+      edgeEvents.push(`\u66B4\u51FB\xB7\u6218\u529B\xD7${edges.critMult.toFixed(2)}`);
+    }
+    const makeRoll = () => 0.85 + Math.random() * 0.3 + Math.min(0.15, luck * 5e-3);
+    let roll = makeRoll();
+    let won = pPower * roll >= ePower;
+    if (!won && Math.random() < edges.dodgeChance) {
+      roll = makeRoll();
+      won = pPower * roll >= ePower;
+      edgeEvents.push(won ? "\u95EA\u907F\u5F97\u624B\xB7\u518D\u6218\u53D6\u80DC" : "\u95EA\u907F\u5931\u624B\xB7\u4ECD\u8D25");
+    }
     if (won) {
       let next2 = grantLingqi(ticked, enemy.rewardLingqi);
       next2 = {
@@ -3542,9 +3668,10 @@
         }
       }
       const loot = lootBits.length ? lootBits.join("\u3001") : void 0;
+      const edgeTxt2 = edgeEvents.length ? ` \xB7 ${edgeEvents.join("\u3001")}` : "";
       next2 = pushChronicle(
         next2,
-        `\u5BF9\u6218\u80DC\u5229\uFF1A\u51FB\u8D25\u300C${enemy.name}\u300D\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${loot ? " \xB7 \u7F34\u83B7 " + loot : ""}\u3010${enemy.lore}\u3011`
+        `\u5BF9\u6218\u80DC\u5229\uFF1A\u51FB\u8D25\u300C${enemy.name}\u300D\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${edgeTxt2}${loot ? " \xB7 \u7F34\u83B7 " + loot : ""}\u3010${enemy.lore}\u3011`
       );
       return {
         ok: true,
@@ -3553,7 +3680,8 @@
         playerPower: pPower,
         enemyPower: ePower,
         message: `\u6218\u80DC ${enemy.name}`,
-        loot
+        loot,
+        edgeEvents
       };
     }
     let next = {
@@ -3563,6 +3691,24 @@
     const pressure = Math.min(0.12, 0.04 + Math.max(0, ePower - pPower) / Math.max(ePower, 1) * 0.1);
     const deathRoll = Math.random();
     if (deathRoll < pressure) {
+      if (Math.random() < edges.plotArmorChance) {
+        edgeEvents.push("\u5267\u60C5\u62A4\u7532\xB7\u514D\u6B7B");
+        next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.12));
+        next = pushChronicle(
+          next,
+          `\u5BF9\u6218\u5931\u8D25\uFF1A\u9669\u6B7B\u8FD8\u751F\uFF08${edgeEvents.join("\u3001")}\uFF09\uFF0C\u8F7B\u4F24\u9003\u56DE\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09`
+        );
+        return {
+          ok: true,
+          state: next,
+          won: false,
+          playerPower: pPower,
+          enemyPower: ePower,
+          message: `\u8D25\u4E8E ${enemy.name}\uFF0C\u62A4\u7532\u4FDD\u547D`,
+          defeatOutcome: "bruise",
+          edgeEvents
+        };
+      }
       const dead = die(next, `\u8D25\u4E8E\u300C${enemy.name}\u300D\uFF0C\u4F24\u91CD\u4E0D\u6CBB`, now);
       return {
         ok: true,
@@ -3571,15 +3717,17 @@
         playerPower: pPower,
         enemyPower: ePower,
         message: dead.message,
-        defeatOutcome: "death"
+        defeatOutcome: "death",
+        edgeEvents
       };
     }
     if (Math.random() < 0.38) {
       next = demoteRank(next);
       next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.15));
+      const edgeTxt2 = edgeEvents.length ? ` \xB7 ${edgeEvents.join("\u3001")}` : "";
       next = pushChronicle(
         next,
-        `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u5883\u754C\u53D7\u632B\uFF08\u73B0 ${getRealm(next.realmIndex).name}${next.star}\u5C42\uFF09`
+        `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u5883\u754C\u53D7\u632B\uFF08\u73B0 ${getRealm(next.realmIndex).name}${next.star}\u5C42\uFF09${edgeTxt2}`
       );
       return {
         ok: true,
@@ -3588,13 +3736,15 @@
         playerPower: pPower,
         enemyPower: ePower,
         message: `\u8D25\u4E8E ${enemy.name}\uFF0C\u6389\u6BB5`,
-        defeatOutcome: "demote"
+        defeatOutcome: "demote",
+        edgeEvents
       };
     }
     next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.08));
+    const edgeTxt = edgeEvents.length ? ` \xB7 ${edgeEvents.join("\u3001")}` : "";
     next = pushChronicle(
       next,
-      `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u8F7B\u4F24\u9003\u56DE\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09`
+      `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u8F7B\u4F24\u9003\u56DE\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${edgeTxt}`
     );
     return {
       ok: true,
@@ -3603,7 +3753,8 @@
       playerPower: pPower,
       enemyPower: ePower,
       message: `\u8D25\u4E8E ${enemy.name}`,
-      defeatOutcome: "bruise"
+      defeatOutcome: "bruise",
+      edgeEvents
     };
   }
   function demoteRank(state) {
@@ -3687,10 +3838,12 @@
     const bring = bringTreasureIds.filter((id) => vault.includes(id)).slice(0, Math.max(0, slots));
     const attrs = addAttrs(zeroAttrs(), birth.attrs);
     const flags = [...birth.flags || []];
-    const equipped = emptyEquipped();
+    const equipped = emptyEquipped(0);
     for (const id of bring) {
       const t = getTreasure(id);
-      if (t && !equipped[t.slot]) equipped[t.slot] = id;
+      if (!t) continue;
+      const emptyIdx = equipped[t.slot].findIndex((x) => !x);
+      if (emptyIdx >= 0) equipped[t.slot][emptyIdx] = id;
     }
     const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
     const startTishu = birth.freePoints * FREE_POINT_TO_RESOURCE;
@@ -4038,8 +4191,13 @@
       maxOfflineMs: MAX_OFFLINE_MS,
       qiyunBonusPer: QIYUN_BONUS_PER,
       maxStar: MAX_STAR,
-      maxEquip: MAX_EQUIP,
+      maxEquip: MAX_EQUIP_PER_SLOT,
       equipSlots: EQUIP_SLOTS,
+      slotCapacityHint: {
+        combat: "\u58830/3/7 \u89E3\u9501 1/2/3 \u683C",
+        cultivate: "\u58830/2/6 \u89E3\u9501 1/2/3 \u683C",
+        assist: "\u58830/4/8 \u89E3\u9501 1/2/3 \u683C"
+      },
       naturals: NATURALS.map((n) => ({ id: n.id, name: n.name, minRealm: n.minRealm })),
       mainStory: MAIN_STORY.map((e) => ({ id: e.id, title: e.title, chapter: e.mainChapter })),
       attrKeys: ATTR_KEYS,
@@ -4053,6 +4211,7 @@
 
   // xian/src/game/browser.ts
   var LEGACY_SAVE_KEYS = [
+    "xian-save-v6",
     "xian-save-v5",
     "xian-save-v4",
     "xian-save-v3",
@@ -4101,7 +4260,7 @@
     EQUIP_SLOT_LABELS,
     HERBS,
     MAIN_STORY,
-    MAX_EQUIP,
+    MAX_EQUIP_PER_SLOT,
     MAX_OFFLINE_MS,
     MAX_STAR,
     NATURALS,
@@ -4123,6 +4282,8 @@
     getPillRecipe,
     getRealm,
     getTreasure,
+    listEquippedIds,
+    slotCapacity,
     allocatePoint,
     artAvailable,
     artCost,
@@ -4142,6 +4303,7 @@
     die,
     findPendingEvent,
     formatNumber,
+    gatherCombatEdges,
     getMeta,
     listCombatEnemies,
     loadState,
@@ -4154,11 +4316,13 @@
     saveToStorage,
     clearStorage,
     startCombat,
+    syncEquipCapacity,
     temperBody,
     tick,
     toggleEquip,
     totalAttrs,
-    tryRandomEvent
+    tryRandomEvent,
+    enemyPower
   };
   window.Xian = Xian;
 })();

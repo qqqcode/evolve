@@ -2,19 +2,19 @@
   --ink: #070b12;
   --ink-2: #0f1624;
   --fog: rgba(180, 210, 230, 0.06);
-  --cinnabar: #9a3a2a;
-  --cinnabar-dim: #6e2a1c;
-  --gold: #9a7a2e;
-  --gold-soft: #b8a57a;
-  --jade: #3a6e62;
-  --paper: #a89f8c;
-  --muted: #6a736c;
-  --line: rgba(154, 122, 46, 0.22);
+  --cinnabar: #d46552;
+  --cinnabar-dim: #a84a3a;
+  --gold: #d4b45a;
+  --gold-soft: #e8d9a8;
+  --jade: #6db39f;
+  --paper: #e8e2d4;
+  --muted: #b0a994;
+  --line: rgba(212, 180, 90, 0.28);
   --hue: 32;
-  --glow: hsl(var(--hue) 45% 32% / 0.35);
+  --glow: hsl(var(--hue) 45% 42% / 0.4);
   --scroll-track: #0c111a;
-  --scroll-thumb: #2a3344;
-  --scroll-thumb-hover: #3d4a5e;
+  --scroll-thumb: #3a4558;
+  --scroll-thumb-hover: #556278;
   font-synthesis: none;
 }
 
@@ -221,8 +221,9 @@ body {
 
 .equip-bar {
   background: linear-gradient(135deg, rgba(15, 22, 36, 0.88), rgba(7, 11, 18, 0.72));
-  border: 1px solid rgba(154, 122, 46, 0.18);
-  padding: 0.55rem 0.75rem 0.7rem;
+  border: 1px solid rgba(212, 180, 90, 0.22);
+  padding: 0.55rem 0.65rem 0.7rem;
+  margin-bottom: 0.65rem;
 }
 
 .equip-title {
@@ -230,36 +231,49 @@ body {
 }
 
 .equip-slots {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 0.45rem;
 }
 
+.equip-slot-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.35rem;
+}
+
+.equip-slot-group-title {
+  grid-column: 1 / -1;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  margin: 0.1rem 0 0;
+}
+
 .equip-slot {
-  min-height: 3.2rem;
-  border: 1px dashed rgba(154, 122, 46, 0.28);
+  min-height: 2.8rem;
+  border: 1px dashed rgba(212, 180, 90, 0.3);
   background: rgba(7, 11, 18, 0.55);
-  padding: 0.4rem 0.5rem;
+  padding: 0.35rem 0.4rem;
   text-align: left;
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
 }
 
 .equip-slot:hover:not(:disabled) {
   border-color: var(--gold);
-  background: rgba(154, 122, 46, 0.08);
+  background: rgba(212, 180, 90, 0.08);
 }
 
 .equip-slot:disabled {
   cursor: default;
-  opacity: 0.65;
+  opacity: 0.7;
 }
 
 .equip-slot.filled {
   border-style: solid;
-  border-color: rgba(154, 58, 42, 0.4);
+  border-color: rgba(212, 101, 82, 0.45);
 }
 
 .equip-slot .slot-mark {
@@ -1018,9 +1032,27 @@ body {
 }
 
 .option-btn span {
+  display: block;
   font-size: 0.78rem;
   color: var(--muted);
   line-height: 1.4;
+}
+
+.option-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.option-outcomes em {
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--gold-soft);
+  border: 1px solid rgba(212, 180, 90, 0.35);
+  padding: 0.12rem 0.35rem;
+  background: rgba(212, 180, 90, 0.08);
 }
 
 .ending-eyebrow {

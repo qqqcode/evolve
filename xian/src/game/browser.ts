@@ -10,7 +10,7 @@ import {
   ENEMIES,
   HERBS,
   MAIN_STORY,
-  MAX_EQUIP,
+  MAX_EQUIP_PER_SLOT,
   MAX_OFFLINE_MS,
   MAX_STAR,
   NATURALS,
@@ -30,6 +30,8 @@ import {
   getPillRecipe,
   getRealm,
   getTreasure,
+  listEquippedIds,
+  slotCapacity,
 } from './data';
 import {
   allocatePoint,
@@ -51,6 +53,7 @@ import {
   die,
   findPendingEvent,
   formatNumber,
+  gatherCombatEdges,
   getMeta,
   listCombatEnemies,
   loadState,
@@ -60,11 +63,13 @@ import {
   resolveEvent,
   resourceAttrsFromTotals,
   startCombat,
+  syncEquipCapacity,
   temperBody,
   tick,
   toggleEquip,
   totalAttrs,
   tryRandomEvent,
+  enemyPower,
 } from './engine';
 import type { GameState } from './types';
 import {
@@ -77,6 +82,7 @@ import {
 } from './types';
 
 const LEGACY_SAVE_KEYS = [
+  'xian-save-v6',
   'xian-save-v5',
   'xian-save-v4',
   'xian-save-v3',
@@ -131,7 +137,7 @@ const Xian = {
   EQUIP_SLOT_LABELS,
   HERBS,
   MAIN_STORY,
-  MAX_EQUIP,
+  MAX_EQUIP_PER_SLOT,
   MAX_OFFLINE_MS,
   MAX_STAR,
   NATURALS,
@@ -153,6 +159,8 @@ const Xian = {
   getPillRecipe,
   getRealm,
   getTreasure,
+  listEquippedIds,
+  slotCapacity,
   allocatePoint,
   artAvailable,
   artCost,
@@ -172,6 +180,7 @@ const Xian = {
   die,
   findPendingEvent,
   formatNumber,
+  gatherCombatEdges,
   getMeta,
   listCombatEnemies,
   loadState,
@@ -184,11 +193,13 @@ const Xian = {
   saveToStorage,
   clearStorage,
   startCombat,
+  syncEquipCapacity,
   temperBody,
   tick,
   toggleEquip,
   totalAttrs,
   tryRandomEvent,
+  enemyPower,
 };
 
 declare global {
