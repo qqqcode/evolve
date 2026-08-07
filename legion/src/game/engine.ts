@@ -311,8 +311,16 @@ interface CombatUnit extends UnitInstance {
 }
 
 function toFrame(units: CombatUnit[], events: string[]): BattleFrame {
+  const byCell = new Map<string, CombatUnit>();
+  for (const u of units) {
+    if (u.row == null || u.col == null) continue;
+    const key = `${u.row},${u.col}`;
+    const prev = byCell.get(key);
+    // 同格优先保留存活单位；尸体被踩后应已被清坐标
+    if (!prev || (prev.dead && !u.dead)) byCell.set(key, u);
+  }
   return {
-    units: units.map((u) => ({
+    units: [...byCell.values()].map((u) => ({
       id: u.id,
       kind: u.kind,
       level: u.level,
@@ -409,7 +417,12 @@ function dealDamage(
   }
 }
 
-function tryMoveToward(self: CombatUnit, target: CombatUnit, occupied: Set<string>): boolean {
+function tryMoveToward(
+  self: CombatUnit,
+  target: CombatUnit,
+  occupied: Set<string>,
+  all: CombatUnit[],
+): boolean {
   const tr = target.row!;
   const tc = target.col!;
   const sr = self.row!;
@@ -422,14 +435,23 @@ function tryMoveToward(self: CombatUnit, target: CombatUnit, occupied: Set<strin
       Math.abs(a.row - tr) - Math.abs(b.row - tr),
   );
   const best = options[0]!;
-  if (dist(best, { row: tr, col: tc }) >= dist({ row: sr, col: sc }, { row: tr, col: tc })) {
-    // 允许同距侧移
-  }
   occupied.delete(`${sr},${sc}`);
   self.row = best.row;
   self.col = best.col;
   occupied.add(`${best.row},${best.col}`);
+  // 踩上尸体：移除该格死亡单位，避免叠字消失
+  clearCorpsesAt(all, best.row, best.col);
   return true;
+}
+
+/** 清除指定格子上的死亡单位（移出棋盘） */
+function clearCorpsesAt(units: CombatUnit[], row: number, col: number): void {
+  for (const u of units) {
+    if (u.dead && u.row === row && u.col === col) {
+      u.row = null;
+      u.col = null;
+    }
+  }
 }
 
 function attackOnce(attacker: CombatUnit, target: CombatUnit, all: CombatUnit[], events: string[]) {
@@ -533,7 +555,7 @@ export function simulateBattle(allyBoard: UnitInstance[], enemies: UnitInstance[
         const occ = new Set(
           units.filter((u) => !u.dead && u.row != null).map((u) => `${u.row},${u.col}`),
         );
-        tryMoveToward(self, target, occ);
+        tryMoveToward(self, target, occ, units);
       }
     }
 

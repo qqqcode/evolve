@@ -168,12 +168,22 @@
     var map = {};
     units.forEach(function (u) {
       if (u.row == null || u.col == null) return;
-      map[u.row + ',' + u.col] = u;
+      // 死亡单位不绘制到已被存活单位占用的格子；同格优先存活
+      var key = u.row + ',' + u.col;
+      var prev = map[key];
+      if (prev && !prev.dead && u.dead) return;
+      if (prev && prev.dead && !u.dead) {
+        map[key] = u;
+        return;
+      }
+      if (prev && u.dead) return;
+      map[key] = u;
     });
     Array.prototype.forEach.call(els.board.children, function (cell) {
       var key = cell.dataset.row + ',' + cell.dataset.col;
-      var old = cell.querySelector('.unit');
-      if (old) old.remove();
+      cell.querySelectorAll('.unit').forEach(function (old) {
+        old.remove();
+      });
       var u = map[key];
       if (!u) return;
       cell.appendChild(

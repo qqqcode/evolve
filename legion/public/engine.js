@@ -412,15 +412,23 @@
   }
 
   function toFrame(units, events) {
+    var byCell = {};
+    units.forEach(function (u) {
+      if (u.row == null || u.col == null) return;
+      var key = u.row + ',' + u.col;
+      var prev = byCell[key];
+      if (!prev || (prev.dead && !u.dead)) byCell[key] = u;
+    });
     return {
-      units: units.map(function (u) {
+      units: Object.keys(byCell).map(function (key) {
+        var u = byCell[key];
         return {
           id: u.id,
           kind: u.kind,
           level: u.level,
           team: u.team,
-          row: u.row || 0,
-          col: u.col || 0,
+          row: u.row,
+          col: u.col,
           hp: Math.max(0, u.hp),
           maxHp: u.maxHp,
           atk: u.atk,
@@ -506,7 +514,7 @@
     }
   }
 
-  function tryMoveToward(self, target, occupied) {
+  function tryMoveToward(self, target, occupied, all) {
     var options = neighbors4(self.row, self.col).filter(function (p) {
       return !occupied['' + p.row + ',' + p.col];
     });
@@ -522,6 +530,15 @@
     self.row = best.row;
     self.col = best.col;
     occupied['' + best.row + ',' + best.col] = true;
+    // 踩上尸体：移出该格死亡单位
+    if (all && all.length) {
+      all.forEach(function (u) {
+        if (u.dead && u.row === best.row && u.col === best.col) {
+          u.row = null;
+          u.col = null;
+        }
+      });
+    }
     return true;
   }
 
@@ -623,7 +640,7 @@
           units.forEach(function (u) {
             if (!u.dead && u.row != null) occ[u.row + ',' + u.col] = true;
           });
-          tryMoveToward(self, target, occ);
+          tryMoveToward(self, target, occ, units);
         }
       });
 
