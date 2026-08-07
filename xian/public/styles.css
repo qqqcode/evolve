@@ -1407,7 +1407,7 @@ body {
   }
 }
 
-/* 持有法宝：默认只显示摘要行，悬停/点开展开详情 */
+/* 持有法宝：摘要行固定高度，详情走全局气泡 .equip-tip */
 .owned-treasure {
   cursor: default;
 }
@@ -1418,16 +1418,102 @@ body {
 
 .owned-treasure .treasure-detail {
   display: none;
-  margin-top: 0.25rem;
 }
 
-.owned-treasure:hover .treasure-detail,
-.owned-treasure.detail-open .treasure-detail {
-  display: block;
-}
-
-.owned-treasure:hover {
+.owned-treasure:hover,
+.owned-treasure.is-tip-anchor {
   border-color: rgba(201, 162, 39, 0.55);
+}
+
+/* 装备/法宝详情气泡：浮层，不撑开列表边框 */
+.equip-tip {
+  position: fixed;
+  z-index: 80;
+  min-width: 12rem;
+  max-width: min(22rem, calc(100vw - 1.2rem));
+  padding: 0.55rem 0.7rem 0.6rem;
+  pointer-events: auto;
+  color: var(--paper);
+  background:
+    linear-gradient(165deg, rgba(22, 30, 44, 0.97), rgba(10, 14, 22, 0.96));
+  border: 1px solid rgba(212, 180, 90, 0.45);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.35);
+  animation: tip-pop 0.14s ease-out;
+}
+
+.equip-tip[hidden] {
+  display: none !important;
+}
+
+.equip-tip::before {
+  content: '';
+  position: absolute;
+  width: 0.55rem;
+  height: 0.55rem;
+  background: rgba(18, 26, 38, 0.98);
+  border-left: 1px solid rgba(212, 180, 90, 0.45);
+  border-top: 1px solid rgba(212, 180, 90, 0.45);
+  transform: rotate(45deg);
+}
+
+.equip-tip.tip-below::before {
+  top: -0.3rem;
+  left: var(--tip-arrow-x, 1.1rem);
+}
+
+.equip-tip.tip-above::before {
+  bottom: -0.3rem;
+  left: var(--tip-arrow-x, 1.1rem);
+  transform: rotate(225deg);
+}
+
+@keyframes tip-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.equip-tip .tip-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: var(--gold-soft);
+}
+
+.equip-tip .tip-desc {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.equip-tip .tip-bonus {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #b8c8d8;
+}
+
+.equip-tip .tip-cons {
+  color: #c47a7a;
+}
+
+.equip-tip .tip-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.equip-tip .treasure-actions {
+  margin-top: 0.4rem;
 }
 
 .treasure-row .lore-tag {
@@ -1490,13 +1576,9 @@ body {
   position: relative;
 }
 
-.equip-slot .slot-bonus {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.58rem;
-  line-height: 1.35;
-  color: #9eb4c8;
-  letter-spacing: 0.02em;
+.equip-slot.filled.is-tip-anchor {
+  border-color: var(--gold);
+  background: rgba(212, 180, 90, 0.1);
 }
 
 .equip-bonus-hint {

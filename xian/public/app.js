@@ -98,9 +98,14 @@
     endingBody: document.getElementById('endingBody'),
     mainTimeline: document.getElementById('mainTimeline'),
     milestoneList: document.getElementById('milestoneList'),
+    equipTip: document.getElementById('equipTip'),
   };
 
   let craftBuilt = false;
+  let tipHideTimer = null;
+  let tipAnchorEl = null;
+  let tipPinned = false;
+  let tipTreasureId = null;
 
   function resourceOf(key) {
     if (key === 'lingli') return state.lingqi;
@@ -115,6 +120,204 @@
     toastTimer = setTimeout(() => {
       els.toast.hidden = true;
     }, 2800);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function clearTipAnchor() {
+    if (tipAnchorEl) tipAnchorEl.classList.remove('is-tip-anchor');
+    tipAnchorEl = null;
+    tipTreasureId = null;
+  }
+
+  function hideEquipTip(force) {
+    clearTimeout(tipHideTimer);
+    tipHideTimer = null;
+    if (!force && tipPinned) return;
+    tipPinned = false;
+    if (els.equipTip) {
+      els.equipTip.hidden = true;
+      els.equipTip.innerHTML = '';
+      els.equipTip.classList.remove('tip-above', 'tip-below');
+    }
+    clearTipAnchor();
+  }
+
+  function positionEquipTip(anchor) {
+    const tip = els.equipTip;
+    if (!tip || !anchor) return;
+    const gap = 8;
+    const margin = 8;
+    const rect = anchor.getBoundingClientRect();
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let left = rect.left + rect.width / 2 - tw / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin));
+    let top = rect.bottom + gap;
+    let place = 'below';
+    if (top + th > window.innerHeight - margin && rect.top - gap - th >= margin) {
+      top = rect.top - gap - th;
+      place = 'above';
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    tip.classList.toggle('tip-below', place === 'below');
+    tip.classList.toggle('tip-above', place === 'above');
+    const arrowX = Math.max(12, Math.min(rect.left + rect.width / 2 - left - 4, tw - 16));
+    tip.style.setProperty('--tip-arrow-x', arrowX + 'px');
+  }
+
+  function showEquipTip(anchor, html, opts) {
+    if (!els.equipTip || !anchor) return;
+    clearTimeout(tipHideTimer);
+    tipHideTimer = null;
+    if (tipAnchorEl && tipAnchorEl !== anchor) tipAnchorEl.classList.remove('is-tip-anchor');
+    tipAnchorEl = anchor;
+    tipTreasureId = (opts && opts.treasureId) || anchor.dataset.treasureId || null;
+    tipPinned = !!(opts && opts.pinned);
+    anchor.classList.add('is-tip-anchor');
+    els.equipTip.innerHTML = html;
+    positionEquipTip(anchor);
+  }
+
+  function scheduleHideEquipTip() {
+    if (tipPinned) return;
+    clearTimeout(tipHideTimer);
+    tipHideTimer = setTimeout(() => hideEquipTip(false), 140);
+  }
+
+  function treasureTipHtml(id, withActions) {
+    const t = X.getTreasure(id);
+    if (!t) return '';
+    const forge = X.getTreasureForge ? X.getTreasureForge(state, id) : { level: 0, refined: false };
+    const effTier = X.treasureEffectiveTier
+      ? X.treasureEffectiveTier(state, id)
+      : forge.tierOverride || t.tier;
+    const tierLabel = (X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[effTier]) || '';
+    const bonus = X.describeTreasureBonus ? X.describeTreasureBonus(state, id) : '';
+    const needRefine = effTier !== 'immortal' && t.cons && !forge.refined;
+    let consLine = '';
+    if (needRefine && t.cons && t.cons.labels) {
+      consLine = '<p class="tip-bonus tip-cons">负：' + escapeHtml(t.cons.labels.join('、')) + '</p>';
+    } else if (effTier === 'immortal') {
+      consLine = '<p class="tip-bonus">仙品 · 无负面</p>';
+    } else if (forge.refined) {
+      consLine = '<p class="tip-bonus">已洗练 · 无负面</p>';
+    }
+    const title =
+      escapeHtml(t.name) +
+      ' · ' +
+      escapeHtml(tierLabel) +
+      (forge.level ? ' · +' + forge.level : '');
+    let actions = '';
+    if (withActions) actions = buildTreasureActionsHtml(id);
+    return (
+      '<p class="tip-title">' +
+      title +
+      '</p><p class="tip-desc">' +
+      escapeHtml(t.description || '') +
+      '</p>' +
+      (bonus ? '<p class="tip-bonus">' + escapeHtml(bonus) + '</p>' : '') +
+      consLine +
+      actions +
+      (withActions ? '' : '<p class="tip-hint">点击槽位卸下</p>')
+    );
+  }
+
+  function buildTreasureActionsHtml(id) {
+    const t = X.getTreasure(id);
+    if (!t) return '';
+    const eq = isTreasureEquipped(id);
+    const forge = X.getTreasureForge ? X.getTreasureForge(state, id) : { level: 0, refined: false };
+    const effTier = X.treasureEffectiveTier
+      ? X.treasureEffectiveTier(state, id)
+      : forge.tierOverride || t.tier;
+    const maxLv = X.MAX_TEMPER_LEVEL || 9;
+    const realm = X.currentForgeRealm ? X.currentForgeRealm(state) : null;
+    const tierOk = !realm || !X.TIER_RANK || X.TIER_RANK[effTier] <= X.TIER_RANK[realm.maxTier];
+    const levelCap = realm ? Math.min(maxLv, realm.maxLevel || maxLv) : maxLv;
+    const temperC = X.temperCost ? X.temperCost(t, forge.level) : t.temperBaseCost || 0;
+    const sellV = X.sellValue ? X.sellValue(state, id) : t.sellLingli || 0;
+    const canTemper =
+      forge.level < levelCap && tierOk && state.tishu >= temperC && state.phase === 'playing';
+    const needRefine = effTier !== 'immortal' && t.cons && !forge.refined;
+    const canRefine =
+      needRefine && state.tishu >= (t.refineCost || 0) && state.phase === 'playing';
+    const canSell = !eq && state.phase === 'playing';
+    const promoteTarget =
+      forge.level >= maxLv &&
+      ((effTier === 'mortal' && 'spirit') || (effTier === 'spirit' && 'immortal') || null);
+    let canPromote = false;
+    let promoteCost = 0;
+    if (promoteTarget && X.FORGE_REALMS) {
+      const idx = X.currentForgeRealmIndex ? X.currentForgeRealmIndex(state) : 0;
+      for (let i = 0; i <= idx; i++) {
+        const r = X.FORGE_REALMS[i];
+        if (r && r.canPromoteFrom === effTier && r.promoteCost) {
+          canPromote = state.tishu >= r.promoteCost && state.phase === 'playing';
+          promoteCost = r.promoteCost;
+        }
+      }
+    }
+    return (
+      '<div class="treasure-actions">' +
+      '<button type="button" class="mini-btn" data-treasure-id="' +
+      id +
+      '" data-action="toggle">' +
+      (eq ? '卸下' : '装备') +
+      '</button>' +
+      '<button type="button" class="mini-btn' +
+      (canTemper ? '' : ' is-locked') +
+      '" data-treasure-id="' +
+      id +
+      '" data-action="temper"' +
+      (canTemper ? '' : ' disabled') +
+      '>炼器 ' +
+      X.formatNumber(temperC) +
+      '体</button>' +
+      (needRefine
+        ? '<button type="button" class="mini-btn' +
+          (canRefine ? '' : ' is-locked') +
+          '" data-treasure-id="' +
+          id +
+          '" data-action="refine"' +
+          (canRefine ? '' : ' disabled') +
+          '>洗练 ' +
+          X.formatNumber(t.refineCost || 0) +
+          '体</button>'
+        : '') +
+      (promoteTarget
+        ? '<button type="button" class="mini-btn' +
+          (canPromote ? '' : ' is-locked') +
+          '" data-treasure-id="' +
+          id +
+          '" data-action="promote"' +
+          (canPromote ? '' : ' disabled') +
+          '>升' +
+          ((X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[promoteTarget]) || promoteTarget) +
+          ' ' +
+          X.formatNumber(promoteCost) +
+          '体</button>'
+        : '') +
+      '<button type="button" class="mini-btn' +
+      (canSell ? '' : ' is-locked') +
+      '" data-treasure-id="' +
+      id +
+      '" data-action="sell"' +
+      (canSell ? '' : ' disabled') +
+      '>出售 ' +
+      X.formatNumber(sellV) +
+      '</button></div>'
+    );
   }
 
   function scheduleSave() {
@@ -455,27 +658,9 @@
     );
   }
 
-  function shortTreasureBonus(id) {
-    if (!X.effectiveTreasureEffects) return '';
-    const eff = X.effectiveTreasureEffects(state, id);
-    if (!eff) return '';
-    const bits = [];
-    X.ATTR_KEYS.forEach((k) => {
-      if (eff.attrs[k]) {
-        const v = Math.round(eff.attrs[k] * 10) / 10;
-        bits.push(X.ATTR_LABELS[k] + (v > 0 ? '+' : '') + v);
-      }
-    });
-    if (eff.combatMult !== 1) bits.push('战×' + eff.combatMult.toFixed(2));
-    if (eff.cultivateClick) bits.push('点+' + Math.round(eff.cultivateClick * 10) / 10);
-    if (eff.cultivatePassive) bits.push('被+' + Math.round(eff.cultivatePassive * 10) / 10);
-    if (eff.level) bits.push('+' + eff.level);
-    if (eff.consActive) bits.push('有负面');
-    return bits.slice(0, 5).join(' ');
-  }
-
   function renderEquipBar() {
     if (!els.equipSlots) return;
+    if (tipAnchorEl && tipAnchorEl.classList.contains('equip-slot')) hideEquipTip(true);
     const cap = X.slotCapacity ? X.slotCapacity(state.realmIndex) : { combat: 1, cultivate: 1, assist: 1 };
     const sig =
       equipmentSignature() +
@@ -522,10 +707,7 @@
         const label = (X.EQUIP_SLOT_LABELS[slot] || slot) + (i + 1);
         if (id) {
           const t = X.getTreasure(id);
-          const bonus = shortTreasureBonus(id);
-          const full = X.describeTreasureBonus ? X.describeTreasureBonus(state, id) : bonus;
           btn.dataset.treasureId = id;
-          btn.title = full || t?.description || '';
           btn.innerHTML =
             '<span class="slot-mark">' +
             (t ? t.mark : '?') +
@@ -540,8 +722,7 @@
                 ]
               : '') +
             (t && t.combatEdges ? ' · 特效' : '') +
-            ' · 点卸</span>' +
-            (bonus ? '<span class="slot-bonus">' + bonus + '</span>' : '');
+            '</span>';
         } else {
           btn.disabled = true;
           btn.innerHTML =
@@ -617,6 +798,7 @@
   }
 
   function buildTreasures() {
+    hideEquipTip(true);
     els.ownedTreasures.innerHTML = '';
     els.shopTreasures.innerHTML = '';
     els.vaultList.innerHTML = '';
@@ -629,47 +811,11 @@
       const effTier = X.treasureEffectiveTier
         ? X.treasureEffectiveTier(state, id)
         : forge.tierOverride || t.tier;
-      const maxLv = X.MAX_TEMPER_LEVEL || 9;
-      const realm = X.currentForgeRealm ? X.currentForgeRealm(state) : null;
-      const tierOk = !realm || !X.TIER_RANK || X.TIER_RANK[effTier] <= X.TIER_RANK[realm.maxTier];
-      const levelCap = realm ? Math.min(maxLv, realm.maxLevel || maxLv) : maxLv;
       const tierLabel = (X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[effTier]) || '';
-      const bonus = X.describeTreasureBonus ? X.describeTreasureBonus(state, id) : '';
-      const temperC = X.temperCost ? X.temperCost(t, forge.level) : t.temperBaseCost || 0;
-      const sellV = X.sellValue ? X.sellValue(state, id) : t.sellLingli || 0;
-      const canTemper =
-        forge.level < levelCap && tierOk && state.tishu >= temperC && state.phase === 'playing';
-      const needRefine = effTier !== 'immortal' && t.cons && !forge.refined;
-      const canRefine =
-        needRefine && state.tishu >= (t.refineCost || 0) && state.phase === 'playing';
-      const canSell = !eq && state.phase === 'playing';
-      const promoteTarget =
-        forge.level >= maxLv &&
-        ((effTier === 'mortal' && 'spirit') || (effTier === 'spirit' && 'immortal') || null);
-      let canPromote = false;
-      let promoteCost = 0;
-      if (promoteTarget && X.FORGE_REALMS) {
-        const idx = X.currentForgeRealmIndex ? X.currentForgeRealmIndex(state) : 0;
-        for (let i = 0; i <= idx; i++) {
-          const r = X.FORGE_REALMS[i];
-          if (r && r.canPromoteFrom === effTier && r.promoteCost) {
-            canPromote = state.tishu >= r.promoteCost && state.phase === 'playing';
-            promoteCost = r.promoteCost;
-          }
-        }
-      }
 
       const row = document.createElement('div');
       row.className = 'art-row treasure-row owned-treasure';
       row.dataset.treasureId = id;
-      const consHtml =
-        needRefine && t.cons && t.cons.labels
-          ? '<p class="treasure-bonus treasure-cons">负：' + t.cons.labels.join('、') + '</p>'
-          : effTier === 'immortal'
-            ? '<p class="treasure-bonus">仙品 · 无负面</p>'
-            : forge.refined
-              ? '<p class="treasure-bonus">已洗练 · 无负面</p>'
-              : '';
       row.innerHTML =
         '<span class="art-mark">' +
         t.mark +
@@ -682,61 +828,7 @@
         ' · ' +
         (X.EQUIP_SLOT_LABELS[t.slot] || t.slot) +
         (forge.level ? ' · +' + forge.level : '') +
-        '</span></p><div class="treasure-detail"><p class="art-desc">' +
-        t.description +
-        '</p><p class="treasure-bonus">' +
-        (bonus || '') +
-        '</p>' +
-        consHtml +
-        '<div class="treasure-actions">' +
-        '<button type="button" class="mini-btn" data-treasure-id="' +
-        id +
-        '" data-action="toggle">' +
-        (eq ? '卸下' : '装备') +
-        '</button>' +
-        '<button type="button" class="mini-btn' +
-        (canTemper ? '' : ' is-locked') +
-        '" data-treasure-id="' +
-        id +
-        '" data-action="temper"' +
-        (canTemper ? '' : ' disabled') +
-        '>炼器 ' +
-        X.formatNumber(temperC) +
-        '体</button>' +
-        (needRefine
-          ? '<button type="button" class="mini-btn' +
-            (canRefine ? '' : ' is-locked') +
-            '" data-treasure-id="' +
-            id +
-            '" data-action="refine"' +
-            (canRefine ? '' : ' disabled') +
-            '>洗练 ' +
-            X.formatNumber(t.refineCost || 0) +
-            '体</button>'
-          : '') +
-        (promoteTarget
-          ? '<button type="button" class="mini-btn' +
-            (canPromote ? '' : ' is-locked') +
-            '" data-treasure-id="' +
-            id +
-            '" data-action="promote"' +
-            (canPromote ? '' : ' disabled') +
-            '>升' +
-            ((X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[promoteTarget]) || promoteTarget) +
-            ' ' +
-            X.formatNumber(promoteCost) +
-            '体</button>'
-          : '') +
-        '<button type="button" class="mini-btn' +
-        (canSell ? '' : ' is-locked') +
-        '" data-treasure-id="' +
-        id +
-        '" data-action="sell"' +
-        (canSell ? '' : ' disabled') +
-        '>出售 ' +
-        X.formatNumber(sellV) +
-        '</button>' +
-        '</div></div></span><span class="art-meta">' +
+        '</span></p></span><span class="art-meta">' +
         (eq ? '装备中' : '未装备') +
         '</span>';
       els.ownedTreasures.appendChild(row);
@@ -820,33 +912,7 @@
       const id = row.dataset.treasureId;
       const t = X.getTreasure(id);
       if (!t) return;
-      const forge = X.getTreasureForge ? X.getTreasureForge(state, id) : { level: 0, refined: false };
       const eq = isTreasureEquipped(id);
-      const temperBtn = row.querySelector('[data-action="temper"]');
-      if (temperBtn) {
-        const cost = X.temperCost ? X.temperCost(t, forge.level) : t.temperBaseCost || 0;
-        const can = forge.level < (t.maxTemper || 0) && state.tishu >= cost && playing;
-        temperBtn.disabled = !can;
-        temperBtn.classList.toggle('is-locked', !can);
-        temperBtn.textContent =
-          forge.level >= (t.maxTemper || 0)
-            ? '炼器已满 +' + forge.level
-            : '炼器 ' + X.formatNumber(cost) + '体';
-      }
-      const refineBtn = row.querySelector('[data-action="refine"]');
-      if (refineBtn) {
-        const can = state.tishu >= (t.refineCost || 0) && playing;
-        refineBtn.disabled = !can;
-        refineBtn.classList.toggle('is-locked', !can);
-      }
-      const sellBtn = row.querySelector('[data-action="sell"]');
-      if (sellBtn) {
-        const can = !eq && playing;
-        sellBtn.disabled = !can;
-        sellBtn.classList.toggle('is-locked', !can);
-      }
-      const toggleBtn = row.querySelector('[data-action="toggle"]');
-      if (toggleBtn) toggleBtn.textContent = eq ? '卸下' : '装备';
       const meta = row.querySelector('.art-meta');
       if (meta) meta.textContent = eq ? '装备中' : '未装备';
     });
@@ -857,6 +923,16 @@
         state.realmIndex < t.minRealm || state.lingqi < t.cost || !playing;
       btn.classList.toggle('is-locked', locked);
     });
+    if (tipTreasureId && tipAnchorEl && els.equipTip && !els.equipTip.hidden) {
+      const withActions = tipAnchorEl.classList.contains('owned-treasure');
+      const html = treasureTipHtml(tipTreasureId, withActions);
+      if (html) {
+        els.equipTip.innerHTML = html;
+        positionEquipTip(tipAnchorEl);
+      } else {
+        hideEquipTip(true);
+      }
+    }
   }
 
   function renderChronicle() {
@@ -1453,6 +1529,7 @@
   els.equipSlots.addEventListener('click', (e) => {
     const btn = e.target.closest('.equip-slot[data-treasure-id]');
     if (!btn) return;
+    hideEquipTip(true);
     const res = X.toggleEquip(state, btn.dataset.treasureId);
     if (!res.ok) {
       showToast(res.reason || '无法卸下');
@@ -1460,6 +1537,20 @@
     }
     treasuresBuilt = false;
     setState(res.state, { soft: true });
+  });
+
+  els.equipSlots.addEventListener('pointerover', (e) => {
+    const btn = e.target.closest('.equip-slot[data-treasure-id]');
+    if (!btn || !els.equipSlots.contains(btn)) return;
+    const id = btn.dataset.treasureId;
+    showEquipTip(btn, treasureTipHtml(id, false), { treasureId: id });
+  });
+  els.equipSlots.addEventListener('pointerout', (e) => {
+    const btn = e.target.closest('.equip-slot[data-treasure-id]');
+    if (!btn) return;
+    const to = e.relatedTarget;
+    if (to && (btn.contains(to) || (els.equipTip && els.equipTip.contains(to)))) return;
+    scheduleHideEquipTip();
   });
 
   els.combatList.addEventListener('click', (e) => {
@@ -1600,7 +1691,12 @@
     const btn = e.target.closest('.art-row');
     if (!btn || btn.classList.contains('is-locked')) return;
     if (btn.classList.contains('owned-treasure')) {
-      btn.classList.toggle('detail-open');
+      const id = btn.dataset.treasureId;
+      if (tipPinned && tipTreasureId === id) {
+        hideEquipTip(true);
+        return;
+      }
+      showEquipTip(btn, treasureTipHtml(id, true), { treasureId: id, pinned: true });
       return;
     }
     if (btn.dataset.pillId) {
@@ -1727,6 +1823,50 @@
   if (els.herbShop) els.herbShop.addEventListener('click', onShopClick);
   els.ownedTreasures.addEventListener('click', onShopClick);
   els.shopTreasures.addEventListener('click', onShopClick);
+
+  els.ownedTreasures.addEventListener('pointerover', (e) => {
+    const row = e.target.closest('.owned-treasure[data-treasure-id]');
+    if (!row || !els.ownedTreasures.contains(row)) return;
+    if (tipPinned && tipTreasureId && tipTreasureId !== row.dataset.treasureId) return;
+    const id = row.dataset.treasureId;
+    showEquipTip(row, treasureTipHtml(id, true), {
+      treasureId: id,
+      pinned: tipPinned && tipTreasureId === id,
+    });
+  });
+  els.ownedTreasures.addEventListener('pointerout', (e) => {
+    const row = e.target.closest('.owned-treasure[data-treasure-id]');
+    if (!row) return;
+    const to = e.relatedTarget;
+    if (to && (row.contains(to) || (els.equipTip && els.equipTip.contains(to)))) return;
+    scheduleHideEquipTip();
+  });
+
+  if (els.equipTip) {
+    els.equipTip.addEventListener('pointerenter', () => {
+      clearTimeout(tipHideTimer);
+      tipHideTimer = null;
+    });
+    els.equipTip.addEventListener('pointerleave', () => {
+      scheduleHideEquipTip();
+    });
+    els.equipTip.addEventListener('click', (e) => {
+      if (e.target.closest('.mini-btn[data-treasure-id]')) {
+        onShopClick(e);
+      }
+    });
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!els.equipTip || els.equipTip.hidden) return;
+    const t = e.target;
+    if (els.equipTip.contains(t)) return;
+    if (tipAnchorEl && tipAnchorEl.contains(t)) return;
+    hideEquipTip(true);
+  });
+
+  window.addEventListener('scroll', () => hideEquipTip(true), true);
+  window.addEventListener('resize', () => hideEquipTip(true));
 
   // 炼体已移除
 
