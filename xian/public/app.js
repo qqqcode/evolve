@@ -1085,17 +1085,21 @@
     syncEndingModal();
   }
 
-  els.absorbGrid.addEventListener('click', (e) => {
-    const btn = e.target.closest('.absorb-btn[data-channel]');
-    if (!btn) return;
-    const channel = btn.dataset.channel;
+  function resourceOfFrom(st, key) {
+    if (key === 'lingli') return st.lingqi;
+    if (key === 'tishu') return st.tishu;
+    return st.jingshen;
+  }
+
+  function doAbsorbClick(channel) {
+    if (state.phase !== 'playing' || state.endingId) return false;
     const before = resourceOf(channel);
     const hadEvent = !!state.randomEventId;
     const res = X.clickAbsorb(state, channel);
     if (!res.ok) {
       if (res.reason) showToast(res.reason);
       setState(res.state, { soft: true });
-      return;
+      return false;
     }
     spawnFloat(resourceOfFrom(res.state, channel) - before);
     if (!hadEvent && res.state.randomEventId) {
@@ -1106,13 +1110,76 @@
       showToast('奇遇：' + title);
     }
     setState(res.state, { soft: true });
-  });
-
-  function resourceOfFrom(st, key) {
-    if (key === 'lingli') return st.lingqi;
-    if (key === 'tishu') return st.tishu;
-    return st.jingshen;
+    return true;
   }
+
+  let holdAbsorbTimer = null;
+  let holdAbsorbChannel = null;
+  const HOLD_ABSORB_MS = 500;
+
+  function stopHoldAbsorb() {
+    if (holdAbsorbTimer != null) {
+      clearInterval(holdAbsorbTimer);
+      holdAbsorbTimer = null;
+    }
+    holdAbsorbChannel = null;
+    if (els.absorbGrid) {
+      els.absorbGrid.querySelectorAll('.absorb-btn.is-holding').forEach((b) => {
+        b.classList.remove('is-holding');
+      });
+    }
+  }
+
+  function startHoldAbsorb(btn, channel) {
+    stopHoldAbsorb();
+    holdAbsorbChannel = channel;
+    btn.classList.add('is-holding');
+    // 按下立即吐纳一次，之后每 0.5 秒一次
+    if (!doAbsorbClick(channel)) {
+      stopHoldAbsorb();
+      return;
+    }
+    holdAbsorbTimer = setInterval(() => {
+      if (holdAbsorbChannel !== channel) {
+        stopHoldAbsorb();
+        return;
+      }
+      if (!doAbsorbClick(channel)) stopHoldAbsorb();
+    }, HOLD_ABSORB_MS);
+  }
+
+  if (els.absorbGrid) {
+    els.absorbGrid.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.absorb-btn[data-channel]');
+      if (!btn) return;
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch (_) {
+        /* ignore */
+      }
+      startHoldAbsorb(btn, btn.dataset.channel);
+    });
+    els.absorbGrid.addEventListener('pointerup', stopHoldAbsorb);
+    els.absorbGrid.addEventListener('pointercancel', stopHoldAbsorb);
+    els.absorbGrid.addEventListener('pointerleave', (e) => {
+      if (e.target === els.absorbGrid) stopHoldAbsorb();
+    });
+    els.absorbGrid.addEventListener('lostpointercapture', stopHoldAbsorb);
+    // 禁用原生 click，避免松手再触发一次
+    els.absorbGrid.addEventListener('click', (e) => {
+      if (e.target.closest('.absorb-btn')) e.preventDefault();
+    });
+    els.absorbGrid.addEventListener('contextmenu', (e) => {
+      if (e.target.closest('.absorb-btn')) e.preventDefault();
+    });
+  }
+
+  window.addEventListener('blur', stopHoldAbsorb);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopHoldAbsorb();
+  });
   els.equipSlots.addEventListener('click', (e) => {
     const btn = e.target.closest('.equip-slot[data-treasure-id]');
     if (!btn) return;
