@@ -1,6 +1,6 @@
 {
   "name": "text-games",
-  "version": "0.9.29",
+  "version": "0.9.30",
   "description": "文字游戏集合（进化史、进化点击、兵阵对决、斗气苍穹等）",
   "main": "dist/src/server.js",
   "scripts": {
