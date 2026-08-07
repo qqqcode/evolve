@@ -10,6 +10,8 @@ COPY src ./src
 COPY evolve/src ./evolve/src
 COPY evolve2/src ./evolve2/src
 COPY legion/src ./legion/src
+COPY xian/src ./xian/src
+COPY xian/public ./xian/public
 RUN npm run build
 
 # 运行阶段
@@ -24,6 +26,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/xian/public ./xian/public
 COPY public ./public
 COPY evolve/public ./evolve/public
 COPY evolve2/public ./evolve2/public

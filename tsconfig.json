@@ -11,6 +11,15 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "evolve/src/**/*", "evolve2/src/**/*", "legion/src/**/*"],
-  "exclude": ["node_modules", "dist", "evolve/public", "evolve2/public", "legion/public", "public"]
+  "include": ["src/**/*", "evolve/src/**/*", "evolve2/src/**/*", "legion/src/**/*", "xian/src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "evolve/public",
+    "evolve2/public",
+    "legion/public",
+    "xian/public",
+    "xian/src/game/browser.ts",
+    "public"
+  ]
 }

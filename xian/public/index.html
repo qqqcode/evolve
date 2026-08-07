@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>斗气苍穹 · 文字游戏集合</title>
+    <base href="/xian/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="mist" aria-hidden="true">
+      <div class="mist-a"></div>
+      <div class="mist-b"></div>
+      <div class="seal-bg"></div>
+    </div>
+
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <a class="hub-link" href="/">集合</a>
+          <h1 class="brand-title">斗气苍穹</h1>
+        </div>
+        <div class="top-actions">
+          <button type="button" id="btnReset" class="ghost-btn" title="清除存档">重置</button>
+          <span id="versionBadge" class="version">v—</span>
+        </div>
+      </header>
+
+      <section class="resource-bar" aria-label="资源">
+        <div class="res">
+          <span class="res-mark" aria-hidden="true">炁</span>
+          <div>
+            <p class="res-label">斗气</p>
+            <p class="res-value" id="douqiVal">0</p>
+          </div>
+        </div>
+        <div class="res">
+          <span class="res-mark" aria-hidden="true">息</span>
+          <div>
+            <p class="res-label">每秒</p>
+            <p class="res-value" id="dpsVal">0</p>
+          </div>
+        </div>
+        <div class="res">
+          <span class="res-mark" aria-hidden="true">运</span>
+          <div>
+            <p class="res-label">气运</p>
+            <p class="res-value" id="qiyunVal">0</p>
+          </div>
+        </div>
+        <div class="res">
+          <span class="res-mark" aria-hidden="true">倍</span>
+          <div>
+            <p class="res-label">总倍率</p>
+            <p class="res-value" id="multVal">×1</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="layout">
+        <aside class="realm-panel">
+          <h2 class="pane-title">境界</h2>
+          <div class="realm-rail" id="realmRail" aria-label="境界进度"></div>
+          <p class="realm-blurb" id="realmBlurb"></p>
+          <p class="path-line" id="pathLine"></p>
+          <div class="realm-actions">
+            <button type="button" id="btnRaiseStar" class="action-btn">升星</button>
+            <button type="button" id="btnBreak" class="action-btn primary">破境</button>
+          </div>
+          <p class="realm-hint" id="realmHint"></p>
+        </aside>
+
+        <section class="core-panel">
+          <p class="click-hint">点击吐纳，吸收斗气</p>
+          <button type="button" id="absorbBtn" class="absorb-btn" aria-label="吐纳吸收斗气">
+            <span class="absorb-ring"></span>
+            <span class="absorb-core" id="absorbCore">炁</span>
+            <span class="absorb-glow"></span>
+          </button>
+          <p class="click-power">
+            每次 <span id="clickPowerVal">1</span> 斗气
+          </p>
+          <div id="floatLayer" class="float-layer" aria-hidden="true"></div>
+
+          <section class="chronicle" aria-label="修行日志">
+            <h2 class="pane-title">修行录</h2>
+            <ul id="chronicleList" class="chronicle-list"></ul>
+          </section>
+        </section>
+
+        <aside class="shop-panel">
+          <div class="shop-tabs" role="tablist">
+            <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
+            <button type="button" class="tab" data-tab="cycle" role="tab">轮回·结局</button>
+          </div>
+
+          <div id="tabArts" class="tab-pane active">
+            <h2 class="pane-title">吐纳</h2>
+            <div id="clickShop" class="shop-list"></div>
+            <h2 class="pane-title">运转</h2>
+            <div id="passiveShop" class="shop-list"></div>
+          </div>
+
+          <div id="tabCycle" class="tab-pane">
+            <div class="cycle-card">
+              <h2 class="pane-title">轮回转世</h2>
+              <p id="reincarnateStatus" class="cycle-status"></p>
+              <button type="button" id="btnReincarnate" class="action-btn primary">轮回</button>
+            </div>
+            <div class="cycle-card">
+              <h2 class="pane-title">已收集结局</h2>
+              <ul id="endingList" class="ending-list"></ul>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="foot">
+        <span>离线进度上限 8 小时 · 自动存档</span>
+        <span id="saveHint">已保存</span>
+      </footer>
+    </main>
+
+    <div id="eventModal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="eventTitle">
+        <h2 id="eventTitle" class="modal-title"></h2>
+        <p id="eventBody" class="modal-body"></p>
+        <div id="eventOptions" class="modal-options"></div>
+      </div>
+    </div>
+
+    <div id="endingModal" class="modal" hidden>
+      <div class="modal-card ending-card" role="dialog" aria-modal="true" aria-labelledby="endingTitle">
+        <p class="ending-eyebrow">此世落幕</p>
+        <h2 id="endingName" class="modal-title"></h2>
+        <p id="endingTitle" class="ending-sub"></p>
+        <p id="endingBody" class="modal-body"></p>
+        <button type="button" id="btnEndingOk" class="action-btn primary">继续观摩 / 可轮回</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="engine.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

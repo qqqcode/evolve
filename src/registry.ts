@@ -30,6 +30,13 @@ export const GAMES: GameEntry[] = [
     ready: true,
   },
   {
+    id: 'xian',
+    title: '斗气苍穹',
+    path: '/xian/',
+    blurb: '修仙文字点击：十二境九星、六大道路与阵营抉择，多种结局可轮回收集。',
+    ready: true,
+  },
+  {
     id: 'othername',
     title: 'Other Name（占位）',
     path: '/othername/',

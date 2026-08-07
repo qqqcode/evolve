@@ -6,6 +6,7 @@ import { sendHtmlFile } from './htmlInject';
 import { createEvolveRouter, logEvolveAiStatus } from '../evolve/src/router';
 import { createEvolve2Router } from '../evolve2/src/router';
 import { createLegionRouter } from '../legion/src/router';
+import { createXianRouter } from '../xian/src/router';
 import { GAMES } from './registry';
 
 const app = express();
@@ -40,6 +41,9 @@ app.use('/evolve2', createEvolve2Router());
 /** 兵阵对决：/legion 与 /legion/* */
 app.use('/legion', createLegionRouter());
 
+/** 斗气苍穹：/xian 与 /xian/* */
+app.use('/xian', createXianRouter());
+
 /** 集合门户静态资源（css/js）；禁用自动 index，首页走注入逻辑 */
 app.use(express.static(hubPublic, { index: false }));
 
@@ -63,6 +67,7 @@ app.listen(PORT, HOST, () => {
   console.log(`进化史: http://${HOST}:${PORT}${pub}/evolve/`);
   console.log(`进化点击: http://${HOST}:${PORT}${pub}/evolve2/`);
   console.log(`兵阵对决: http://${HOST}:${PORT}${pub}/legion/`);
+  console.log(`斗气苍穹: http://${HOST}:${PORT}${pub}/xian/`);
   console.log(`本机局域网可访问: http://<你的IP>:${PORT}${pub}/`);
   logEvolveAiStatus();
 });
