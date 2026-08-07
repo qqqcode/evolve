@@ -7,9 +7,11 @@ import {
   BRANCH_LABELS,
   ENDINGS,
   ENEMIES,
+  MAIN_STORY,
   MAX_EQUIP,
   MAX_OFFLINE_MS,
   MAX_STAR,
+  NATURALS,
   QIYUN_BONUS_PER,
   RANDOM_EVENTS,
   REALMS,
@@ -19,6 +21,7 @@ import {
   TREASURES,
   getEnding,
   getEnemy,
+  getNatural,
   getRealm,
   getTreasure,
 } from './data';
@@ -54,12 +57,13 @@ import {
   tryRandomEvent,
 } from './engine';
 import type { GameState } from './types';
-import { ATTR_KEYS, ATTR_LABELS } from './types';
+import { ATTR_KEYS, ATTR_LABELS, EQUIP_SLOTS, EQUIP_SLOT_LABELS } from './types';
 
 function saveToStorage(state: GameState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    // 清理旧档键
+    localStorage.removeItem('xian-save-v3');
+    localStorage.removeItem('xian-save-v2');
     localStorage.removeItem('xian-save-v1');
   } catch {
     /* ignore */
@@ -70,6 +74,7 @@ function loadFromStorage(now = Date.now()): GameState {
   try {
     const raw =
       localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem('xian-save-v3') ||
       localStorage.getItem('xian-save-v2') ||
       localStorage.getItem('xian-save-v1');
     if (!raw) return createNewState(now);
@@ -82,6 +87,7 @@ function loadFromStorage(now = Date.now()): GameState {
 function clearStorage(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('xian-save-v3');
     localStorage.removeItem('xian-save-v2');
     localStorage.removeItem('xian-save-v1');
   } catch {
@@ -97,9 +103,13 @@ const Xian = {
   BRANCH_LABELS,
   ENDINGS,
   ENEMIES,
+  EQUIP_SLOTS,
+  EQUIP_SLOT_LABELS,
+  MAIN_STORY,
   MAX_EQUIP,
   MAX_OFFLINE_MS,
   MAX_STAR,
+  NATURALS,
   QIYUN_BONUS_PER,
   REALMS,
   SAVE_VERSION,
@@ -109,6 +119,7 @@ const Xian = {
   RANDOM_EVENTS,
   getEnding,
   getEnemy,
+  getNatural,
   getRealm,
   getTreasure,
   allocatePoint,

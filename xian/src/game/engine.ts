@@ -4,10 +4,12 @@ import {
   BRANCH_LABELS,
   ENDINGS,
   ENEMIES,
+  MAIN_STORY,
   MAX_CHRONICLE,
   MAX_EQUIP,
   MAX_OFFLINE_MS,
   MAX_STAR,
+  NATURALS,
   QIYUN_BONUS_PER,
   RANDOM_CHANCE,
   RANDOM_COOLDOWN_MS,
@@ -17,10 +19,12 @@ import {
   STORY_EVENTS,
   TREASURES,
   addAttrs,
+  emptyEquipped,
   getArt,
   getBirth,
   getEnding,
   getEnemy,
+  getNatural,
   getRealm,
   getTreasure,
   scaleAttrs,
@@ -34,11 +38,13 @@ import type {
   CombatResult,
   DerivedStats,
   EndingDef,
+  EquipSlot,
+  EquippedMap,
   GameState,
   StoryEventDef,
   TickResult,
 } from './types';
-import { ATTR_KEYS } from './types';
+import { ATTR_KEYS, EQUIP_SLOTS } from './types';
 
 function emptyOwned(): Record<string, number> {
   const owned: Record<string, number> = {};
@@ -60,6 +66,28 @@ function parseAttrs(raw: unknown, fallback: AttrMap): AttrMap {
     base[k] = Number.isFinite(n) ? Math.floor(n) : base[k];
   }
   return base;
+}
+
+function migrateEquipped(raw: unknown, treasures: string[]): EquippedMap {
+  const eq = emptyEquipped();
+  if (Array.isArray(raw)) {
+    for (const id of raw) {
+      if (typeof id !== 'string' || !treasures.includes(id)) continue;
+      const t = getTreasure(id);
+      if (t && !eq[t.slot]) eq[t.slot] = id;
+    }
+    return eq;
+  }
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>;
+    for (const slot of EQUIP_SLOTS) {
+      const id = o[slot];
+      if (typeof id === 'string' && treasures.includes(id) && getTreasure(id)?.slot === slot) {
+        eq[slot] = id;
+      }
+    }
+  }
+  return eq;
 }
 
 /** 跨世保留的空壳（未选出身） */
@@ -86,8 +114,11 @@ export function createMetaState(now = Date.now()): GameState {
     attrs: zeroAttrs(),
     freePoints: 0,
     treasures: [],
-    equipped: [],
+    equipped: emptyEquipped(),
     vault: [],
+    naturals: [],
+    naturalPassive: 0,
+    mainChapter: 1,
     legacyAttrs: zeroAttrs(),
     peakRealmIndex: 0,
     phase: 'rebirth',
@@ -131,11 +162,12 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
   const treasures = Array.isArray(data.treasures)
     ? data.treasures.filter((f): f is string => typeof f === 'string' && !!getTreasure(f))
     : [];
-  const equipped = Array.isArray(data.equipped)
-    ? data.equipped.filter((f): f is string => typeof f === 'string' && treasures.includes(f)).slice(0, MAX_EQUIP)
-    : [];
+  const equipped = migrateEquipped(data.equipped, treasures);
   const vault = Array.isArray(data.vault)
     ? data.vault.filter((f): f is string => typeof f === 'string' && !!getTreasure(f))
+    : [];
+  const naturals = Array.isArray(data.naturals)
+    ? data.naturals.filter((f): f is string => typeof f === 'string' && !!getNatural(f))
     : [];
 
   const lastTickAt = Number(data.lastTickAt);
@@ -176,6 +208,9 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     treasures,
     equipped,
     vault,
+    naturals,
+    naturalPassive: Math.max(0, Number(data.naturalPassive) || 0),
+    mainChapter: Math.max(1, Math.floor(Number(data.mainChapter) || 1)),
     legacyAttrs: parseAttrs(data.legacyAttrs, zeroAttrs()),
     peakRealmIndex: clampInt(data.peakRealmIndex ?? data.realmIndex, 0, REALMS.length - 1),
     phase: !data.birthId && phase === 'playing' ? 'rebirth' : phase,
@@ -252,11 +287,27 @@ function hasMinAttrs(total: AttrMap, need?: Partial<AttrMap>): boolean {
 /** 法宝提供的属性（已装备） */
 export function treasureAttrBonus(state: GameState): AttrMap {
   let sum = zeroAttrs();
-  for (const id of state.equipped) {
+  for (const slot of EQUIP_SLOTS) {
+    const id = state.equipped[slot];
+    if (!id) continue;
     const t = getTreasure(id);
     if (t) sum = addAttrs(sum, t.attrs);
   }
   return sum;
+}
+
+export function cultivateBonuses(state: GameState): { click: number; passive: number } {
+  let click = 0;
+  let passive = 0;
+  for (const slot of EQUIP_SLOTS) {
+    const id = state.equipped[slot];
+    if (!id) continue;
+    const t = getTreasure(id);
+    if (!t) continue;
+    click += t.cultivateClick || 0;
+    passive += t.cultivatePassive || 0;
+  }
+  return { click, passive };
 }
 
 /** 功法每级属性（持有数 × 每级） */
@@ -295,7 +346,9 @@ export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
   const weighted =
     a.atk * 1.2 + a.def * 1.0 + a.spd * 0.9 + a.spirit * 1.1 + a.bone * 0.8 + a.luck * 0.6;
   let mult = 1;
-  for (const id of state.equipped) {
+  for (const slot of EQUIP_SLOTS) {
+    const id = state.equipped[slot];
+    if (!id) continue;
     const t = getTreasure(id);
     if (t?.combatMult) mult *= t.combatMult;
   }
@@ -356,7 +409,9 @@ export function findPendingEvent(state: GameState): StoryEventDef | null {
   if (state.phase !== 'playing' || state.endingId) return null;
 
   if (state.randomEventId) {
-    const rnd = RANDOM_EVENTS.find((e) => e.id === state.randomEventId);
+    const rnd =
+      RANDOM_EVENTS.find((e) => e.id === state.randomEventId) ||
+      MAIN_STORY.find((e) => e.id === state.randomEventId);
     if (rnd) return rnd;
   }
 
@@ -380,6 +435,25 @@ export function tryRandomEvent(
   const chance = RANDOM_CHANCE[source];
   const roll = forceRoll != null ? forceRoll : Math.random();
   if (roll > chance) return { ok: false, state };
+
+  // 主线优先：约 35% 权重插入下一章（若境界足够）
+  const nextMain = MAIN_STORY.find((e) => e.mainChapter === state.mainChapter);
+  if (
+    nextMain &&
+    state.realmIndex >= nextMain.minRealm &&
+    !state.doneEvents.includes(nextMain.id) &&
+    Math.random() < 0.35
+  ) {
+    return {
+      ok: true,
+      state: {
+        ...state,
+        randomEventId: nextMain.id,
+        lastRandomAt: now,
+      },
+      message: nextMain.title,
+    };
+  }
 
   const pool = RANDOM_EVENTS.filter((e) => {
     if (state.realmIndex < e.minRealm) return false;
@@ -428,12 +502,33 @@ function grantLingqi(state: GameState, amount: number): GameState {
 function grantTreasure(state: GameState, id: string): GameState {
   if (!getTreasure(id)) return state;
   if (state.treasures.includes(id)) return state;
+  const t = getTreasure(id)!;
   const treasures = [...state.treasures, id];
-  let equipped = state.equipped;
-  if (equipped.length < MAX_EQUIP) equipped = [...equipped, id];
+  const equipped = { ...state.equipped };
+  if (!equipped[t.slot]) equipped[t.slot] = id;
   return pushChronicle(
     { ...state, treasures, equipped },
-    `获得法宝「${getTreasure(id)!.name}」【${getTreasure(id)!.lore}】`,
+    `获得法宝「${t.name}」〔${t.slot === 'combat' ? '战斗' : t.slot === 'cultivate' ? '修炼' : '辅助'}〕【${t.lore}】`,
+  );
+}
+
+function grantNatural(state: GameState, id: string): GameState {
+  const n = getNatural(id);
+  if (!n) return state;
+  if (state.naturals.includes(id)) {
+    // 重复获得：只给灵气，不加被动
+    let next = grantLingqi(state, Math.floor(n.lingqiGain * 0.4));
+    return pushChronicle(next, `再次寻得「${n.name}」，炼化残力入体。`);
+  }
+  let next: GameState = {
+    ...state,
+    naturals: [...state.naturals, id],
+    naturalPassive: state.naturalPassive + n.passiveBonus,
+  };
+  next = grantLingqi(next, n.lingqiGain);
+  return pushChronicle(
+    next,
+    `获得天才地宝「${n.name}」：灵气 +${Math.floor(n.lingqiGain)}，永久被动 +${n.passiveBonus}/秒【${n.lore}】`,
   );
 }
 
@@ -464,6 +559,10 @@ export function derive(state: GameState): DerivedStats {
     if (art.kind === 'click') clickBase += art.power * n;
     else passiveBase += art.power * n;
   }
+
+  const cult = cultivateBonuses(state);
+  clickBase += cult.click;
+  passiveBase += cult.passive + state.naturalPassive;
 
   const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
   const clickPower = clickBase * scale;
@@ -499,6 +598,8 @@ export function derive(state: GameState): DerivedStats {
     totalAttrs: attrs,
     treasureAttrs: treasureAttrBonus(state),
     combatPower: calcCombatPower(state, attrs),
+    cultivateClickBonus: cult.click,
+    cultivatePassiveBonus: cult.passive + state.naturalPassive,
     inheritPreview: {
       attrRate: peakRealm.inheritAttrRate,
       treasureSlots: peakRealm.inheritTreasureSlots,
@@ -590,24 +691,26 @@ export function buyTreasure(state: GameState, treasureId: string, now = Date.now
 }
 
 export function toggleEquip(state: GameState, treasureId: string): ActionResult {
-  if (!state.treasures.includes(treasureId)) {
+  const def = getTreasure(treasureId);
+  if (!def || !state.treasures.includes(treasureId)) {
     return { ok: false, state, reason: '未持有该法宝' };
   }
-  if (state.equipped.includes(treasureId)) {
-    return {
-      ok: true,
-      state: { ...state, equipped: state.equipped.filter((id) => id !== treasureId) },
-      message: '已卸下',
-    };
+  const slot = def.slot;
+  const equipped = { ...state.equipped };
+  if (equipped[slot] === treasureId) {
+    equipped[slot] = null;
+    return { ok: true, state: { ...state, equipped }, message: `已卸下〔${slotLabel(slot)}〕` };
   }
-  if (state.equipped.length >= MAX_EQUIP) {
-    return { ok: false, state, reason: `最多装备 ${MAX_EQUIP} 件法宝` };
-  }
+  equipped[slot] = treasureId;
   return {
     ok: true,
-    state: { ...state, equipped: [...state.equipped, treasureId] },
-    message: '已装备',
+    state: { ...state, equipped },
+    message: `已装备至〔${slotLabel(slot)}〕槽`,
   };
+}
+
+function slotLabel(slot: EquipSlot): string {
+  return slot === 'combat' ? '战斗' : slot === 'cultivate' ? '修炼' : '辅助';
 }
 
 export function allocatePoint(state: GameState, key: AttrKey): ActionResult {
@@ -704,7 +807,6 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
   const ticked = tick(state, now).state;
   const pPower = calcCombatPower(ticked);
   const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
-  // 气机参与随机浮动
   const luck = totalAttrs(ticked).luck;
   const roll = 0.85 + Math.random() * 0.3 + Math.min(0.15, luck * 0.005);
   const won = pPower * roll >= ePower;
@@ -716,12 +818,45 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
       combatWins: next.combatWins + 1,
       freePoints: next.freePoints + (enemy.rewardPoints || 0),
     };
+    const lootBits: string[] = [];
     if (enemy.dropTreasureId && Math.random() < (enemy.dropChance || 0)) {
       next = grantTreasure(next, enemy.dropTreasureId);
+      lootBits.push(getTreasure(enemy.dropTreasureId)?.name || enemy.dropTreasureId);
     }
+    // 额外随机法宝
+    if (Math.random() < 0.22) {
+      const pool = TREASURES.filter(
+        (t) => t.minRealm <= next.realmIndex && !next.treasures.includes(t.id),
+      );
+      if (pool.length) {
+        const pick = pool[Math.floor(Math.random() * pool.length)]!;
+        next = grantTreasure(next, pick.id);
+        lootBits.push(pick.name);
+      }
+    }
+    // 天才地宝
+    if (Math.random() < 0.28) {
+      const pool = NATURALS.filter((n) => n.minRealm <= next.realmIndex);
+      if (pool.length) {
+        let total = 0;
+        for (const n of pool) total += n.weight || 1;
+        let r = Math.random() * total;
+        let pick = pool[0]!;
+        for (const n of pool) {
+          r -= n.weight || 1;
+          if (r <= 0) {
+            pick = n;
+            break;
+          }
+        }
+        next = grantNatural(next, pick.id);
+        lootBits.push(pick.name);
+      }
+    }
+    const loot = lootBits.length ? lootBits.join('、') : undefined;
     next = pushChronicle(
       next,
-      `对战胜利：击败「${enemy.name}」（战力 ${Math.floor(pPower)} vs ${Math.floor(ePower)}）【${enemy.lore}】`,
+      `对战胜利：击败「${enemy.name}」（${Math.floor(pPower)} vs ${Math.floor(ePower)}）${loot ? ' · 缴获 ' + loot : ''}【${enemy.lore}】`,
     );
     return {
       ok: true,
@@ -730,16 +865,52 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
       playerPower: pPower,
       enemyPower: ePower,
       message: `战胜 ${enemy.name}`,
+      loot,
     };
   }
 
+  // 战败：低概率身死，否则可能掉段，否则轻伤
   let next: GameState = {
     ...ticked,
     combatLosses: ticked.combatLosses + 1,
   };
+  const pressure = Math.min(0.12, 0.04 + Math.max(0, ePower - pPower) / Math.max(ePower, 1) * 0.1);
+  const deathRoll = Math.random();
+  if (deathRoll < pressure) {
+    const dead = die(next, `败于「${enemy.name}」，伤重不治`, now);
+    return {
+      ok: true,
+      state: dead.state,
+      won: false,
+      playerPower: pPower,
+      enemyPower: ePower,
+      message: dead.message,
+      defeatOutcome: 'death',
+    };
+  }
+
+  if (Math.random() < 0.38) {
+    next = demoteRank(next);
+    next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.15));
+    next = pushChronicle(
+      next,
+      `对战失败：不敌「${enemy.name}」，境界受挫（现 ${getRealm(next.realmIndex).name}${next.star}层）`,
+    );
+    return {
+      ok: true,
+      state: next,
+      won: false,
+      playerPower: pPower,
+      enemyPower: ePower,
+      message: `败于 ${enemy.name}，掉段`,
+      defeatOutcome: 'demote',
+    };
+  }
+
+  next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.08));
   next = pushChronicle(
     next,
-    `对战失败：不敌「${enemy.name}」（战力 ${Math.floor(pPower)} vs ${Math.floor(ePower)}）`,
+    `对战失败：不敌「${enemy.name}」，轻伤逃回（${Math.floor(pPower)} vs ${Math.floor(ePower)}）`,
   );
   return {
     ok: true,
@@ -748,7 +919,19 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
     playerPower: pPower,
     enemyPower: ePower,
     message: `败于 ${enemy.name}`,
+    defeatOutcome: 'bruise',
   };
+}
+
+/** 掉段：优先降层，一层时掉境回九层 */
+function demoteRank(state: GameState): GameState {
+  if (state.star > 1) {
+    return { ...state, star: state.star - 1 };
+  }
+  if (state.realmIndex > 0) {
+    return { ...state, realmIndex: state.realmIndex - 1, star: MAX_STAR };
+  }
+  return state;
 }
 
 /** 可选对手：当前境界附近 */
@@ -838,6 +1021,11 @@ export function chooseBirth(
 
   const attrs = addAttrs(zeroAttrs(), birth.attrs);
   const flags = [...(birth.flags || [])];
+  const equipped = emptyEquipped();
+  for (const id of bring) {
+    const t = getTreasure(id);
+    if (t && !equipped[t.slot]) equipped[t.slot] = id;
+  }
 
   const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
   const next: GameState = {
@@ -867,8 +1055,11 @@ export function chooseBirth(
     attrs,
     freePoints: birth.freePoints,
     treasures: [...bring],
-    equipped: bring.slice(0, MAX_EQUIP),
+    equipped,
     vault,
+    naturals: [],
+    naturalPassive: 0,
+    mainChapter: 1,
     legacyAttrs,
     peakRealmIndex: 0,
     phase: 'playing',
@@ -910,6 +1101,10 @@ export function resolveEvent(
     randomEventId: null,
   };
 
+  if (pending.mainChapter && pending.mainChapter === ticked.mainChapter) {
+    next = { ...next, mainChapter: ticked.mainChapter + 1 };
+  }
+
   if (option.set?.branchId) next = { ...next, branchId: option.set.branchId };
   if (option.set?.factionId) next = { ...next, factionId: option.set.factionId };
   if (option.set?.destinyId) next = { ...next, destinyId: option.set.destinyId };
@@ -934,6 +1129,9 @@ export function resolveEvent(
   }
   if (option.grantTreasureId) {
     next = grantTreasure(next, option.grantTreasureId);
+  }
+  if (option.grantNaturalId) {
+    next = grantNatural(next, option.grantNaturalId);
   }
 
   next = pushChronicle(
@@ -1030,8 +1228,11 @@ export function getMeta() {
     qiyunBonusPer: QIYUN_BONUS_PER,
     maxStar: MAX_STAR,
     maxEquip: MAX_EQUIP,
+    equipSlots: EQUIP_SLOTS,
+    naturals: NATURALS.map((n) => ({ id: n.id, name: n.name, minRealm: n.minRealm })),
+    mainStory: MAIN_STORY.map((e) => ({ id: e.id, title: e.title, chapter: e.mainChapter })),
     attrKeys: ATTR_KEYS,
   };
 }
 
-export { BIRTHS, TREASURES, ENEMIES, ATTR_KEYS };
+export { BIRTHS, TREASURES, ENEMIES, ATTR_KEYS, NATURALS, MAIN_STORY, EQUIP_SLOTS };

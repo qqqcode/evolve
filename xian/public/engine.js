@@ -1,10 +1,489 @@
 "use strict";
 (() => {
+  // xian/src/game/loot.ts
+  function emptyEquipped() {
+    return { combat: null, cultivate: null, assist: null };
+  }
+  var TREASURES = [
+    // —— 战斗 ——
+    {
+      id: "bamboo_cloud_sword",
+      name: "\u9752\u7AF9\u8702\u4E91\u5251\u6B8B\u950B",
+      description: "\u6218\u6597\u69FD\u3002\u51E1\u4EBA\u540C\u6B3E\u98DE\u5251\u6B8B\u950B\uFF0C\u5FA1\u5251\u65F6\u603B\u60F3\u558A\u51FA\u5251\u540D\u3002",
+      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
+      cost: 2500,
+      minRealm: 1,
+      slot: "combat",
+      attrs: { atk: 4, spd: 2 },
+      combatMult: 1.08,
+      mark: "\u7AF9",
+      vaultable: true
+    },
+    {
+      id: "flame_tome",
+      name: "\u711A\u8BC0\u6B8B\u9875",
+      description: "\u6218\u6597\u69FD\u3002\u6597\u7834\u540C\u6B3E\uFF1A\u7EC3\u7740\u7EC3\u7740\u5C31\u60F3\u627E\u5F02\u706B\u3002",
+      lore: "\u6597\u7834\u82CD\u7A79",
+      cost: 6e3,
+      minRealm: 2,
+      slot: "combat",
+      attrs: { atk: 6, bone: 1 },
+      combatMult: 1.1,
+      mark: "\u711A",
+      vaultable: true
+    },
+    {
+      id: "fire_lotus",
+      name: "\u9752\u83B2\u5730\u5FC3\u706B\u79CD",
+      description: "\u6218\u6597\u69FD\u3002\u5C0F\u5C0F\u706B\u79CD\uFF0C\u6218\u610F\u6CB8\u817E\u3002",
+      lore: "\u6597\u7834\u82CD\u7A79",
+      cost: 0,
+      minRealm: 3,
+      slot: "combat",
+      attrs: { atk: 8, spirit: 2 },
+      combatMult: 1.14,
+      mark: "\u83B2",
+      vaultable: true
+    },
+    {
+      id: "face_slap_fan",
+      name: "\u6253\u8138\u6247",
+      description: "\u6218\u6597\u69FD\u3002\u4E13\u6CBB\u5404\u79CD\u4E0D\u670D\u3002",
+      lore: "\u8BF8\u5929\u6897",
+      cost: 3e3,
+      minRealm: 1,
+      slot: "combat",
+      attrs: { atk: 3, luck: 2 },
+      combatMult: 1.07,
+      mark: "\u6247",
+      vaultable: true
+    },
+    {
+      id: "heaven_slash_blade",
+      name: "\u5F00\u5929\u6B8B\u5203",
+      description: "\u6218\u6597\u69FD\u3002\u5251\u610F\u672A\u6563\uFF0C\u6740\u6C14\u72B9\u5B58\u3002",
+      lore: "\u8BF8\u5929\u5251\u4FEE",
+      cost: 8e4,
+      minRealm: 5,
+      slot: "combat",
+      attrs: { atk: 12, spd: 4 },
+      combatMult: 1.16,
+      mark: "\u5203",
+      vaultable: true
+    },
+    // —— 修炼 ——
+    {
+      id: "small_bottle",
+      name: "\u7EFF\u6DB2\u5C0F\u74F6",
+      description: "\u4FEE\u70BC\u69FD\u3002\u6EF4\u8349\u6728\u75AF\u957F\uFF0C\u5410\u7EB3\u4E5F\u8DDF\u7740\u5F00\u6302\u3002",
+      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
+      cost: 0,
+      minRealm: 0,
+      slot: "cultivate",
+      attrs: { luck: 3, bone: 2, spirit: 1 },
+      cultivateClick: 2,
+      cultivatePassive: 1.5,
+      mark: "\u74F6",
+      vaultable: true
+    },
+    {
+      id: "spirit_gather_jade",
+      name: "\u805A\u7075\u7389\u7B80",
+      description: "\u4FEE\u70BC\u69FD\u3002\u7389\u7B80\u8D34\u8EAB\uFF0C\u88AB\u52A8\u805A\u7075\u3002",
+      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
+      cost: 1800,
+      minRealm: 0,
+      slot: "cultivate",
+      attrs: { spirit: 2 },
+      cultivateClick: 1,
+      cultivatePassive: 2.5,
+      mark: "\u7389",
+      vaultable: true
+    },
+    {
+      id: "desolate_bone",
+      name: "\u8352\u53E4\u6B8B\u9AA8",
+      description: "\u4FEE\u70BC\u69FD\u3002\u6478\u4E00\u4E0B\u6839\u9AA8\u90FD\u5728\u53D1\u5149\uFF0C\u6253\u5750\u4E8B\u534A\u529F\u500D\u3002",
+      lore: "\u906E\u5929",
+      cost: 12e3,
+      minRealm: 2,
+      slot: "cultivate",
+      attrs: { bone: 5, def: 2 },
+      cultivateClick: 3,
+      cultivatePassive: 4,
+      mark: "\u8352",
+      vaultable: true
+    },
+    {
+      id: "mountain_river",
+      name: "\u5C71\u6CB3\u8F66\u6B8B\u8F6E",
+      description: "\u4FEE\u70BC\u69FD\u3002\u8F6C\u4E00\u4E0B\uFF0C\u7075\u6C14\u5C31\u6C89\u91CD\u5730\u6D8C\u6765\u3002",
+      lore: "\u4ED9\u9006",
+      cost: 2e4,
+      minRealm: 3,
+      slot: "cultivate",
+      attrs: { spirit: 4 },
+      cultivateClick: 2,
+      cultivatePassive: 6,
+      mark: "\u8F66",
+      vaultable: true
+    },
+    {
+      id: "dao_seed",
+      name: "\u9053\u79CD\u4E00\u679A",
+      description: "\u4FEE\u70BC\u69FD\u3002\u5927\u9053\u5C06\u6210\u65F6\u663E\u5316\u7684\u79CD\u5B50\u3002",
+      lore: "\u5927\u9053",
+      cost: 0,
+      minRealm: 10,
+      slot: "cultivate",
+      attrs: { spirit: 8, bone: 8, luck: 5 },
+      cultivateClick: 20,
+      cultivatePassive: 40,
+      mark: "\u79CD",
+      vaultable: true
+    },
+    // —— 辅助 ——
+    {
+      id: "storage_pouch",
+      name: "\u4E0B\u54C1\u50A8\u7269\u888B",
+      description: "\u8F85\u52A9\u69FD\u3002\u80FD\u88C5\u7075\u8349\uFF0C\u4E5F\u80FD\u88C5\u68A6\u60F3\u3002",
+      lore: "\u8BF8\u5929\u901A\u7528",
+      cost: 400,
+      minRealm: 0,
+      slot: "assist",
+      attrs: { luck: 2 },
+      mark: "\u888B",
+      vaultable: false
+    },
+    {
+      id: "spirit_boat",
+      name: "\u7834\u65E7\u7075\u821F",
+      description: "\u8F85\u52A9\u69FD\u3002\u901F\u5EA6\u4E00\u822C\uFF0C\u9003\u547D\u4E00\u6D41\u3002",
+      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
+      cost: 8e3,
+      minRealm: 2,
+      slot: "assist",
+      attrs: { spd: 6, def: 1 },
+      mark: "\u821F",
+      vaultable: true
+    },
+    {
+      id: "soul_lamp",
+      name: "\u9B42\u706F\u4E00\u76CF",
+      description: "\u8F85\u52A9\u69FD\u3002\u7167\u89C1\u5FC3\u9B54\uFF0C\u4E5F\u7167\u89C1\u5077\u529F\u6CD5\u7684\u3002",
+      lore: "\u4ED9\u9006",
+      cost: 0,
+      minRealm: 4,
+      slot: "assist",
+      attrs: { spirit: 6, luck: 2 },
+      combatMult: 1.03,
+      mark: "\u706F",
+      vaultable: true
+    },
+    {
+      id: "plot_armor",
+      name: "\u5267\u60C5\u62A4\u7532",
+      description: "\u8F85\u52A9\u69FD\u3002\u4F5C\u8005\u4EB2\u5973\u513F\u9650\u5B9A\u3002\u6328\u6253\u4E5F\u80FD\u7AD9\u8D77\u6765\u3002",
+      lore: "\u5143\u6897",
+      cost: 0,
+      minRealm: 0,
+      slot: "assist",
+      attrs: { def: 5, luck: 6 },
+      combatMult: 1.06,
+      mark: "\u7532",
+      vaultable: true
+    },
+    {
+      id: "cauldron_lid",
+      name: "\u9752\u94DC\u9F0E\u76D6",
+      description: "\u8F85\u52A9\u69FD\u3002\u76D6\u4E0A\u80FD\u7838\u4EBA\uFF0C\u63ED\u5F00\u80FD\u88C5\u903C\u3002",
+      lore: "\u906E\u5929",
+      cost: 4e4,
+      minRealm: 4,
+      slot: "assist",
+      attrs: { def: 6, spirit: 3, luck: 1 },
+      mark: "\u9F0E",
+      vaultable: true
+    },
+    {
+      id: "heaven_stele",
+      name: "\u6B8B\u7834\u5929\u7891",
+      description: "\u8F85\u52A9\u69FD\u3002\u7891\u4E0A\u5B57\u770B\u4E0D\u6E05\uFF0C\u4F46\u4F60\u611F\u5230\u300C\u9053\u300D\u3002",
+      lore: "\u906E\u5929/\u8BF8\u5929",
+      cost: 5e5,
+      minRealm: 6,
+      slot: "assist",
+      attrs: { spirit: 8, bone: 3, luck: 3 },
+      combatMult: 1.05,
+      mark: "\u7891",
+      vaultable: true
+    }
+  ];
+  var NATURALS = [
+    {
+      id: "nat_spirit_grass",
+      name: "\u767E\u5E74\u7075\u8349",
+      description: "\u5165\u53E3\u6E05\u51C9\uFF0C\u7075\u6C14\u7ACB\u6DA8\u3002",
+      lore: "\u51E1\u4EBA",
+      minRealm: 0,
+      lingqiGain: 400,
+      passiveBonus: 0.3,
+      mark: "\u8349",
+      weight: 3
+    },
+    {
+      id: "nat_beast_core",
+      name: "\u4E00\u9636\u5996\u4E39",
+      description: "\u8165\u9999\u6251\u9F3B\uFF0C\u70BC\u5316\u540E\u5E95\u76D8\u66F4\u539A\u3002",
+      lore: "\u51E1\u4EBA",
+      minRealm: 1,
+      lingqiGain: 1200,
+      passiveBonus: 0.8,
+      mark: "\u4E39",
+      weight: 2
+    },
+    {
+      id: "nat_fire_crystal",
+      name: "\u5730\u5FC3\u706B\u6676",
+      description: "\u70EB\u624B\uFF0C\u4F46\u541E\u4E0B\u53BB\u4FEE\u70BC\u5982\u5750\u706B\u5C71\u53E3\u3002",
+      lore: "\u6597\u7834",
+      minRealm: 2,
+      lingqiGain: 4e3,
+      passiveBonus: 1.5,
+      mark: "\u6676",
+      weight: 2
+    },
+    {
+      id: "nat_void_flower",
+      name: "\u865A\u7A7A\u83B2\u74E3",
+      description: "\u6458\u4E00\u7247\uFF0C\u5BFF\u5143\u4F3C\u6709\u6240\u611F\u3002",
+      lore: "\u906E\u5929",
+      minRealm: 3,
+      lingqiGain: 12e3,
+      passiveBonus: 3,
+      mark: "\u83B2",
+      weight: 1
+    },
+    {
+      id: "nat_soul_dew",
+      name: "\u795E\u9B42\u7518\u9732",
+      description: "\u4E00\u6EF4\u5165\u8BC6\u6D77\uFF0C\u6742\u5FF5\u9000\u6563\u3002",
+      lore: "\u4ED9\u9006",
+      minRealm: 3,
+      lingqiGain: 1e4,
+      passiveBonus: 2.5,
+      mark: "\u9732",
+      weight: 1
+    },
+    {
+      id: "nat_dragon_blood",
+      name: "\u9F99\u8840\u6B8B\u6E23",
+      description: "\u8165\u70C8\uFF0C\u6839\u9AA8\u9690\u9690\u53D1\u70EB\u3002",
+      lore: "\u8BF8\u5929",
+      minRealm: 4,
+      lingqiGain: 5e4,
+      passiveBonus: 5,
+      mark: "\u9F99",
+      weight: 1
+    },
+    {
+      id: "nat_heaven_marrow",
+      name: "\u5929\u9AD3\u4E00\u7F15",
+      description: "\u7F55\u89C1\u81F3\u6781\uFF0C\u7075\u529B\u5982\u6F6E\u3002",
+      lore: "\u906E\u5929",
+      minRealm: 6,
+      lingqiGain: 5e5,
+      passiveBonus: 12,
+      mark: "\u9AD3",
+      weight: 1
+    },
+    {
+      id: "nat_dao_fruit",
+      name: "\u534A\u9897\u9053\u679C",
+      description: "\u54AC\u4E00\u53E3\uFF0C\u50CF\u88AB\u5929\u9053\u77AA\u4E86\u4E00\u773C\u3002",
+      lore: "\u5927\u9053",
+      minRealm: 8,
+      lingqiGain: 8e6,
+      passiveBonus: 30,
+      mark: "\u679C",
+      weight: 1
+    }
+  ];
+  var MAIN_STORY = [
+    {
+      id: "main_1_sect",
+      title: "\u3010\u4E3B\u7EBF\u3011\u5916\u95E8\u8BB0\u540D",
+      body: "\u5B97\u95E8\u5916\u95E8\u62DB\u4EBA\u3002\u4F60\u53EF\u4EE5\u7528\u7075\u77F3\u4E70\u4E2A\u8BB0\u540D\uFF0C\u4E5F\u53EF\u4EE5\u53BB\u730E\u5996\u8BC1\u660E\u81EA\u5DF1\u3002\u51E1\u4EBA\u5F00\u5C40\u7ECF\u5178\u4E8C\u9009\u4E00\u3002",
+      minRealm: 0,
+      lore: "\u51E1\u4EBA\u4FEE\u4ED9\xB7\u4E3B\u7EBF",
+      mainChapter: 1,
+      repeatable: false,
+      options: [
+        {
+          id: "m1_buy",
+          label: "\u7838\u7075\u77F3\u8BB0\u540D",
+          blurb: "\u82B1\u7075\u6C14\u5165\u95E8\uFF0C\u5F97\u50A8\u7269\u888B\u4E0E\u4E00\u70B9\u9762\u5B50\u3002",
+          lingqiDelta: -150,
+          grantTreasureId: "storage_pouch",
+          freePointsDelta: 1,
+          flags: ["main_sect"]
+        },
+        {
+          id: "m1_hunt",
+          label: "\u730E\u5996\u8BC1\u660E",
+          blurb: "\u6253\u4E00\u573A\uFF1B\u80DC\u5219\u5165\u95E8\uFF0C\u8D25\u4E0D\u81F4\u6B7B\u3002",
+          combatEnemyId: "demon_wolf",
+          deathOnLose: false,
+          grantTreasureId: "spirit_gather_jade",
+          flags: ["main_sect"],
+          freePointsDelta: 1
+        }
+      ]
+    },
+    {
+      id: "main_2_market",
+      title: "\u3010\u4E3B\u7EBF\u3011\u574A\u5E02\u98CE\u4E91",
+      body: "\u574A\u5E02\u51FA\u73B0\u4E00\u4EFD\u6B8B\u5377\u62CD\u5356\u3002\u6709\u4EBA\u8BF4\u662F\u711A\u8BC0\uFF0C\u6709\u4EBA\u8BF4\u662F\u9A97\u5C40\u3002\u4F60\u7684\u6C14\u8FD0\u5728\u9AB0\u5B50\u4E0A\u8DF3\u821E\u3002",
+      minRealm: 1,
+      lore: "\u6597\u7834/\u51E1\u4EBA\xB7\u4E3B\u7EBF",
+      mainChapter: 2,
+      options: [
+        {
+          id: "m2_bid",
+          label: "\u54AC\u7259\u7ADE\u62CD",
+          blurb: "\u53EF\u80FD\u62CD\u5230\u711A\u8BC0\u6B8B\u9875\uFF0C\u4E5F\u53EF\u80FD\u88AB\u5272\u97ED\u83DC\u3002",
+          lingqiDelta: -3e3,
+          grantTreasureId: "flame_tome",
+          flags: ["main_market"],
+          attrsDelta: { luck: -1, atk: 1 }
+        },
+        {
+          id: "m2_steal_look",
+          label: "\u795E\u8BC6\u5077\u7784",
+          blurb: "\u8BB0\u4E0B\u4E09\u884C\u53E3\u8BC0\uFF0C\u67D3\u4E0A\u300C\u5C0F\u5077\u300D\u95F2\u8BDD\u3002",
+          flags: ["main_market", "thief_name"],
+          attrsDelta: { spirit: 2, luck: -1 },
+          lingqiDelta: 200
+        },
+        {
+          id: "m2_leave",
+          label: "\u51B7\u9759\u79BB\u573A",
+          blurb: "\u4E0D\u8D4C\u3002\u5F97\u767E\u5E74\u7075\u8349\u673A\u7F18\u3002",
+          flags: ["main_market"],
+          freePointsDelta: 1,
+          lingqiDelta: 800,
+          grantNaturalId: "nat_spirit_grass"
+        }
+      ]
+    },
+    {
+      id: "main_3_secret",
+      title: "\u3010\u4E3B\u7EBF\u3011\u79D8\u5883\u5F00\u542F",
+      body: "\u754C\u57DF\u79D8\u5883\u88C2\u7F1D\u5F20\u5F00\u3002\u91CC\u9762\u6709\u5929\u624D\u5730\u5B9D\u7684\u6C14\u5473\uFF0C\u4E5F\u6709\u8001\u602A\u7684\u547C\u5438\u3002",
+      minRealm: 2,
+      lore: "\u8BF8\u5929\xB7\u4E3B\u7EBF",
+      mainChapter: 3,
+      options: [
+        {
+          id: "m3_deep",
+          label: "\u76F4\u95EF\u6DF1\u5904",
+          blurb: "\u9AD8\u98CE\u9669\uFF1A\u9047\u8001\u602A\uFF1B\u9AD8\u6536\u76CA\uFF1A\u865A\u7A7A\u83B2\u74E3\u3002",
+          combatEnemyId: "soul_old",
+          deathOnLose: false,
+          flags: ["main_secret"],
+          attrsDelta: { atk: 2 },
+          grantNaturalId: "nat_void_flower"
+        },
+        {
+          id: "m3_edge",
+          label: "\u5916\u56F4\u6361\u6F0F",
+          blurb: "\u7A33\u59A5\u5F97\u5996\u4E39\u4E0E\u7075\u6C14\u3002",
+          flags: ["main_secret"],
+          lingqiDelta: 5e3,
+          freePointsDelta: 1,
+          grantNaturalId: "nat_beast_core"
+        },
+        {
+          id: "m3_map",
+          label: "\u5356\u5730\u56FE\u8D5A\u94B1",
+          blurb: "\u51E1\u4EBA\u5F0F\u9009\u62E9\uFF1A\u4E0D\u88C5\u82F1\u96C4\uFF0C\u5148\u641E\u94B1\u3002",
+          flags: ["main_secret", "sold_map"],
+          lingqiDelta: 15e3,
+          attrsDelta: { luck: 1 }
+        }
+      ]
+    },
+    {
+      id: "main_4_tribulation_rumor",
+      title: "\u3010\u4E3B\u7EBF\u3011\u5929\u52AB\u9884\u8A00",
+      body: "\u6709\u4EBA\u7ACB\u724C\uFF1A\u300C\u4E09\u5E74\u540E\u6B64\u95F4\u6709\u52AB\u3002\u300D\u4F60\u60F3\u8D77\u6597\u7834\u7684\u4E09\u5E74\u4E4B\u671F\uFF0C\u7B11\u4E86\u7B11\uFF0C\u53C8\u7B11\u4E0D\u51FA\u6765\u3002",
+      minRealm: 4,
+      lore: "\u6597\u7834\u6897\xB7\u4E3B\u7EBF",
+      mainChapter: 4,
+      options: [
+        {
+          id: "m4_prepare",
+          label: "\u95ED\u5173\u5907\u52AB",
+          blurb: "\u5C5E\u6027\u7A33\u589E\uFF0C\u5F97\u5267\u60C5\u62A4\u7532\uFF08\u5FC3\u7406\u5B89\u6170\uFF09\u3002",
+          flags: ["main_trib_ready"],
+          grantTreasureId: "plot_armor",
+          attrsDelta: { def: 3, bone: 2 },
+          freePointsDelta: 2
+        },
+        {
+          id: "m4_ignore",
+          label: "\u9884\u8A00\u4E0D\u53EF\u4FE1",
+          blurb: "\u7EE7\u7EED\u6D6A\u3002\u6C14\u673A+2\uFF0C\u4F46\u65E0\u51C6\u5907\u3002",
+          flags: ["main_trib_ignore"],
+          attrsDelta: { luck: 2 },
+          lingqiDelta: 2e4
+        }
+      ]
+    },
+    {
+      id: "main_5_dao_ask",
+      title: "\u3010\u4E3B\u7EBF\u3011\u95EE\u9053\u6B8B\u7891",
+      body: "\u5929\u7891\u534A\u622A\u7ACB\u4E8E\u4E91\u4E0A\u3002\u7891\u6587\u6A21\u7CCA\uFF0C\u5374\u50CF\u5728\u95EE\uFF1A\u4F60\u4E3A\u4F55\u4FEE\u4ED9\uFF1F",
+      minRealm: 6,
+      lore: "\u906E\u5929/\u5927\u9053\xB7\u4E3B\u7EBF",
+      mainChapter: 5,
+      options: [
+        {
+          id: "m5_power",
+          label: "\u4E3A\u4E86\u53D8\u5F3A",
+          blurb: "\u653B\u4F10\u9053\u5FC3\u3002\u5F97\u6B8B\u7834\u5929\u7891\u3002",
+          flags: ["main_dao_power"],
+          grantTreasureId: "heaven_stele",
+          attrsDelta: { atk: 4, spirit: 2 }
+        },
+        {
+          id: "m5_live",
+          label: "\u4E3A\u4E86\u6D3B\u7740",
+          blurb: "\u51E1\u4EBA\u771F\u5FC3\u3002\u62A4\u4F53\u4E0E\u6C14\u673A\u4E0A\u5347\u3002",
+          flags: ["main_dao_live"],
+          attrsDelta: { def: 4, luck: 3 },
+          freePointsDelta: 2
+        },
+        {
+          id: "m5_void",
+          label: "\u4E3A\u4E86\u770B\u89C1\u66F4\u9AD8\u5904",
+          blurb: "\u95EE\u865A\u4E4B\u5FF5\u3002\u795E\u8BC6\u5927\u6DA8\u3002",
+          flags: ["main_dao_void"],
+          attrsDelta: { spirit: 5, spd: 2 },
+          lingqiDelta: 1e5
+        }
+      ]
+    }
+  ];
+  function getNatural(id) {
+    return NATURALS.find((n) => n.id === id);
+  }
+
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 3;
-  var STORAGE_KEY = "xian-save-v3";
+  var SAVE_VERSION = 4;
+  var STORAGE_KEY = "xian-save-v4";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_EQUIP = 3;
@@ -685,175 +1164,6 @@
       faction: "hermit",
       attrs: { spirit: 0.6, luck: 0.4 },
       mark: "\u9690"
-    }
-  ];
-  var TREASURES = [
-    {
-      id: "bamboo_cloud_sword",
-      name: "\u9752\u7AF9\u8702\u4E91\u5251\u6B8B\u950B",
-      description: "\u51E1\u4EBA\u540C\u6B3E\u98DE\u5251\u6B8B\u950B\uFF0C\u5FA1\u5251\u65F6\u603B\u60F3\u558A\u51FA\u5251\u540D\u3002",
-      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
-      cost: 2500,
-      minRealm: 1,
-      attrs: { atk: 3, spd: 2 },
-      combatMult: 1.05,
-      mark: "\u7AF9",
-      vaultable: true
-    },
-    {
-      id: "small_bottle",
-      name: "\u7EFF\u6DB2\u5C0F\u74F6",
-      description: "\u795E\u79D8\u7EFF\u6DB2\uFF0C\u6EF4\u8349\u6728\u75AF\u957F\u3002\u4F60\u6000\u7591\u5B83\u6BD4\u4F60\u8FD8\u6709\u4E3B\u89D2\u5149\u73AF\u3002",
-      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
-      cost: 0,
-      minRealm: 0,
-      attrs: { luck: 4, bone: 2, spirit: 1 },
-      combatMult: 1.03,
-      mark: "\u74F6",
-      vaultable: true
-    },
-    {
-      id: "flame_tome",
-      name: "\u711A\u8BC0\u6B8B\u9875",
-      description: "\u6597\u7834\u540C\u6B3E\uFF1A\u7EC3\u7740\u7EC3\u7740\u5C31\u60F3\u627E\u5F02\u706B\u3002",
-      lore: "\u6597\u7834\u82CD\u7A79",
-      cost: 6e3,
-      minRealm: 2,
-      attrs: { atk: 5, bone: 1 },
-      combatMult: 1.06,
-      mark: "\u711A",
-      vaultable: true
-    },
-    {
-      id: "fire_lotus",
-      name: "\u9752\u83B2\u5730\u5FC3\u706B\u79CD",
-      description: "\u5C0F\u5C0F\u706B\u79CD\uFF0C\u5927\u5927\u6392\u9762\u3002",
-      lore: "\u6597\u7834\u82CD\u7A79",
-      cost: 0,
-      minRealm: 3,
-      attrs: { atk: 6, spirit: 2 },
-      combatMult: 1.08,
-      mark: "\u83B2",
-      vaultable: true
-    },
-    {
-      id: "desolate_bone",
-      name: "\u8352\u53E4\u6B8B\u9AA8",
-      description: "\u906E\u5929\u540C\u6B3E\uFF1A\u6478\u4E00\u4E0B\u6839\u9AA8\u90FD\u5728\u53D1\u5149\u3002",
-      lore: "\u906E\u5929",
-      cost: 12e3,
-      minRealm: 2,
-      attrs: { bone: 6, def: 3 },
-      combatMult: 1.07,
-      mark: "\u8352",
-      vaultable: true
-    },
-    {
-      id: "cauldron_lid",
-      name: "\u9752\u94DC\u9F0E\u76D6",
-      description: "\u7591\u4F3C\u4E5D\u79D8\u76F8\u5173\u3002\u76D6\u4E0A\u80FD\u7838\u4EBA\uFF0C\u63ED\u5F00\u80FD\u88C5\u903C\u3002",
-      lore: "\u906E\u5929",
-      cost: 4e4,
-      minRealm: 4,
-      attrs: { def: 5, spirit: 3, atk: 2 },
-      combatMult: 1.09,
-      mark: "\u9F0E",
-      vaultable: true
-    },
-    {
-      id: "mountain_river",
-      name: "\u5C71\u6CB3\u8F66\u6B8B\u8F6E",
-      description: "\u4ED9\u9006\u540C\u6B3E\uFF1A\u8F6C\u4E00\u4E0B\uFF0C\u5267\u60C5\u5C31\u6C89\u91CD\u4E09\u5206\u3002",
-      lore: "\u4ED9\u9006",
-      cost: 2e4,
-      minRealm: 3,
-      attrs: { spirit: 5, atk: 3 },
-      combatMult: 1.07,
-      mark: "\u8F66",
-      vaultable: true
-    },
-    {
-      id: "soul_lamp",
-      name: "\u9B42\u706F\u4E00\u76CF",
-      description: "\u706F\u706B\u5982\u8C46\uFF0C\u7167\u89C1\u5FC3\u9B54\u3002\u4E5F\u53EF\u80FD\u7167\u89C1\u9694\u58C1\u5077\u529F\u6CD5\u7684\u3002",
-      lore: "\u4ED9\u9006",
-      cost: 0,
-      minRealm: 4,
-      attrs: { spirit: 7, luck: 1 },
-      combatMult: 1.08,
-      mark: "\u706F",
-      vaultable: true
-    },
-    {
-      id: "storage_pouch",
-      name: "\u4E0B\u54C1\u50A8\u7269\u888B",
-      description: "\u80FD\u88C5\u7075\u8349\uFF0C\u4E5F\u80FD\u88C5\u4F60\u7684\u68A6\u60F3\u3002",
-      lore: "\u8BF8\u5929\u901A\u7528",
-      cost: 400,
-      minRealm: 0,
-      attrs: { luck: 1 },
-      mark: "\u888B",
-      vaultable: false
-    },
-    {
-      id: "spirit_boat",
-      name: "\u7834\u65E7\u7075\u821F",
-      description: "\u901F\u5EA6\u4E00\u822C\uFF0C\u88C5\u903C\u4E00\u6D41\u3002",
-      lore: "\u51E1\u4EBA\u4FEE\u4ED9",
-      cost: 8e3,
-      minRealm: 2,
-      attrs: { spd: 5, def: 1 },
-      combatMult: 1.04,
-      mark: "\u821F",
-      vaultable: true
-    },
-    {
-      id: "face_slap_fan",
-      name: "\u6253\u8138\u6247",
-      description: "\u4E13\u6CBB\u5404\u79CD\u4E0D\u670D\u3002\u5E9F\u67F4\u5F00\u5C40\u65F6\u66B4\u51FB\u7FFB\u500D\uFF08\u5FC3\u7406\u4E0A\uFF09\u3002",
-      lore: "\u8BF8\u5929\u6897",
-      cost: 3e3,
-      minRealm: 1,
-      attrs: { atk: 2, luck: 3 },
-      combatMult: 1.05,
-      mark: "\u6247",
-      vaultable: true
-    },
-    {
-      id: "plot_armor",
-      name: "\u5267\u60C5\u62A4\u7532",
-      description: "\u4F5C\u8005\u4EB2\u5973\u513F\u9650\u5B9A\u3002\u6328\u6253\u4E5F\u80FD\u7AD9\u8D77\u6765\u8BF4\u300C\u6211\u8FD8\u6709\u540E\u624B\u300D\u3002",
-      lore: "\u5143\u6897",
-      cost: 0,
-      minRealm: 0,
-      attrs: { def: 4, luck: 5 },
-      combatMult: 1.1,
-      mark: "\u7532",
-      vaultable: true
-    },
-    {
-      id: "heaven_stele",
-      name: "\u6B8B\u7834\u5929\u7891",
-      description: "\u7891\u4E0A\u5B57\u770B\u4E0D\u6E05\uFF0C\u4F46\u4F60\u9690\u7EA6\u611F\u5230\u300C\u9053\u300D\u3002",
-      lore: "\u906E\u5929/\u8BF8\u5929",
-      cost: 5e5,
-      minRealm: 6,
-      attrs: { spirit: 8, bone: 4, atk: 4 },
-      combatMult: 1.12,
-      mark: "\u7891",
-      vaultable: true
-    },
-    {
-      id: "dao_seed",
-      name: "\u9053\u79CD\u4E00\u679A",
-      description: "\u5927\u9053\u5C06\u6210\u65F6\u624D\u4F1A\u663E\u5316\u7684\u79CD\u5B50\u3002",
-      lore: "\u5927\u9053",
-      cost: 0,
-      minRealm: 10,
-      attrs: { atk: 10, def: 10, spd: 10, spirit: 10, bone: 10, luck: 10 },
-      combatMult: 1.2,
-      mark: "\u79CD",
-      vaultable: true
     }
   ];
   var ENEMIES = [
@@ -1702,6 +2012,106 @@
           attrsDelta: { def: 1, luck: 1 }
         }
       ]
+    },
+    {
+      id: "rnd_pill_smell",
+      title: "\u4E39\u9999\u6251\u9F3B",
+      body: "\u5C71\u8C37\u91CC\u98D8\u6765\u4E39\u9999\u3002\u662F\u673A\u7F18\uFF0C\u8FD8\u662F\u300C\u8BF7\u541B\u5165\u74EE\u300D\uFF1F\u51E1\u4EBA\u8BFB\u8005\u8868\u793A\u5F88\u719F\u3002",
+      minRealm: 1,
+      lore: "\u51E1\u4EBA",
+      repeatable: true,
+      weight: 2,
+      options: [
+        {
+          id: "pill_enter",
+          label: "\u5FAA\u9999\u800C\u5165",
+          blurb: "\u7075\u6C14\u5927\u6DA8\uFF0C\u4E5F\u53EF\u80FD\u88AB\u4E39\u6BD2\u545B\u5230\u3002",
+          lingqiDelta: 600,
+          attrsDelta: { bone: 1, luck: -1 }
+        },
+        {
+          id: "pill_watch",
+          label: "\u8FDC\u8FDC\u89C2\u671B",
+          blurb: "\u8BB0\u4E0B\u65B9\u4F4D\uFF0C\u795E\u8BC6+1\u3002",
+          attrsDelta: { spirit: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_ancient_tomb",
+      title: "\u65E0\u540D\u53E4\u5893",
+      body: "\u5893\u7816\u4E0A\u5199\u7740\u300C\u751F\u4EBA\u52FF\u8FD1\u300D\u3002\u4F60\u9644\u8FD1\u7684\u7A7F\u8D8A\u8005\u5DF2\u7ECF\u5F00\u59CB\u641C\u522E\u4E86\u3002",
+      minRealm: 2,
+      lore: "\u906E\u5929\u6897",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "tomb_dig",
+          label: "\u6316\uFF01",
+          blurb: "\u6709\u5229\u6709\u5F0A\uFF1A\u7075\u6C14\u4E0E\u5C5E\u6027\u4E71\u8DF3\u3002",
+          lingqiDelta: 2e3,
+          attrsDelta: { atk: 1, def: -1, luck: 1 },
+          freePointsDelta: 1
+        },
+        {
+          id: "tomb_bow",
+          label: "\u4E00\u62DC\u79BB\u53BB",
+          blurb: "\u5FC3\u5883\u6E05\u660E\u3002",
+          attrsDelta: { spirit: 2, luck: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_fake_master",
+      title: "\u6536\u5F92\u9A97\u5B50",
+      body: "\u4E00\u4F4D\u300C\u9690\u4E16\u9AD8\u4EBA\u300D\u8981\u6536\u4F60\u4E3A\u5F92\uFF0C\u5148\u4EA4\u4E09\u5343\u7075\u77F3\u62DC\u5E08\u8D39\u3002",
+      minRealm: 0,
+      lore: "\u8BF8\u5929\u6897",
+      repeatable: true,
+      weight: 2,
+      options: [
+        {
+          id: "fake_pay",
+          label: "\u4EA4\u4E86",
+          blurb: "\u88AB\u5751\u3002\u4F46\u300C\u5403\u4E00\u5811\u300D\u6362\u6C14\u673A\uFF1F\u6CA1\u6709\uFF0C\u5C31\u662F\u88AB\u5751\u3002",
+          lingqiDelta: -300,
+          attrsDelta: { luck: -1 }
+        },
+        {
+          id: "fake_expose",
+          label: "\u5F53\u573A\u62C6\u7A7F",
+          blurb: "\u9A97\u5B50\u9003\u8DD1\uFF0C\u56F4\u89C2\u7FA4\u4F17\u9F13\u638C\u3002\u81EA\u7531\u70B9+1\u3002",
+          freePointsDelta: 1,
+          attrsDelta: { spirit: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_dual_cult",
+      title: "\u53EF\u7591\u53CC\u4FEE\u9080\u7EA6",
+      body: "\u6709\u4EBA\u4F20\u97F3\uFF1A\u300C\u53CC\u4FEE\u53EF\u901F\u6210\u3002\u300D\u4F60\u7684\u7CFB\u7EDF\u2026\u2026\u54E6\u4F60\u6CA1\u6709\u7CFB\u7EDF\uFF0C\u53EA\u6709\u5E38\u8BC6\u3002",
+      minRealm: 2,
+      lore: "\u8BF8\u5929\u6897",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "dual_no",
+          label: "\u62D2\u7EDD\uFF08\u4FDD\u547D\uFF09",
+          blurb: "\u6B63\u786E\u9009\u9879\u3002\u795E\u8BC6+1\u3002",
+          attrsDelta: { spirit: 1, luck: 1 }
+        },
+        {
+          id: "dual_trap",
+          label: "\u8D74\u7EA6\u770B\u770B",
+          blurb: "\u679C\u7136\u662F\u9677\u9631\u3002\u6389\u70B9\u7075\u6C14\uFF0C\u957F\u70B9\u8BB0\u6027\u3002",
+          lingqiDelta: -800,
+          attrsDelta: { def: 1 },
+          combatEnemyId: "alchemy_thief",
+          deathOnLose: false
+        }
+      ]
     }
   ];
   var ENDINGS = [
@@ -1902,6 +2312,12 @@
     bone: "\u6839\u9AA8",
     luck: "\u6C14\u673A"
   };
+  var EQUIP_SLOTS = ["combat", "cultivate", "assist"];
+  var EQUIP_SLOT_LABELS = {
+    combat: "\u6218\u6597",
+    cultivate: "\u4FEE\u70BC",
+    assist: "\u8F85\u52A9"
+  };
 
   // xian/src/game/engine.ts
   function emptyOwned() {
@@ -1922,6 +2338,27 @@
       base[k] = Number.isFinite(n) ? Math.floor(n) : base[k];
     }
     return base;
+  }
+  function migrateEquipped(raw, treasures) {
+    const eq = emptyEquipped();
+    if (Array.isArray(raw)) {
+      for (const id of raw) {
+        if (typeof id !== "string" || !treasures.includes(id)) continue;
+        const t = getTreasure(id);
+        if (t && !eq[t.slot]) eq[t.slot] = id;
+      }
+      return eq;
+    }
+    if (raw && typeof raw === "object") {
+      const o = raw;
+      for (const slot of EQUIP_SLOTS) {
+        const id = o[slot];
+        if (typeof id === "string" && treasures.includes(id) && getTreasure(id)?.slot === slot) {
+          eq[slot] = id;
+        }
+      }
+    }
+    return eq;
   }
   function createMetaState(now = Date.now()) {
     return {
@@ -1946,8 +2383,11 @@
       attrs: zeroAttrs(),
       freePoints: 0,
       treasures: [],
-      equipped: [],
+      equipped: emptyEquipped(),
       vault: [],
+      naturals: [],
+      naturalPassive: 0,
+      mainChapter: 1,
       legacyAttrs: zeroAttrs(),
       peakRealmIndex: 0,
       phase: "rebirth",
@@ -1977,8 +2417,9 @@
     const endingsUnlocked = Array.isArray(data.endingsUnlocked) ? data.endingsUnlocked.filter((f) => typeof f === "string") : [];
     const chronicle = Array.isArray(data.chronicle) ? data.chronicle.filter((f) => typeof f === "string").slice(-MAX_CHRONICLE) : fresh.chronicle;
     const treasures = Array.isArray(data.treasures) ? data.treasures.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
-    const equipped = Array.isArray(data.equipped) ? data.equipped.filter((f) => typeof f === "string" && treasures.includes(f)).slice(0, MAX_EQUIP) : [];
+    const equipped = migrateEquipped(data.equipped, treasures);
     const vault = Array.isArray(data.vault) ? data.vault.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
+    const naturals = Array.isArray(data.naturals) ? data.naturals.filter((f) => typeof f === "string" && !!getNatural(f)) : [];
     const lastTickAt = Number(data.lastTickAt);
     const safeLast = Number.isFinite(lastTickAt) && lastTickAt > 0 ? Math.min(lastTickAt, now) : now;
     const lingqi = Math.max(0, Number(data.lingqi ?? data.douqi) || 0);
@@ -2008,6 +2449,9 @@
       treasures,
       equipped,
       vault,
+      naturals,
+      naturalPassive: Math.max(0, Number(data.naturalPassive) || 0),
+      mainChapter: Math.max(1, Math.floor(Number(data.mainChapter) || 1)),
       legacyAttrs: parseAttrs(data.legacyAttrs, zeroAttrs()),
       peakRealmIndex: clampInt(data.peakRealmIndex ?? data.realmIndex, 0, REALMS.length - 1),
       phase: !data.birthId && phase === "playing" ? "rebirth" : phase,
@@ -2071,11 +2515,26 @@
   }
   function treasureAttrBonus(state) {
     let sum = zeroAttrs();
-    for (const id of state.equipped) {
+    for (const slot of EQUIP_SLOTS) {
+      const id = state.equipped[slot];
+      if (!id) continue;
       const t = getTreasure(id);
       if (t) sum = addAttrs(sum, t.attrs);
     }
     return sum;
+  }
+  function cultivateBonuses(state) {
+    let click = 0;
+    let passive = 0;
+    for (const slot of EQUIP_SLOTS) {
+      const id = state.equipped[slot];
+      if (!id) continue;
+      const t = getTreasure(id);
+      if (!t) continue;
+      click += t.cultivateClick || 0;
+      passive += t.cultivatePassive || 0;
+    }
+    return { click, passive };
   }
   function artAttrBonus(state) {
     let sum = zeroAttrs();
@@ -2107,7 +2566,9 @@
     const a = attrs || totalAttrs(state);
     const weighted = a.atk * 1.2 + a.def * 1 + a.spd * 0.9 + a.spirit * 1.1 + a.bone * 0.8 + a.luck * 0.6;
     let mult = 1;
-    for (const id of state.equipped) {
+    for (const slot of EQUIP_SLOTS) {
+      const id = state.equipped[slot];
+      if (!id) continue;
       const t = getTreasure(id);
       if (t?.combatMult) mult *= t.combatMult;
     }
@@ -2157,7 +2618,7 @@
   function findPendingEvent(state) {
     if (state.phase !== "playing" || state.endingId) return null;
     if (state.randomEventId) {
-      const rnd = RANDOM_EVENTS.find((e) => e.id === state.randomEventId);
+      const rnd = RANDOM_EVENTS.find((e) => e.id === state.randomEventId) || MAIN_STORY.find((e) => e.id === state.randomEventId);
       if (rnd) return rnd;
     }
     return findStoryEvent(state);
@@ -2170,6 +2631,18 @@
     const chance = RANDOM_CHANCE[source];
     const roll = forceRoll != null ? forceRoll : Math.random();
     if (roll > chance) return { ok: false, state };
+    const nextMain = MAIN_STORY.find((e) => e.mainChapter === state.mainChapter);
+    if (nextMain && state.realmIndex >= nextMain.minRealm && !state.doneEvents.includes(nextMain.id) && Math.random() < 0.35) {
+      return {
+        ok: true,
+        state: {
+          ...state,
+          randomEventId: nextMain.id,
+          lastRandomAt: now
+        },
+        message: nextMain.title
+      };
+    }
     const pool = RANDOM_EVENTS.filter((e) => {
       if (state.realmIndex < e.minRealm) return false;
       if (e.minStar != null && state.star < e.minStar) return false;
@@ -2212,12 +2685,31 @@
   function grantTreasure(state, id) {
     if (!getTreasure(id)) return state;
     if (state.treasures.includes(id)) return state;
+    const t = getTreasure(id);
     const treasures = [...state.treasures, id];
-    let equipped = state.equipped;
-    if (equipped.length < MAX_EQUIP) equipped = [...equipped, id];
+    const equipped = { ...state.equipped };
+    if (!equipped[t.slot]) equipped[t.slot] = id;
     return pushChronicle(
       { ...state, treasures, equipped },
-      `\u83B7\u5F97\u6CD5\u5B9D\u300C${getTreasure(id).name}\u300D\u3010${getTreasure(id).lore}\u3011`
+      `\u83B7\u5F97\u6CD5\u5B9D\u300C${t.name}\u300D\u3014${t.slot === "combat" ? "\u6218\u6597" : t.slot === "cultivate" ? "\u4FEE\u70BC" : "\u8F85\u52A9"}\u3015\u3010${t.lore}\u3011`
+    );
+  }
+  function grantNatural(state, id) {
+    const n = getNatural(id);
+    if (!n) return state;
+    if (state.naturals.includes(id)) {
+      let next2 = grantLingqi(state, Math.floor(n.lingqiGain * 0.4));
+      return pushChronicle(next2, `\u518D\u6B21\u5BFB\u5F97\u300C${n.name}\u300D\uFF0C\u70BC\u5316\u6B8B\u529B\u5165\u4F53\u3002`);
+    }
+    let next = {
+      ...state,
+      naturals: [...state.naturals, id],
+      naturalPassive: state.naturalPassive + n.passiveBonus
+    };
+    next = grantLingqi(next, n.lingqiGain);
+    return pushChronicle(
+      next,
+      `\u83B7\u5F97\u5929\u624D\u5730\u5B9D\u300C${n.name}\u300D\uFF1A\u7075\u6C14 +${Math.floor(n.lingqiGain)}\uFF0C\u6C38\u4E45\u88AB\u52A8 +${n.passiveBonus}/\u79D2\u3010${n.lore}\u3011`
     );
   }
   function updatePeak(state) {
@@ -2245,6 +2737,9 @@
       if (art.kind === "click") clickBase += art.power * n;
       else passiveBase += art.power * n;
     }
+    const cult = cultivateBonuses(state);
+    clickBase += cult.click;
+    passiveBase += cult.passive + state.naturalPassive;
     const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
     const clickPower = clickBase * scale;
     const lingqiPerSec = passiveBase * scale * spiritFactor * luckFactor;
@@ -2275,6 +2770,8 @@
       totalAttrs: attrs,
       treasureAttrs: treasureAttrBonus(state),
       combatPower: calcCombatPower(state, attrs),
+      cultivateClickBonus: cult.click,
+      cultivatePassiveBonus: cult.passive + state.naturalPassive,
       inheritPreview: {
         attrRate: peakRealm.inheritAttrRate,
         treasureSlots: peakRealm.inheritTreasureSlots
@@ -2360,24 +2857,25 @@
     return { ok: true, state: next, message: `\u8D2D\u5F97\u300C${def.name}\u300D` };
   }
   function toggleEquip(state, treasureId) {
-    if (!state.treasures.includes(treasureId)) {
+    const def = getTreasure(treasureId);
+    if (!def || !state.treasures.includes(treasureId)) {
       return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
     }
-    if (state.equipped.includes(treasureId)) {
-      return {
-        ok: true,
-        state: { ...state, equipped: state.equipped.filter((id) => id !== treasureId) },
-        message: "\u5DF2\u5378\u4E0B"
-      };
+    const slot = def.slot;
+    const equipped = { ...state.equipped };
+    if (equipped[slot] === treasureId) {
+      equipped[slot] = null;
+      return { ok: true, state: { ...state, equipped }, message: `\u5DF2\u5378\u4E0B\u3014${slotLabel(slot)}\u3015` };
     }
-    if (state.equipped.length >= MAX_EQUIP) {
-      return { ok: false, state, reason: `\u6700\u591A\u88C5\u5907 ${MAX_EQUIP} \u4EF6\u6CD5\u5B9D` };
-    }
+    equipped[slot] = treasureId;
     return {
       ok: true,
-      state: { ...state, equipped: [...state.equipped, treasureId] },
-      message: "\u5DF2\u88C5\u5907"
+      state: { ...state, equipped },
+      message: `\u5DF2\u88C5\u5907\u81F3\u3014${slotLabel(slot)}\u3015\u69FD`
     };
+  }
+  function slotLabel(slot) {
+    return slot === "combat" ? "\u6218\u6597" : slot === "cultivate" ? "\u4FEE\u70BC" : "\u8F85\u52A9";
   }
   function allocatePoint(state, key) {
     if (state.phase !== "playing") return { ok: false, state, reason: "\u5F53\u524D\u65E0\u6CD5\u5206\u914D\u5C5E\u6027" };
@@ -2474,12 +2972,43 @@
         combatWins: next2.combatWins + 1,
         freePoints: next2.freePoints + (enemy.rewardPoints || 0)
       };
+      const lootBits = [];
       if (enemy.dropTreasureId && Math.random() < (enemy.dropChance || 0)) {
         next2 = grantTreasure(next2, enemy.dropTreasureId);
+        lootBits.push(getTreasure(enemy.dropTreasureId)?.name || enemy.dropTreasureId);
       }
+      if (Math.random() < 0.22) {
+        const pool = TREASURES.filter(
+          (t) => t.minRealm <= next2.realmIndex && !next2.treasures.includes(t.id)
+        );
+        if (pool.length) {
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          next2 = grantTreasure(next2, pick.id);
+          lootBits.push(pick.name);
+        }
+      }
+      if (Math.random() < 0.28) {
+        const pool = NATURALS.filter((n) => n.minRealm <= next2.realmIndex);
+        if (pool.length) {
+          let total = 0;
+          for (const n of pool) total += n.weight || 1;
+          let r = Math.random() * total;
+          let pick = pool[0];
+          for (const n of pool) {
+            r -= n.weight || 1;
+            if (r <= 0) {
+              pick = n;
+              break;
+            }
+          }
+          next2 = grantNatural(next2, pick.id);
+          lootBits.push(pick.name);
+        }
+      }
+      const loot = lootBits.length ? lootBits.join("\u3001") : void 0;
       next2 = pushChronicle(
         next2,
-        `\u5BF9\u6218\u80DC\u5229\uFF1A\u51FB\u8D25\u300C${enemy.name}\u300D\uFF08\u6218\u529B ${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09\u3010${enemy.lore}\u3011`
+        `\u5BF9\u6218\u80DC\u5229\uFF1A\u51FB\u8D25\u300C${enemy.name}\u300D\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${loot ? " \xB7 \u7F34\u83B7 " + loot : ""}\u3010${enemy.lore}\u3011`
       );
       return {
         ok: true,
@@ -2487,16 +3016,49 @@
         won: true,
         playerPower: pPower,
         enemyPower: ePower,
-        message: `\u6218\u80DC ${enemy.name}`
+        message: `\u6218\u80DC ${enemy.name}`,
+        loot
       };
     }
     let next = {
       ...ticked,
       combatLosses: ticked.combatLosses + 1
     };
+    const pressure = Math.min(0.12, 0.04 + Math.max(0, ePower - pPower) / Math.max(ePower, 1) * 0.1);
+    const deathRoll = Math.random();
+    if (deathRoll < pressure) {
+      const dead = die(next, `\u8D25\u4E8E\u300C${enemy.name}\u300D\uFF0C\u4F24\u91CD\u4E0D\u6CBB`, now);
+      return {
+        ok: true,
+        state: dead.state,
+        won: false,
+        playerPower: pPower,
+        enemyPower: ePower,
+        message: dead.message,
+        defeatOutcome: "death"
+      };
+    }
+    if (Math.random() < 0.38) {
+      next = demoteRank(next);
+      next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.15));
+      next = pushChronicle(
+        next,
+        `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u5883\u754C\u53D7\u632B\uFF08\u73B0 ${getRealm(next.realmIndex).name}${next.star}\u5C42\uFF09`
+      );
+      return {
+        ok: true,
+        state: next,
+        won: false,
+        playerPower: pPower,
+        enemyPower: ePower,
+        message: `\u8D25\u4E8E ${enemy.name}\uFF0C\u6389\u6BB5`,
+        defeatOutcome: "demote"
+      };
+    }
+    next = grantLingqi(next, -Math.floor(enemy.rewardLingqi * 0.08));
     next = pushChronicle(
       next,
-      `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF08\u6218\u529B ${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09`
+      `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u8F7B\u4F24\u9003\u56DE\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09`
     );
     return {
       ok: true,
@@ -2504,8 +3066,18 @@
       won: false,
       playerPower: pPower,
       enemyPower: ePower,
-      message: `\u8D25\u4E8E ${enemy.name}`
+      message: `\u8D25\u4E8E ${enemy.name}`,
+      defeatOutcome: "bruise"
     };
+  }
+  function demoteRank(state) {
+    if (state.star > 1) {
+      return { ...state, star: state.star - 1 };
+    }
+    if (state.realmIndex > 0) {
+      return { ...state, realmIndex: state.realmIndex - 1, star: MAX_STAR };
+    }
+    return state;
   }
   function listCombatEnemies(state) {
     return ENEMIES.filter(
@@ -2569,6 +3141,11 @@
     const bring = bringTreasureIds.filter((id) => vault.includes(id)).slice(0, Math.max(0, slots));
     const attrs = addAttrs(zeroAttrs(), birth.attrs);
     const flags = [...birth.flags || []];
+    const equipped = emptyEquipped();
+    for (const id of bring) {
+      const t = getTreasure(id);
+      if (t && !equipped[t.slot]) equipped[t.slot] = id;
+    }
     const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
     const next = {
       lingqi: birth.startLingqi,
@@ -2595,8 +3172,11 @@
       attrs,
       freePoints: birth.freePoints,
       treasures: [...bring],
-      equipped: bring.slice(0, MAX_EQUIP),
+      equipped,
       vault,
+      naturals: [],
+      naturalPassive: 0,
+      mainChapter: 1,
       legacyAttrs,
       peakRealmIndex: 0,
       phase: "playing",
@@ -2626,6 +3206,9 @@
       doneEvents: pending.repeatable ? ticked.doneEvents : [...ticked.doneEvents, eventId],
       randomEventId: null
     };
+    if (pending.mainChapter && pending.mainChapter === ticked.mainChapter) {
+      next = { ...next, mainChapter: ticked.mainChapter + 1 };
+    }
     if (option.set?.branchId) next = { ...next, branchId: option.set.branchId };
     if (option.set?.factionId) next = { ...next, factionId: option.set.factionId };
     if (option.set?.destinyId) next = { ...next, destinyId: option.set.destinyId };
@@ -2648,6 +3231,9 @@
     }
     if (option.grantTreasureId) {
       next = grantTreasure(next, option.grantTreasureId);
+    }
+    if (option.grantNaturalId) {
+      next = grantNatural(next, option.grantNaturalId);
     }
     next = pushChronicle(
       next,
@@ -2732,6 +3318,9 @@
       qiyunBonusPer: QIYUN_BONUS_PER,
       maxStar: MAX_STAR,
       maxEquip: MAX_EQUIP,
+      equipSlots: EQUIP_SLOTS,
+      naturals: NATURALS.map((n) => ({ id: n.id, name: n.name, minRealm: n.minRealm })),
+      mainStory: MAIN_STORY.map((e) => ({ id: e.id, title: e.title, chapter: e.mainChapter })),
       attrKeys: ATTR_KEYS
     };
   }
@@ -2740,13 +3329,15 @@
   function saveToStorage(state) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.removeItem("xian-save-v3");
+      localStorage.removeItem("xian-save-v2");
       localStorage.removeItem("xian-save-v1");
     } catch {
     }
   }
   function loadFromStorage(now = Date.now()) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("xian-save-v2") || localStorage.getItem("xian-save-v1");
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("xian-save-v3") || localStorage.getItem("xian-save-v2") || localStorage.getItem("xian-save-v1");
       if (!raw) return createNewState(now);
       return loadState(JSON.parse(raw), now);
     } catch {
@@ -2756,6 +3347,7 @@
   function clearStorage() {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("xian-save-v3");
       localStorage.removeItem("xian-save-v2");
       localStorage.removeItem("xian-save-v1");
     } catch {
@@ -2769,9 +3361,13 @@
     BRANCH_LABELS,
     ENDINGS,
     ENEMIES,
+    EQUIP_SLOTS,
+    EQUIP_SLOT_LABELS,
+    MAIN_STORY,
     MAX_EQUIP,
     MAX_OFFLINE_MS,
     MAX_STAR,
+    NATURALS,
     QIYUN_BONUS_PER,
     REALMS,
     SAVE_VERSION,
@@ -2781,6 +3377,7 @@
     RANDOM_EVENTS,
     getEnding,
     getEnemy,
+    getNatural,
     getRealm,
     getTreasure,
     allocatePoint,

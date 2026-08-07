@@ -36,6 +36,7 @@
     attrList: document.getElementById('attrList'),
     combatList: document.getElementById('combatList'),
     equipSlots: document.getElementById('equipSlots'),
+    naturalHint: document.getElementById('naturalHint'),
     absorbBtn: document.getElementById('absorbBtn'),
     floatLayer: document.getElementById('floatLayer'),
     clickShop: document.getElementById('clickShop'),
@@ -190,30 +191,49 @@
 
   function renderEquipBar() {
     if (!els.equipSlots) return;
-    const sig = state.equipped.join(',') + '|' + state.treasures.join(',');
-    // 始终刷新槽位内容，但避免无意义闪烁时可对比
+    const sig =
+      X.EQUIP_SLOTS.map((s) => state.equipped[s] || '').join(',') +
+      '|' +
+      state.naturals.join(',') +
+      '|' +
+      state.naturalPassive;
     els.equipSlots.innerHTML = '';
-    for (let i = 0; i < X.MAX_EQUIP; i++) {
-      const id = state.equipped[i];
+    X.EQUIP_SLOTS.forEach((slot) => {
+      const id = state.equipped[slot];
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'equip-slot' + (id ? ' filled' : '');
+      const label = X.EQUIP_SLOT_LABELS[slot];
       if (id) {
         const t = X.getTreasure(id);
         btn.dataset.treasureId = id;
         btn.innerHTML =
           '<span class="slot-mark">' +
           (t ? t.mark : '?') +
-          '</span><span class="slot-name">' +
+          '</span><span class="slot-name">〔' +
+          label +
+          '〕' +
           (t ? t.name : id) +
           '</span><span class="slot-lore">' +
           (t ? t.lore + ' · 点击卸下' : '') +
           '</span>';
       } else {
         btn.disabled = true;
-        btn.innerHTML = '<span class="slot-empty">空槽 · 在坊市装备</span>';
+        btn.innerHTML =
+          '<span class="slot-empty">〔' + label + '〕空 · 坊市装备</span>';
       }
       els.equipSlots.appendChild(btn);
+    });
+    if (els.naturalHint) {
+      els.naturalHint.textContent = state.naturals.length
+        ? '天才地宝 ' +
+          state.naturals.length +
+          ' 种 · 永久被动 +' +
+          (Math.round(state.naturalPassive * 10) / 10) +
+          '/秒（主线章 ' +
+          state.mainChapter +
+          '）'
+        : '尚未获得天才地宝 · 主线进度第 ' + state.mainChapter + ' 章';
     }
     lastEquipSig = sig;
   }
@@ -315,7 +335,7 @@
     state.treasures.forEach((id) => {
       const t = X.getTreasure(id);
       if (!t) return;
-      const eq = state.equipped.includes(id);
+      const eq = state.equipped[t.slot] === id;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'art-row treasure-row';
@@ -327,11 +347,13 @@
         '</span><span><p class="art-name">' +
         t.name +
         '<span class="lore-tag">' +
+        (X.EQUIP_SLOT_LABELS[t.slot] || t.slot) +
+        ' · ' +
         t.lore +
         '</span></p><p class="art-desc">' +
         t.description +
         '</p></span><span class="art-meta">' +
-        (eq ? '装备中' : '点击装备') +
+        (eq ? '装备中' : '点装备') +
         '</span>';
       els.ownedTreasures.appendChild(btn);
     });
@@ -354,6 +376,8 @@
         '</span><span><p class="art-name">' +
         t.name +
         '<span class="lore-tag">' +
+        (X.EQUIP_SLOT_LABELS[t.slot] || '') +
+        ' · ' +
         t.lore +
         '</span></p><p class="art-desc">' +
         t.description +
@@ -610,7 +634,10 @@
       }
       renderCombat(false);
       // 装备变化时刷新
-      const sig = state.equipped.join(',') + '|' + state.treasures.join(',');
+      const sig =
+        X.EQUIP_SLOTS.map((s) => state.equipped[s] || '').join(',') +
+        '|' +
+        state.treasures.join(',');
       if (sig !== lastEquipSig) {
         treasuresBuilt = false;
         buildTreasures();
@@ -689,11 +716,12 @@
       return;
     }
     showToast(
-      (res.won ? '胜！' : '败…') +
+      (res.won ? '胜！' : res.defeatOutcome === 'death' ? '身死…' : res.defeatOutcome === 'demote' ? '败·掉段' : '败…') +
         ' 战力 ' +
         Math.floor(res.playerPower) +
         ' vs ' +
-        Math.floor(res.enemyPower),
+        Math.floor(res.enemyPower) +
+        (res.loot ? ' · 获 ' + res.loot : ''),
     );
     treasuresBuilt = false;
     setState(res.state);

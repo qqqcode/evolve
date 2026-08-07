@@ -83,11 +83,45 @@ export interface TreasureDef {
   cost: number;
   minRealm: number;
   attrs: Partial<AttrMap>;
-  /** 对战斗力额外乘区 */
+  /** 装备槽：战斗 / 修炼 / 辅助，互不干扰 */
+  slot: EquipSlot;
+  /** 对战斗力额外乘区（战斗槽为主） */
   combatMult?: number;
+  /** 修炼槽：点击加成 */
+  cultivateClick?: number;
+  /** 修炼槽：被动每秒加成 */
+  cultivatePassive?: number;
   mark: string;
-  /** 可跨世存入宝库（达到继承境界后） */
+  /** 可跨世存入宝库 */
   vaultable: boolean;
+}
+
+/** 装备槽位 */
+export type EquipSlot = 'combat' | 'cultivate' | 'assist';
+
+export const EQUIP_SLOTS: EquipSlot[] = ['combat', 'cultivate', 'assist'];
+
+export const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
+  combat: '战斗',
+  cultivate: '修炼',
+  assist: '辅助',
+};
+
+export type EquippedMap = Record<EquipSlot, string | null>;
+
+/** 天才地宝：不占装备槽，直接提升灵气/永久被动 */
+export interface NaturalDef {
+  id: string;
+  name: string;
+  description: string;
+  lore: string;
+  minRealm: number;
+  /** 立即获得灵气 */
+  lingqiGain: number;
+  /** 本世永久每秒灵气 */
+  passiveBonus: number;
+  mark: string;
+  weight?: number;
 }
 
 export interface EnemyDef {
@@ -123,6 +157,8 @@ export interface ChoiceOption {
   freePointsDelta?: number;
   attrsDelta?: Partial<AttrMap>;
   grantTreasureId?: string;
+  /** 获得天才地宝 */
+  grantNaturalId?: string;
   /** 触发一场对战 */
   combatEnemyId?: string;
   /** 失败则死亡 */
@@ -148,6 +184,8 @@ export interface StoryEventDef {
   repeatable?: boolean;
   /** 随机池权重，默认 1 */
   weight?: number;
+  /** 主线章节序号（从 1 起）；触发后推进 mainChapter */
+  mainChapter?: number;
 }
 
 export interface EndingDef {
@@ -199,10 +237,16 @@ export interface GameState {
   freePoints: number;
   /** 本世持有法宝 id */
   treasures: string[];
-  /** 装备中的法宝（最多 3） */
-  equipped: string[];
+  /** 分槽装备：战斗 / 修炼 / 辅助 */
+  equipped: EquippedMap;
   /** 跨世宝库 */
   vault: string[];
+  /** 本世已获天才地宝 */
+  naturals: string[];
+  /** 天才地宝累计的永久被动灵气/秒 */
+  naturalPassive: number;
+  /** 主线进度：下一章编号（从 1 开始） */
+  mainChapter: number;
   /** 跨世永久属性（继承累积） */
   legacyAttrs: AttrMap;
   /** 本世峰值境界（用于继承结算） */
@@ -240,6 +284,8 @@ export interface DerivedStats {
   totalAttrs: AttrMap;
   treasureAttrs: AttrMap;
   combatPower: number;
+  cultivateClickBonus: number;
+  cultivatePassiveBonus: number;
   inheritPreview: { attrRate: number; treasureSlots: number };
 }
 
@@ -261,4 +307,8 @@ export interface CombatResult extends ActionResult {
   won?: boolean;
   playerPower?: number;
   enemyPower?: number;
+  /** 掉落描述 */
+  loot?: string;
+  /** 战败后果 */
+  defeatOutcome?: 'death' | 'demote' | 'bruise';
 }
