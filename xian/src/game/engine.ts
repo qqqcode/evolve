@@ -9,6 +9,9 @@ import {
   MAX_OFFLINE_MS,
   MAX_STAR,
   QIYUN_BONUS_PER,
+  RANDOM_CHANCE,
+  RANDOM_COOLDOWN_MS,
+  RANDOM_EVENTS,
   REALMS,
   SAVE_VERSION,
   STORY_EVENTS,
@@ -91,6 +94,8 @@ export function createMetaState(now = Date.now()): GameState {
     deathReason: null,
     combatWins: 0,
     combatLosses: 0,
+    randomEventId: null,
+    lastRandomAt: 0,
   };
 }
 
@@ -177,6 +182,8 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     deathReason: typeof data.deathReason === 'string' ? data.deathReason : null,
     combatWins: Math.max(0, Math.floor(Number(data.combatWins) || 0)),
     combatLosses: Math.max(0, Math.floor(Number(data.combatLosses) || 0)),
+    randomEventId: typeof data.randomEventId === 'string' ? data.randomEventId : null,
+    lastRandomAt: Math.max(0, Number(data.lastRandomAt) || 0),
   };
 }
 
@@ -327,7 +334,7 @@ export function matchEnding(state: GameState): EndingDef | null {
   return candidates[0]!;
 }
 
-export function findPendingEvent(state: GameState): StoryEventDef | null {
+export function findStoryEvent(state: GameState): StoryEventDef | null {
   if (state.phase !== 'playing' || state.endingId) return null;
   for (const ev of STORY_EVENTS) {
     if (state.doneEvents.includes(ev.id)) continue;
@@ -343,6 +350,68 @@ export function findPendingEvent(state: GameState): StoryEventDef | null {
     return ev;
   }
   return null;
+}
+
+export function findPendingEvent(state: GameState): StoryEventDef | null {
+  if (state.phase !== 'playing' || state.endingId) return null;
+
+  if (state.randomEventId) {
+    const rnd = RANDOM_EVENTS.find((e) => e.id === state.randomEventId);
+    if (rnd) return rnd;
+  }
+
+  return findStoryEvent(state);
+}
+
+export type RandomSource = 'click' | 'level' | 'time';
+
+/** 尝试触发随机奇遇（不打断主线剧情） */
+export function tryRandomEvent(
+  state: GameState,
+  source: RandomSource,
+  now = Date.now(),
+  forceRoll?: number,
+): ActionResult {
+  if (state.phase !== 'playing' || state.endingId) return { ok: false, state };
+  if (state.randomEventId) return { ok: false, state };
+  if (findStoryEvent(state)) return { ok: false, state };
+  if (now - state.lastRandomAt < RANDOM_COOLDOWN_MS) return { ok: false, state };
+
+  const chance = RANDOM_CHANCE[source];
+  const roll = forceRoll != null ? forceRoll : Math.random();
+  if (roll > chance) return { ok: false, state };
+
+  const pool = RANDOM_EVENTS.filter((e) => {
+    if (state.realmIndex < e.minRealm) return false;
+    if (e.minStar != null && state.star < e.minStar) return false;
+    if (e.requireBranch && e.requireBranch !== state.branchId) return false;
+    if (e.requireFaction && e.requireFaction !== state.factionId) return false;
+    if (e.requireFlags && !hasFlags(state, e.requireFlags)) return false;
+    return true;
+  });
+  if (!pool.length) return { ok: false, state };
+
+  let total = 0;
+  for (const e of pool) total += e.weight || 1;
+  let pickRoll = Math.random() * total;
+  let picked = pool[0]!;
+  for (const e of pool) {
+    pickRoll -= e.weight || 1;
+    if (pickRoll <= 0) {
+      picked = e;
+      break;
+    }
+  }
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      randomEventId: picked.id,
+      lastRandomAt: now,
+    },
+    message: picked.title,
+  };
 }
 
 function pushChronicle(state: GameState, line: string): GameState {
@@ -470,7 +539,10 @@ export function clickAbsorb(state: GameState, now = Date.now()): ActionResult {
     return { ok: false, state: ticked, reason: '请先完成当前抉择' };
   }
   const { clickPower } = derive(ticked);
-  return { ok: true, state: grantLingqi(ticked, clickPower) };
+  let next = grantLingqi(ticked, clickPower);
+  const rnd = tryRandomEvent(next, 'click', now);
+  if (rnd.ok) next = rnd.state;
+  return { ok: true, state: next };
 }
 
 export function buyArt(state: GameState, artId: string, now = Date.now()): ActionResult {
@@ -539,7 +611,7 @@ export function toggleEquip(state: GameState, treasureId: string): ActionResult 
 }
 
 export function allocatePoint(state: GameState, key: AttrKey): ActionResult {
-  if (state.phase === 'ended') return { ok: false, state, reason: '此世已落幕' };
+  if (state.phase !== 'playing') return { ok: false, state, reason: '当前无法分配属性' };
   if (state.freePoints <= 0) return { ok: false, state, reason: '没有可分配属性点' };
   if (!ATTR_KEYS.includes(key)) return { ok: false, state, reason: '未知属性' };
   return {
@@ -573,6 +645,8 @@ export function raiseStar(state: GameState, now = Date.now()): ActionResult {
     next = { ...next, freePoints: next.freePoints + 1 };
   }
   next = pushChronicle(next, `${getRealm(next.realmIndex).name}${nextStar}层。`);
+  const rnd = tryRandomEvent(next, 'level', now);
+  if (rnd.ok) next = rnd.state;
   return { ok: true, state: next, message: `升至 ${nextStar} 层` };
 }
 
@@ -614,6 +688,9 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
       };
       next = pushChronicle(next, `【结局】${ending.name}——${ending.title}`);
     }
+  } else {
+    const rnd = tryRandomEvent(next, 'level', now);
+    if (rnd.ok) next = rnd.state;
   }
 
   return { ok: true, state: next, message: `破境至「${nextRealm.name}」` };
@@ -798,6 +875,8 @@ export function chooseBirth(
     deathReason: null,
     combatWins: 0,
     combatLosses: 0,
+    randomEventId: null,
+    lastRandomAt: 0,
   };
 
   return { ok: true, state: next, message: `转生为「${birth.name}」` };
@@ -825,7 +904,10 @@ export function resolveEvent(
 
   let next: GameState = {
     ...ticked,
-    doneEvents: [...ticked.doneEvents, eventId],
+    doneEvents: pending.repeatable
+      ? ticked.doneEvents
+      : [...ticked.doneEvents, eventId],
+    randomEventId: null,
   };
 
   if (option.set?.branchId) next = { ...next, branchId: option.set.branchId };

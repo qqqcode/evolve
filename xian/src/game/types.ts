@@ -144,6 +144,10 @@ export interface StoryEventDef {
   requireBirth?: string;
   lore?: string;
   options: ChoiceOption[];
+  /** 可重复触发的随机奇遇（不进 doneEvents） */
+  repeatable?: boolean;
+  /** 随机池权重，默认 1 */
+  weight?: number;
 }
 
 export interface EndingDef {
@@ -210,6 +214,10 @@ export interface GameState {
   /** 本世战斗胜场 */
   combatWins: number;
   combatLosses: number;
+  /** 当前随机奇遇（可重复池） */
+  randomEventId: string | null;
+  /** 上次随机奇遇触发时间 */
+  lastRandomAt: number;
 }
 
 export interface DerivedStats {

@@ -12,11 +12,18 @@ import type {
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 2;
-export const STORAGE_KEY = 'xian-save-v2';
+export const SAVE_VERSION = 3;
+export const STORAGE_KEY = 'xian-save-v3';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_EQUIP = 3;
+/** 随机奇遇冷却（毫秒） */
+export const RANDOM_COOLDOWN_MS = 18_000;
+export const RANDOM_CHANCE = {
+  click: 0.07,
+  level: 0.28,
+  time: 0.12,
+} as const;
 
 export function zeroAttrs(): AttrMap {
   return { atk: 0, def: 0, spd: 0, spirit: 0, bone: 0, luck: 0 };
@@ -1520,6 +1527,208 @@ export const STORY_EVENTS: StoryEventDef[] = [
         blurb: '身法检定……算你跑掉。',
         attrsDelta: { spd: 1 },
         flags: ['ran_away'],
+      },
+    ],
+  },
+];
+
+/** 可重复随机奇遇：点击 / 升层 / 定时触发 */
+export const RANDOM_EVENTS: StoryEventDef[] = [
+  {
+    id: 'rnd_herb',
+    title: '路边灵草',
+    body: '一株发着微光的草在石缝里晃。采？还是怀疑是诱饵？',
+    minRealm: 0,
+    lore: '凡人',
+    repeatable: true,
+    weight: 2,
+    options: [
+      {
+        id: 'herb_pick',
+        label: '采了',
+        blurb: '灵气小涨，根骨微微发烫。',
+        lingqiDelta: 80,
+        attrsDelta: { bone: 1 },
+      },
+      {
+        id: 'herb_pass',
+        label: '可疑，路过',
+        blurb: '安全第一。气机 +1。',
+        attrsDelta: { luck: 1 },
+      },
+    ],
+  },
+  {
+    id: 'rnd_auction_rumor',
+    title: '坊市传闻',
+    body: '有人低声说：今晚黑市有「打脸扇」仿品。你耳朵动了动。',
+    minRealm: 1,
+    lore: '诸天梗',
+    repeatable: true,
+    weight: 1,
+    options: [
+      {
+        id: 'rumor_go',
+        label: '去瞧瞧',
+        blurb: '花点灵气，说不定有收获。',
+        lingqiDelta: -200,
+        freePointsDelta: 1,
+      },
+      {
+        id: 'rumor_ignore',
+        label: '传闻而已',
+        blurb: '继续吐纳。',
+        lingqiDelta: 40,
+      },
+    ],
+  },
+  {
+    id: 'rnd_duel_invite',
+    title: '切磋战帖',
+    body: '一名同境修士扔来战帖：「比划比划？」围观群众已就位。',
+    minRealm: 0,
+    lore: '斗破/凡人',
+    repeatable: true,
+    weight: 2,
+    options: [
+      {
+        id: 'duel_yes',
+        label: '接战',
+        blurb: '拼属性！败不致死。',
+        combatEnemyId: 'clan_bully',
+        deathOnLose: false,
+        freePointsDelta: 1,
+      },
+      {
+        id: 'duel_no',
+        label: '闭关谢客',
+        blurb: '低调发育。',
+        attrsDelta: { spirit: 1 },
+      },
+    ],
+  },
+  {
+    id: 'rnd_cave',
+    title: '无名洞府',
+    body: '山壁裂开一道缝，里面隐约有储物袋的味道。',
+    minRealm: 1,
+    lore: '凡人',
+    repeatable: true,
+    weight: 1,
+    options: [
+      {
+        id: 'cave_enter',
+        label: '探进去',
+        blurb: '可能遇劫修，也可能发财。',
+        combatEnemyId: 'rogue_qi',
+        deathOnLose: false,
+        lingqiDelta: 300,
+        grantTreasureId: 'storage_pouch',
+      },
+      {
+        id: 'cave_leave',
+        label: '洞里有坑',
+        blurb: '你选择相信直觉。',
+        attrsDelta: { luck: 1 },
+      },
+    ],
+  },
+  {
+    id: 'rnd_dream',
+    title: '梦中残响',
+    body: '梦里有人喊「三年之期已到」，你吓醒了。窗外其实才三天。',
+    minRealm: 0,
+    lore: '斗破梗',
+    repeatable: true,
+    weight: 1,
+    options: [
+      {
+        id: 'dream_train',
+        label: '倒是刺激，加练',
+        blurb: '攻伐微增。',
+        attrsDelta: { atk: 1 },
+        lingqiDelta: -30,
+      },
+      {
+        id: 'dream_sleep',
+        label: '翻个身继续睡',
+        blurb: '神识回笼。',
+        attrsDelta: { spirit: 1 },
+      },
+    ],
+  },
+  {
+    id: 'rnd_wolf',
+    title: '林中妖嚎',
+    body: '血纹妖狼的气息靠近。打还是绕？',
+    minRealm: 1,
+    lore: '凡人',
+    repeatable: true,
+    weight: 1,
+    options: [
+      {
+        id: 'wolf_fight',
+        label: '猎之',
+        blurb: '对战妖狼。',
+        combatEnemyId: 'demon_wolf',
+        deathOnLose: false,
+        freePointsDelta: 1,
+      },
+      {
+        id: 'wolf_sneak',
+        label: '屏息绕行',
+        blurb: '身法经验 +1。',
+        attrsDelta: { spd: 1 },
+      },
+    ],
+  },
+  {
+    id: 'rnd_merchant',
+    title: '游方商人',
+    body: '「小友，看一看，瞧一瞧，保真的荒古……仿制品。」',
+    minRealm: 2,
+    lore: '遮天梗',
+    repeatable: true,
+    weight: 1,
+    options: [
+      {
+        id: 'merch_buy',
+        label: '买个心理安慰',
+        blurb: '破财，气机微妙上升。',
+        lingqiDelta: -1500,
+        attrsDelta: { luck: 2 },
+      },
+      {
+        id: 'merch_haggle',
+        label: '神识扫货',
+        blurb: '识破假货，商人灰溜溜离开。你赚了点面子和灵气。',
+        lingqiDelta: 200,
+        attrsDelta: { spirit: 1 },
+      },
+    ],
+  },
+  {
+    id: 'rnd_soul_wind',
+    title: '阴风一阵',
+    body: '神魂波动扫过识海。像有人在找「好苗子」。',
+    minRealm: 3,
+    lore: '仙逆',
+    repeatable: true,
+    weight: 1,
+    options: [
+      {
+        id: 'soul_resist',
+        label: '稳住神魂',
+        blurb: '神识对抗成功。',
+        attrsDelta: { spirit: 2 },
+        combatEnemyId: 'soul_old',
+        deathOnLose: false,
+      },
+      {
+        id: 'soul_hide',
+        label: '龟息藏匿',
+        blurb: '暂避锋芒。',
+        attrsDelta: { def: 1, luck: 1 },
       },
     ],
   },

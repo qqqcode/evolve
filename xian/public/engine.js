@@ -3,11 +3,17 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 2;
-  var STORAGE_KEY = "xian-save-v2";
+  var SAVE_VERSION = 3;
+  var STORAGE_KEY = "xian-save-v3";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_EQUIP = 3;
+  var RANDOM_COOLDOWN_MS = 18e3;
+  var RANDOM_CHANCE = {
+    click: 0.07,
+    level: 0.28,
+    time: 0.12
+  };
   function zeroAttrs() {
     return { atk: 0, def: 0, spd: 0, spirit: 0, bone: 0, luck: 0 };
   }
@@ -23,12 +29,12 @@
   }
   function scaleAttrs(a, rate) {
     return {
-      atk: Math.floor(a.atk * rate),
-      def: Math.floor(a.def * rate),
-      spd: Math.floor(a.spd * rate),
-      spirit: Math.floor(a.spirit * rate),
-      bone: Math.floor(a.bone * rate),
-      luck: Math.floor(a.luck * rate)
+      atk: Math.max(0, Math.floor(a.atk * rate)),
+      def: Math.max(0, Math.floor(a.def * rate)),
+      spd: Math.max(0, Math.floor(a.spd * rate)),
+      spirit: Math.max(0, Math.floor(a.spirit * rate)),
+      bone: Math.max(0, Math.floor(a.bone * rate)),
+      luck: Math.max(0, Math.floor(a.luck * rate))
     };
   }
   var REALMS = [
@@ -1498,6 +1504,206 @@
       ]
     }
   ];
+  var RANDOM_EVENTS = [
+    {
+      id: "rnd_herb",
+      title: "\u8DEF\u8FB9\u7075\u8349",
+      body: "\u4E00\u682A\u53D1\u7740\u5FAE\u5149\u7684\u8349\u5728\u77F3\u7F1D\u91CC\u6643\u3002\u91C7\uFF1F\u8FD8\u662F\u6000\u7591\u662F\u8BF1\u9975\uFF1F",
+      minRealm: 0,
+      lore: "\u51E1\u4EBA",
+      repeatable: true,
+      weight: 2,
+      options: [
+        {
+          id: "herb_pick",
+          label: "\u91C7\u4E86",
+          blurb: "\u7075\u6C14\u5C0F\u6DA8\uFF0C\u6839\u9AA8\u5FAE\u5FAE\u53D1\u70EB\u3002",
+          lingqiDelta: 80,
+          attrsDelta: { bone: 1 }
+        },
+        {
+          id: "herb_pass",
+          label: "\u53EF\u7591\uFF0C\u8DEF\u8FC7",
+          blurb: "\u5B89\u5168\u7B2C\u4E00\u3002\u6C14\u673A +1\u3002",
+          attrsDelta: { luck: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_auction_rumor",
+      title: "\u574A\u5E02\u4F20\u95FB",
+      body: "\u6709\u4EBA\u4F4E\u58F0\u8BF4\uFF1A\u4ECA\u665A\u9ED1\u5E02\u6709\u300C\u6253\u8138\u6247\u300D\u4EFF\u54C1\u3002\u4F60\u8033\u6735\u52A8\u4E86\u52A8\u3002",
+      minRealm: 1,
+      lore: "\u8BF8\u5929\u6897",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "rumor_go",
+          label: "\u53BB\u77A7\u77A7",
+          blurb: "\u82B1\u70B9\u7075\u6C14\uFF0C\u8BF4\u4E0D\u5B9A\u6709\u6536\u83B7\u3002",
+          lingqiDelta: -200,
+          freePointsDelta: 1
+        },
+        {
+          id: "rumor_ignore",
+          label: "\u4F20\u95FB\u800C\u5DF2",
+          blurb: "\u7EE7\u7EED\u5410\u7EB3\u3002",
+          lingqiDelta: 40
+        }
+      ]
+    },
+    {
+      id: "rnd_duel_invite",
+      title: "\u5207\u78CB\u6218\u5E16",
+      body: "\u4E00\u540D\u540C\u5883\u4FEE\u58EB\u6254\u6765\u6218\u5E16\uFF1A\u300C\u6BD4\u5212\u6BD4\u5212\uFF1F\u300D\u56F4\u89C2\u7FA4\u4F17\u5DF2\u5C31\u4F4D\u3002",
+      minRealm: 0,
+      lore: "\u6597\u7834/\u51E1\u4EBA",
+      repeatable: true,
+      weight: 2,
+      options: [
+        {
+          id: "duel_yes",
+          label: "\u63A5\u6218",
+          blurb: "\u62FC\u5C5E\u6027\uFF01\u8D25\u4E0D\u81F4\u6B7B\u3002",
+          combatEnemyId: "clan_bully",
+          deathOnLose: false,
+          freePointsDelta: 1
+        },
+        {
+          id: "duel_no",
+          label: "\u95ED\u5173\u8C22\u5BA2",
+          blurb: "\u4F4E\u8C03\u53D1\u80B2\u3002",
+          attrsDelta: { spirit: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_cave",
+      title: "\u65E0\u540D\u6D1E\u5E9C",
+      body: "\u5C71\u58C1\u88C2\u5F00\u4E00\u9053\u7F1D\uFF0C\u91CC\u9762\u9690\u7EA6\u6709\u50A8\u7269\u888B\u7684\u5473\u9053\u3002",
+      minRealm: 1,
+      lore: "\u51E1\u4EBA",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "cave_enter",
+          label: "\u63A2\u8FDB\u53BB",
+          blurb: "\u53EF\u80FD\u9047\u52AB\u4FEE\uFF0C\u4E5F\u53EF\u80FD\u53D1\u8D22\u3002",
+          combatEnemyId: "rogue_qi",
+          deathOnLose: false,
+          lingqiDelta: 300,
+          grantTreasureId: "storage_pouch"
+        },
+        {
+          id: "cave_leave",
+          label: "\u6D1E\u91CC\u6709\u5751",
+          blurb: "\u4F60\u9009\u62E9\u76F8\u4FE1\u76F4\u89C9\u3002",
+          attrsDelta: { luck: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_dream",
+      title: "\u68A6\u4E2D\u6B8B\u54CD",
+      body: "\u68A6\u91CC\u6709\u4EBA\u558A\u300C\u4E09\u5E74\u4E4B\u671F\u5DF2\u5230\u300D\uFF0C\u4F60\u5413\u9192\u4E86\u3002\u7A97\u5916\u5176\u5B9E\u624D\u4E09\u5929\u3002",
+      minRealm: 0,
+      lore: "\u6597\u7834\u6897",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "dream_train",
+          label: "\u5012\u662F\u523A\u6FC0\uFF0C\u52A0\u7EC3",
+          blurb: "\u653B\u4F10\u5FAE\u589E\u3002",
+          attrsDelta: { atk: 1 },
+          lingqiDelta: -30
+        },
+        {
+          id: "dream_sleep",
+          label: "\u7FFB\u4E2A\u8EAB\u7EE7\u7EED\u7761",
+          blurb: "\u795E\u8BC6\u56DE\u7B3C\u3002",
+          attrsDelta: { spirit: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_wolf",
+      title: "\u6797\u4E2D\u5996\u568E",
+      body: "\u8840\u7EB9\u5996\u72FC\u7684\u6C14\u606F\u9760\u8FD1\u3002\u6253\u8FD8\u662F\u7ED5\uFF1F",
+      minRealm: 1,
+      lore: "\u51E1\u4EBA",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "wolf_fight",
+          label: "\u730E\u4E4B",
+          blurb: "\u5BF9\u6218\u5996\u72FC\u3002",
+          combatEnemyId: "demon_wolf",
+          deathOnLose: false,
+          freePointsDelta: 1
+        },
+        {
+          id: "wolf_sneak",
+          label: "\u5C4F\u606F\u7ED5\u884C",
+          blurb: "\u8EAB\u6CD5\u7ECF\u9A8C +1\u3002",
+          attrsDelta: { spd: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_merchant",
+      title: "\u6E38\u65B9\u5546\u4EBA",
+      body: "\u300C\u5C0F\u53CB\uFF0C\u770B\u4E00\u770B\uFF0C\u77A7\u4E00\u77A7\uFF0C\u4FDD\u771F\u7684\u8352\u53E4\u2026\u2026\u4EFF\u5236\u54C1\u3002\u300D",
+      minRealm: 2,
+      lore: "\u906E\u5929\u6897",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "merch_buy",
+          label: "\u4E70\u4E2A\u5FC3\u7406\u5B89\u6170",
+          blurb: "\u7834\u8D22\uFF0C\u6C14\u673A\u5FAE\u5999\u4E0A\u5347\u3002",
+          lingqiDelta: -1500,
+          attrsDelta: { luck: 2 }
+        },
+        {
+          id: "merch_haggle",
+          label: "\u795E\u8BC6\u626B\u8D27",
+          blurb: "\u8BC6\u7834\u5047\u8D27\uFF0C\u5546\u4EBA\u7070\u6E9C\u6E9C\u79BB\u5F00\u3002\u4F60\u8D5A\u4E86\u70B9\u9762\u5B50\u548C\u7075\u6C14\u3002",
+          lingqiDelta: 200,
+          attrsDelta: { spirit: 1 }
+        }
+      ]
+    },
+    {
+      id: "rnd_soul_wind",
+      title: "\u9634\u98CE\u4E00\u9635",
+      body: "\u795E\u9B42\u6CE2\u52A8\u626B\u8FC7\u8BC6\u6D77\u3002\u50CF\u6709\u4EBA\u5728\u627E\u300C\u597D\u82D7\u5B50\u300D\u3002",
+      minRealm: 3,
+      lore: "\u4ED9\u9006",
+      repeatable: true,
+      weight: 1,
+      options: [
+        {
+          id: "soul_resist",
+          label: "\u7A33\u4F4F\u795E\u9B42",
+          blurb: "\u795E\u8BC6\u5BF9\u6297\u6210\u529F\u3002",
+          attrsDelta: { spirit: 2 },
+          combatEnemyId: "soul_old",
+          deathOnLose: false
+        },
+        {
+          id: "soul_hide",
+          label: "\u9F9F\u606F\u85CF\u533F",
+          blurb: "\u6682\u907F\u950B\u8292\u3002",
+          attrsDelta: { def: 1, luck: 1 }
+        }
+      ]
+    }
+  ];
   var ENDINGS = [
     {
       id: "yan_di",
@@ -1747,7 +1953,9 @@
       phase: "rebirth",
       deathReason: null,
       combatWins: 0,
-      combatLosses: 0
+      combatLosses: 0,
+      randomEventId: null,
+      lastRandomAt: 0
     };
   }
   function createNewState(now = Date.now()) {
@@ -1805,7 +2013,9 @@
       phase: !data.birthId && phase === "playing" ? "rebirth" : phase,
       deathReason: typeof data.deathReason === "string" ? data.deathReason : null,
       combatWins: Math.max(0, Math.floor(Number(data.combatWins) || 0)),
-      combatLosses: Math.max(0, Math.floor(Number(data.combatLosses) || 0))
+      combatLosses: Math.max(0, Math.floor(Number(data.combatLosses) || 0)),
+      randomEventId: typeof data.randomEventId === "string" ? data.randomEventId : null,
+      lastRandomAt: Math.max(0, Number(data.lastRandomAt) || 0)
     };
   }
   function artAvailable(state, art) {
@@ -1927,7 +2137,7 @@
     candidates.sort((a, b) => b.priority - a.priority);
     return candidates[0];
   }
-  function findPendingEvent(state) {
+  function findStoryEvent(state) {
     if (state.phase !== "playing" || state.endingId) return null;
     for (const ev of STORY_EVENTS) {
       if (state.doneEvents.includes(ev.id)) continue;
@@ -1943,6 +2153,52 @@
       return ev;
     }
     return null;
+  }
+  function findPendingEvent(state) {
+    if (state.phase !== "playing" || state.endingId) return null;
+    if (state.randomEventId) {
+      const rnd = RANDOM_EVENTS.find((e) => e.id === state.randomEventId);
+      if (rnd) return rnd;
+    }
+    return findStoryEvent(state);
+  }
+  function tryRandomEvent(state, source, now = Date.now(), forceRoll) {
+    if (state.phase !== "playing" || state.endingId) return { ok: false, state };
+    if (state.randomEventId) return { ok: false, state };
+    if (findStoryEvent(state)) return { ok: false, state };
+    if (now - state.lastRandomAt < RANDOM_COOLDOWN_MS) return { ok: false, state };
+    const chance = RANDOM_CHANCE[source];
+    const roll = forceRoll != null ? forceRoll : Math.random();
+    if (roll > chance) return { ok: false, state };
+    const pool = RANDOM_EVENTS.filter((e) => {
+      if (state.realmIndex < e.minRealm) return false;
+      if (e.minStar != null && state.star < e.minStar) return false;
+      if (e.requireBranch && e.requireBranch !== state.branchId) return false;
+      if (e.requireFaction && e.requireFaction !== state.factionId) return false;
+      if (e.requireFlags && !hasFlags(state, e.requireFlags)) return false;
+      return true;
+    });
+    if (!pool.length) return { ok: false, state };
+    let total = 0;
+    for (const e of pool) total += e.weight || 1;
+    let pickRoll = Math.random() * total;
+    let picked = pool[0];
+    for (const e of pool) {
+      pickRoll -= e.weight || 1;
+      if (pickRoll <= 0) {
+        picked = e;
+        break;
+      }
+    }
+    return {
+      ok: true,
+      state: {
+        ...state,
+        randomEventId: picked.id,
+        lastRandomAt: now
+      },
+      message: picked.title
+    };
   }
   function pushChronicle(state, line) {
     return { ...state, chronicle: [...state.chronicle, line].slice(-MAX_CHRONICLE) };
@@ -2056,7 +2312,10 @@
       return { ok: false, state: ticked, reason: "\u8BF7\u5148\u5B8C\u6210\u5F53\u524D\u6289\u62E9" };
     }
     const { clickPower } = derive(ticked);
-    return { ok: true, state: grantLingqi(ticked, clickPower) };
+    let next = grantLingqi(ticked, clickPower);
+    const rnd = tryRandomEvent(next, "click", now);
+    if (rnd.ok) next = rnd.state;
+    return { ok: true, state: next };
   }
   function buyArt(state, artId, now = Date.now()) {
     const blocked = ensurePlaying(state);
@@ -2121,7 +2380,7 @@
     };
   }
   function allocatePoint(state, key) {
-    if (state.phase === "ended") return { ok: false, state, reason: "\u6B64\u4E16\u5DF2\u843D\u5E55" };
+    if (state.phase !== "playing") return { ok: false, state, reason: "\u5F53\u524D\u65E0\u6CD5\u5206\u914D\u5C5E\u6027" };
     if (state.freePoints <= 0) return { ok: false, state, reason: "\u6CA1\u6709\u53EF\u5206\u914D\u5C5E\u6027\u70B9" };
     if (!ATTR_KEYS.includes(key)) return { ok: false, state, reason: "\u672A\u77E5\u5C5E\u6027" };
     return {
@@ -2153,6 +2412,8 @@
       next = { ...next, freePoints: next.freePoints + 1 };
     }
     next = pushChronicle(next, `${getRealm(next.realmIndex).name}${nextStar}\u5C42\u3002`);
+    const rnd = tryRandomEvent(next, "level", now);
+    if (rnd.ok) next = rnd.state;
     return { ok: true, state: next, message: `\u5347\u81F3 ${nextStar} \u5C42` };
   }
   function breakthrough(state, now = Date.now()) {
@@ -2189,6 +2450,9 @@
         };
         next = pushChronicle(next, `\u3010\u7ED3\u5C40\u3011${ending.name}\u2014\u2014${ending.title}`);
       }
+    } else {
+      const rnd = tryRandomEvent(next, "level", now);
+      if (rnd.ok) next = rnd.state;
     }
     return { ok: true, state: next, message: `\u7834\u5883\u81F3\u300C${nextRealm.name}\u300D` };
   }
@@ -2338,7 +2602,9 @@
       phase: "playing",
       deathReason: null,
       combatWins: 0,
-      combatLosses: 0
+      combatLosses: 0,
+      randomEventId: null,
+      lastRandomAt: 0
     };
     return { ok: true, state: next, message: `\u8F6C\u751F\u4E3A\u300C${birth.name}\u300D` };
   }
@@ -2357,7 +2623,8 @@
     }
     let next = {
       ...ticked,
-      doneEvents: [...ticked.doneEvents, eventId]
+      doneEvents: pending.repeatable ? ticked.doneEvents : [...ticked.doneEvents, eventId],
+      randomEventId: null
     };
     if (option.set?.branchId) next = { ...next, branchId: option.set.branchId };
     if (option.set?.factionId) next = { ...next, factionId: option.set.factionId };
@@ -2479,7 +2746,7 @@
   }
   function loadFromStorage(now = Date.now()) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("xian-save-v1");
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("xian-save-v2") || localStorage.getItem("xian-save-v1");
       if (!raw) return createNewState(now);
       return loadState(JSON.parse(raw), now);
     } catch {
@@ -2489,6 +2756,7 @@
   function clearStorage() {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("xian-save-v2");
       localStorage.removeItem("xian-save-v1");
     } catch {
     }
@@ -2510,6 +2778,7 @@
     STORAGE_KEY,
     STORY_EVENTS,
     TREASURES,
+    RANDOM_EVENTS,
     getEnding,
     getEnemy,
     getRealm,
@@ -2544,7 +2813,8 @@
     startCombat,
     tick,
     toggleEquip,
-    totalAttrs
+    totalAttrs,
+    tryRandomEvent
   };
   window.Xian = Xian;
 })();

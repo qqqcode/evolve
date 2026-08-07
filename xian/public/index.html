@@ -63,6 +63,11 @@
         </div>
       </section>
 
+      <section class="equip-bar" aria-label="已装备法宝">
+        <h2 class="pane-title equip-title">装备栏 <span class="inline-hint">点击装卸 · 最多 3</span></h2>
+        <div id="equipSlots" class="equip-slots"></div>
+      </section>
+
       <div class="layout">
         <aside class="realm-panel">
           <h2 class="pane-title">境界 · 凡人体系</h2>
@@ -83,7 +88,7 @@
         </aside>
 
         <section class="core-panel">
-          <p class="click-hint">点击吐纳，吸收灵气</p>
+          <p class="click-hint">点击吐纳，吸收灵气（偶遇奇事）</p>
           <button type="button" id="absorbBtn" class="absorb-btn" aria-label="吐纳吸收灵气">
             <span class="absorb-ring"></span>
             <span class="absorb-core" id="absorbCore">炁</span>
@@ -103,7 +108,7 @@
         <aside class="shop-panel">
           <div class="shop-tabs" role="tablist">
             <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
-            <button type="button" class="tab" data-tab="treasures" role="tab">法宝</button>
+            <button type="button" class="tab" data-tab="treasures" role="tab">坊市</button>
             <button type="button" class="tab" data-tab="cycle" role="tab">轮回</button>
           </div>
 
@@ -115,7 +120,7 @@
           </div>
 
           <div id="tabTreasures" class="tab-pane">
-            <h2 class="pane-title">持有 / 装备（最多 3）</h2>
+            <h2 class="pane-title">持有法宝</h2>
             <div id="ownedTreasures" class="shop-list"></div>
             <h2 class="pane-title">坊市法宝</h2>
             <div id="shopTreasures" class="shop-list"></div>

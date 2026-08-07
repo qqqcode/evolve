@@ -11,6 +11,7 @@ import {
   MAX_OFFLINE_MS,
   MAX_STAR,
   QIYUN_BONUS_PER,
+  RANDOM_EVENTS,
   REALMS,
   SAVE_VERSION,
   STORAGE_KEY,
@@ -50,6 +51,7 @@ import {
   tick,
   toggleEquip,
   totalAttrs,
+  tryRandomEvent,
 } from './engine';
 import type { GameState } from './types';
 import { ATTR_KEYS, ATTR_LABELS } from './types';
@@ -66,7 +68,10 @@ function saveToStorage(state: GameState): void {
 
 function loadFromStorage(now = Date.now()): GameState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('xian-save-v1');
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem('xian-save-v2') ||
+      localStorage.getItem('xian-save-v1');
     if (!raw) return createNewState(now);
     return loadState(JSON.parse(raw), now);
   } catch {
@@ -77,6 +82,7 @@ function loadFromStorage(now = Date.now()): GameState {
 function clearStorage(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('xian-save-v2');
     localStorage.removeItem('xian-save-v1');
   } catch {
     /* ignore */
@@ -100,6 +106,7 @@ const Xian = {
   STORAGE_KEY,
   STORY_EVENTS,
   TREASURES,
+  RANDOM_EVENTS,
   getEnding,
   getEnemy,
   getRealm,
@@ -135,6 +142,7 @@ const Xian = {
   tick,
   toggleEquip,
   totalAttrs,
+  tryRandomEvent,
 };
 
 declare global {

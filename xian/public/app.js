@@ -13,10 +13,14 @@
   let saveTimer = null;
   let shopsBuilt = false;
   let treasuresBuilt = false;
+  let attrsBuilt = false;
   let renderedRealmIndex = -1;
   let lastEndingShown = null;
   let eventModalOpen = false;
   let selectedBring = [];
+  let lastEquipSig = '';
+  let lastCombatSig = '';
+  let timeRandomAcc = 0;
 
   const els = {
     lingqiVal: document.getElementById('lingqiVal'),
@@ -31,6 +35,7 @@
     freePointsHint: document.getElementById('freePointsHint'),
     attrList: document.getElementById('attrList'),
     combatList: document.getElementById('combatList'),
+    equipSlots: document.getElementById('equipSlots'),
     absorbBtn: document.getElementById('absorbBtn'),
     floatLayer: document.getElementById('floatLayer'),
     clickShop: document.getElementById('clickShop'),
@@ -148,47 +153,87 @@
     document.documentElement.style.setProperty('--hue', String(stats.realm.hue));
   }
 
-  function renderAttrs(stats) {
-    els.freePointsHint.textContent =
-      state.freePoints > 0 ? '（可分配 ' + state.freePoints + '）' : '';
+  function buildAttrs() {
     els.attrList.innerHTML = '';
     X.ATTR_KEYS.forEach((key) => {
       const row = document.createElement('div');
       row.className = 'attr-row';
-      const total = stats.totalAttrs[key];
-      const base = state.attrs[key] + state.legacyAttrs[key];
+      row.dataset.attrKey = key;
       row.innerHTML =
         '<span class="attr-name">' +
         X.ATTR_LABELS[key] +
-        '</span><span class="attr-val">' +
-        total +
-        ' <small style="opacity:.6">(基' +
-        base +
-        ')</small></span>';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = '+1';
-      btn.disabled = state.freePoints <= 0 || state.phase !== 'playing';
-      btn.addEventListener('click', () => {
-        const res = X.allocatePoint(state, key);
-        if (!res.ok) {
-          showToast(res.reason || '无法加点');
-          return;
-        }
-        setState(res.state, { soft: true });
-      });
-      row.appendChild(btn);
+        '</span><span class="attr-val"></span><button type="button" data-attr="' +
+        key +
+        '">+1</button>';
       els.attrList.appendChild(row);
+    });
+    attrsBuilt = true;
+  }
+
+  function softUpdateAttrs(stats) {
+    if (!attrsBuilt) buildAttrs();
+    els.freePointsHint.textContent =
+      state.freePoints > 0 ? '（可分配 ' + state.freePoints + '）' : '';
+    els.attrList.querySelectorAll('.attr-row').forEach((row) => {
+      const key = row.dataset.attrKey;
+      const total = stats.totalAttrs[key];
+      const base = state.attrs[key] + state.legacyAttrs[key];
+      const val = row.querySelector('.attr-val');
+      if (val) {
+        val.innerHTML =
+          total + ' <small style="opacity:.6">(基' + base + ')</small>';
+      }
+      const btn = row.querySelector('button');
+      if (btn) btn.disabled = state.freePoints <= 0 || state.phase !== 'playing';
     });
   }
 
-  function renderCombat() {
+  function renderEquipBar() {
+    if (!els.equipSlots) return;
+    const sig = state.equipped.join(',') + '|' + state.treasures.join(',');
+    // 始终刷新槽位内容，但避免无意义闪烁时可对比
+    els.equipSlots.innerHTML = '';
+    for (let i = 0; i < X.MAX_EQUIP; i++) {
+      const id = state.equipped[i];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'equip-slot' + (id ? ' filled' : '');
+      if (id) {
+        const t = X.getTreasure(id);
+        btn.dataset.treasureId = id;
+        btn.innerHTML =
+          '<span class="slot-mark">' +
+          (t ? t.mark : '?') +
+          '</span><span class="slot-name">' +
+          (t ? t.name : id) +
+          '</span><span class="slot-lore">' +
+          (t ? t.lore + ' · 点击卸下' : '') +
+          '</span>';
+      } else {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="slot-empty">空槽 · 在坊市装备</span>';
+      }
+      els.equipSlots.appendChild(btn);
+    }
+    lastEquipSig = sig;
+  }
+
+  function renderCombat(force) {
+    const list =
+      state.phase !== 'playing' || state.endingId ? [] : X.listCombatEnemies(state);
+    const sig =
+      state.phase +
+      ':' +
+      state.realmIndex +
+      ':' +
+      list.map((e) => e.id).join(',');
+    if (!force && sig === lastCombatSig && els.combatList.childElementCount) return;
+    lastCombatSig = sig;
     els.combatList.innerHTML = '';
     if (state.phase !== 'playing' || state.endingId) {
       els.combatList.innerHTML = '<p class="realm-hint">轮回或结局中不可对战</p>';
       return;
     }
-    const list = X.listCombatEnemies(state);
     if (!list.length) {
       els.combatList.innerHTML = '<p class="realm-hint">附近无敌可战</p>';
       return;
@@ -197,6 +242,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'combat-row';
+      btn.dataset.enemyId = enemy.id;
       btn.innerHTML =
         '<strong>' +
         enemy.name +
@@ -207,24 +253,6 @@
         ' · 赏 ' +
         X.formatNumber(enemy.rewardLingqi) +
         '</span>';
-      btn.addEventListener('click', () => {
-        if (!window.confirm('与「' + enemy.name + '」对战？败可能只是丢脸，剧情战败或会死。')) return;
-        const res = X.startCombat(state, enemy.id);
-        if (!res.ok) {
-          showToast(res.reason || '无法对战');
-          setState(res.state, { soft: true });
-          return;
-        }
-        showToast(
-          (res.won ? '胜！' : '败…') +
-            ' 战力 ' +
-            Math.floor(res.playerPower) +
-            ' vs ' +
-            Math.floor(res.enemyPower),
-        );
-        treasuresBuilt = false;
-        setState(res.state);
-      });
       els.combatList.appendChild(btn);
     });
   }
@@ -539,7 +567,8 @@
     els.pathLine.textContent = pathLabel();
 
     renderRealmRail(stats);
-    renderAttrs(stats);
+    softUpdateAttrs(stats);
+    renderEquipBar();
 
     if (stats.nextStarCost != null) {
       els.btnRaiseStar.textContent = '升层（' + X.formatNumber(stats.nextStarCost) + '）';
@@ -574,9 +603,18 @@
     if (!soft) {
       renderChronicle();
       renderEndings();
-      renderCombat();
-    } else if (els.chronicleList.childElementCount !== Math.min(12, state.chronicle.length)) {
-      renderChronicle();
+      renderCombat(true);
+    } else {
+      if (els.chronicleList.childElementCount !== Math.min(12, state.chronicle.length)) {
+        renderChronicle();
+      }
+      renderCombat(false);
+      // 装备变化时刷新
+      const sig = state.equipped.join(',') + '|' + state.treasures.join(',');
+      if (sig !== lastEquipSig) {
+        treasuresBuilt = false;
+        buildTreasures();
+      }
     }
 
     const canRein = stats.canReincarnate || state.phase === 'ended';
@@ -599,6 +637,7 @@
 
   els.absorbBtn.addEventListener('click', () => {
     const before = state.lingqi;
+    const hadEvent = !!state.randomEventId;
     const res = X.clickAbsorb(state);
     if (!res.ok) {
       if (res.reason) showToast(res.reason);
@@ -606,11 +645,63 @@
       return;
     }
     spawnFloat(res.state.lingqi - before);
+    if (!hadEvent && res.state.randomEventId) {
+      showToast('奇遇：' + (X.RANDOM_EVENTS.find((e) => e.id === res.state.randomEventId) || {}).title);
+    }
     setState(res.state, { soft: true });
+  });
+
+  els.attrList.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-attr]');
+    if (!btn || btn.disabled) return;
+    e.preventDefault();
+    const key = btn.dataset.attr;
+    const res = X.allocatePoint(state, key);
+    if (!res.ok) {
+      showToast(res.reason || '无法加点');
+      return;
+    }
+    setState(res.state, { soft: true });
+  });
+
+  els.equipSlots.addEventListener('click', (e) => {
+    const btn = e.target.closest('.equip-slot[data-treasure-id]');
+    if (!btn) return;
+    const res = X.toggleEquip(state, btn.dataset.treasureId);
+    if (!res.ok) {
+      showToast(res.reason || '无法卸下');
+      return;
+    }
+    treasuresBuilt = false;
+    setState(res.state, { soft: true });
+  });
+
+  els.combatList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.combat-row[data-enemy-id]');
+    if (!btn) return;
+    const enemy = X.getEnemy(btn.dataset.enemyId);
+    if (!enemy) return;
+    if (!window.confirm('与「' + enemy.name + '」对战？败可能只是丢脸，剧情战败或会死。')) return;
+    const res = X.startCombat(state, enemy.id);
+    if (!res.ok) {
+      showToast(res.reason || '无法对战');
+      setState(res.state, { soft: true });
+      return;
+    }
+    showToast(
+      (res.won ? '胜！' : '败…') +
+        ' 战力 ' +
+        Math.floor(res.playerPower) +
+        ' vs ' +
+        Math.floor(res.enemyPower),
+    );
+    treasuresBuilt = false;
+    setState(res.state);
   });
 
   els.btnRaiseStar.addEventListener('click', () => {
     if (els.btnRaiseStar.classList.contains('is-locked')) return;
+    const beforeRnd = state.randomEventId;
     const res = X.raiseStar(state);
     if (!res.ok) {
       showToast(res.reason || '无法升层');
@@ -618,12 +709,16 @@
       return;
     }
     showToast(res.message || '升层成功');
+    if (!beforeRnd && res.state.randomEventId) {
+      showToast('奇遇：升层触发');
+    }
     shopsBuilt = false;
     setState(res.state);
   });
 
   els.btnBreak.addEventListener('click', () => {
     if (els.btnBreak.classList.contains('is-locked')) return;
+    const beforeRnd = state.randomEventId;
     const res = X.breakthrough(state);
     if (!res.ok) {
       showToast(res.reason || '无法破境');
@@ -631,6 +726,7 @@
       return;
     }
     showToast(res.message || '破境成功');
+    if (!beforeRnd && res.state.randomEventId) showToast('奇遇：破境触发');
     shopsBuilt = false;
     treasuresBuilt = false;
     renderedRealmIndex = -1;
@@ -738,9 +834,13 @@
     lastEndingShown = null;
     shopsBuilt = false;
     treasuresBuilt = false;
+    attrsBuilt = false;
     renderedRealmIndex = -1;
     eventModalOpen = false;
     selectedBring = [];
+    lastCombatSig = '';
+    lastEquipSig = '';
+    timeRandomAcc = 0;
     els.eventModal.hidden = true;
     els.endingModal.hidden = true;
     setState(X.createNewState());
@@ -778,8 +878,30 @@
   setInterval(() => {
     if (state.phase !== 'playing') return;
     const t = X.tick(state);
-    if (t.gained > 0 || t.state.lastTickAt !== state.lastTickAt) {
-      setState(t.state, { soft: true });
+    // 仅有产出时才触发完整 soft 渲染，避免打掉属性按钮点击
+    if (t.gained > 0) {
+      let next = t.state;
+      timeRandomAcc += 250;
+      if (timeRandomAcc >= 12000) {
+        timeRandomAcc = 0;
+        const rnd = X.tryRandomEvent(next, 'time');
+        if (rnd.ok) {
+          next = rnd.state;
+          showToast('奇遇：时光流转…');
+        }
+      }
+      setState(next, { soft: true });
+    } else {
+      state = { ...state, lastTickAt: t.state.lastTickAt };
+      timeRandomAcc += 250;
+      if (timeRandomAcc >= 12000) {
+        timeRandomAcc = 0;
+        const rnd = X.tryRandomEvent(state, 'time');
+        if (rnd.ok) {
+          showToast('奇遇：时光流转…');
+          setState(rnd.state, { soft: true });
+        }
+      }
     }
   }, 250);
 
