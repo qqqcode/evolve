@@ -5,6 +5,7 @@ import {
   BRANCH_LABELS,
   ENDINGS,
   ENEMIES,
+  FORGE_REALMS,
   FREE_POINT_TO_RESOURCE,
   HERBS,
   MAIN_STORY,
@@ -13,6 +14,7 @@ import {
   MAX_MILESTONES,
   MAX_OFFLINE_MS,
   MAX_STAR,
+  MAX_TEMPER_LEVEL,
   NATURALS,
   PILL_RECIPES,
   QIYUN_BONUS_PER,
@@ -22,20 +24,22 @@ import {
   REALMS,
   SAVE_VERSION,
   STORY_EVENTS,
+  TIER_PROMOTE_TARGET,
   TREASURES,
   TRIAD_INTERFERE_CAP,
   addAttrs,
   artChannel,
-  bodyAttrsBonus,
-  bodyMultipliers,
   emptyEquipped,
   emptyHerbs,
   emptyPills,
+  forgeAttrsBonus,
+  forgeMultipliers,
+  forgeRealmIndexFromTotal,
   getArt,
   getBirth,
-  getBodyStage,
   getEnding,
   getEnemy,
+  getForgeRealm,
   getHerb,
   getNatural,
   getPillRecipe,
@@ -44,6 +48,7 @@ import {
   listEquippedIds,
   scaleAttrs,
   slotCapacity,
+  tierAllowed,
   zeroAttrs,
   zeroResources,
 } from './data';
@@ -67,6 +72,7 @@ import type {
   TreasureCons,
   TreasureDef,
   TreasureForgeState,
+  TreasureTier,
 } from './types';
 import {
   ATTR_KEYS,
@@ -297,8 +303,12 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
       const o = v as Record<string, unknown>;
       const def = getTreasure(id)!;
       treasureForge[id] = {
-        level: clampInt(o.level, 0, def.maxTemper),
+        level: clampInt(o.level, 0, MAX_TEMPER_LEVEL),
         refined: !!o.refined,
+        tierOverride:
+          o.tierOverride === 'mortal' || o.tierOverride === 'spirit' || o.tierOverride === 'immortal'
+            ? o.tierOverride
+            : undefined,
       };
     }
   }
@@ -465,6 +475,23 @@ function hasMinAttrs(total: AttrMap, need?: Partial<AttrMap>): boolean {
   return ATTR_KEYS.every((k) => total[k] >= (need[k] || 0));
 }
 
+/** 炼器境界（累计体术） */
+export function currentForgeRealmIndex(state: GameState): number {
+  return forgeRealmIndexFromTotal(state.totalTishu);
+}
+
+export function currentForgeRealm(state: GameState) {
+  return getForgeRealm(currentForgeRealmIndex(state));
+}
+
+/** 法宝有效品阶（含升品） */
+export function treasureEffectiveTier(state: GameState, id: string): TreasureTier {
+  const def = getTreasure(id);
+  if (!def) return 'mortal';
+  const forge = getTreasureForge(state, id);
+  return forge.tierOverride || def.tier;
+}
+
 /** 法宝炼器状态 */
 export function getTreasureForge(state: GameState, id: string): TreasureForgeState {
   return state.treasureForge[id] || { level: 0, refined: false };
@@ -483,12 +510,16 @@ export function sellValue(state: GameState, id: string): number {
   const def = getTreasure(id);
   if (!def) return 0;
   const forge = getTreasureForge(state, id);
-  return Math.floor(def.sellLingli * (1 + forge.level * 0.12) * (forge.refined ? 1.15 : 1));
+  const tier = treasureEffectiveTier(state, id);
+  const tierBonus = tier === 'immortal' ? 1.8 : tier === 'spirit' ? 1.35 : 1;
+  return Math.floor(
+    def.sellLingli * (1 + forge.level * 0.12) * (forge.refined ? 1.15 : 1) * tierBonus,
+  );
 }
 
 /** 是否应施加负面：非仙品且未洗练 */
-export function treasureConsActive(def: TreasureDef, forge: TreasureForgeState): boolean {
-  return def.tier !== 'immortal' && !forge.refined && !!def.cons;
+export function treasureConsActive(def: TreasureDef, forge: TreasureForgeState, tier: TreasureTier): boolean {
+  return tier !== 'immortal' && !forge.refined && !!def.cons;
 }
 
 export interface EffectiveTreasureEffects {
@@ -512,32 +543,45 @@ export function effectiveTreasureEffects(
   const def = getTreasure(id);
   if (!def) return null;
   const forge = getTreasureForge(state, id);
+  const tier = treasureEffectiveTier(state, id);
   const scale = temperScale(forge.level);
-  const consActive = treasureConsActive(def, forge);
+  const consActive = treasureConsActive(def, forge, tier);
   const cons: TreasureCons | undefined = consActive ? def.cons : undefined;
 
   const attrs = zeroAttrs();
   for (const k of ATTR_KEYS) {
     const base = def.attrs[k] || 0;
-    const boosted = base > 0 ? base * scale : base;
+    // 升品：灵品 +15% 底，仙品 +35% 底
+    const tierBoost = tier === 'immortal' ? 1.35 : tier === 'spirit' ? 1.15 : 1;
+    const boosted = base > 0 ? base * scale * tierBoost : base;
     const pen = cons?.attrs?.[k] || 0;
     attrs[k] = boosted + pen;
   }
 
   let combatMult = 1;
   if (def.combatMult) {
-    combatMult = 1 + (def.combatMult - 1) * scale;
+    const tierBoost = tier === 'immortal' ? 1.08 : tier === 'spirit' ? 1.03 : 1;
+    combatMult = 1 + (def.combatMult - 1) * scale * tierBoost;
   }
   if (cons?.combatMult) combatMult *= cons.combatMult;
 
   let cultivateClick = (def.cultivateClick || 0) * scale;
   let cultivatePassive = (def.cultivatePassive || 0) * scale;
+  if (tier === 'spirit') {
+    cultivateClick *= 1.1;
+    cultivatePassive *= 1.1;
+  } else if (tier === 'immortal') {
+    cultivateClick *= 1.25;
+    cultivatePassive *= 1.25;
+  }
   if (cons?.cultivateClick) cultivateClick += cons.cultivateClick;
   if (cons?.cultivatePassive) cultivatePassive += cons.cultivatePassive;
   cultivateClick = Math.max(0, cultivateClick);
   cultivatePassive = Math.max(0, cultivatePassive);
 
   let triadDamp = (def.triadDamp || 0) * (1 + forge.level * 0.04);
+  if (tier === 'spirit') triadDamp *= 1.1;
+  if (tier === 'immortal') triadDamp *= 1.25;
   const triadBias = zeroResources();
   if (def.triadBias) {
     for (const key of RESOURCE_KEYS) {
@@ -560,7 +604,7 @@ export function effectiveTreasureEffects(
     combatEdges: def.combatEdges,
     consActive,
     level: forge.level,
-    refined: forge.refined || def.tier === 'immortal',
+    refined: forge.refined || tier === 'immortal',
   };
 }
 
@@ -569,10 +613,11 @@ export function describeTreasureBonus(state: GameState, id: string): string {
   const def = getTreasure(id);
   const eff = effectiveTreasureEffects(state, id);
   if (!def || !eff) return '';
+  const tier = treasureEffectiveTier(state, id);
   const parts: string[] = [];
-  parts.push(TREASURE_TIER_LABELS[def.tier]);
+  parts.push(TREASURE_TIER_LABELS[tier]);
   if (eff.level > 0) parts.push(`炼器+${eff.level}`);
-  if (eff.refined && def.tier !== 'immortal') parts.push('已洗练');
+  if (eff.refined && tier !== 'immortal') parts.push('已洗练');
   for (const k of ATTR_KEYS) {
     if (eff.attrs[k]) {
       const v = Math.round(eff.attrs[k] * 10) / 10;
@@ -586,7 +631,7 @@ export function describeTreasureBonus(state: GameState, id: string): string {
   if (def.pros?.length) parts.push('正：' + def.pros.slice(0, 3).join('、'));
   if (eff.consActive && def.cons?.labels?.length) {
     parts.push('负：' + def.cons.labels.join('、'));
-  } else if (def.tier === 'immortal') {
+  } else if (tier === 'immortal') {
     parts.push('仙品无负面');
   } else if (eff.refined) {
     parts.push('负面已洗');
@@ -651,11 +696,11 @@ export function totalAttrs(state: GameState): AttrMap {
     addAttrs(addAttrs(state.attrs, state.legacyAttrs), treasureAttrBonus(state)),
     artAttrBonus(state),
   );
-  const withBody = addAttrs(base, bodyAttrsBonus(state.bodyStage));
+  const withBody = addAttrs(base, forgeAttrsBonus(currentForgeRealmIndex(state)));
   return addAttrs(withBody, resourceAttrsFromTotals(state));
 }
 
-/** 战斗力：属性加权 × 法宝乘区 × 境界系数 × 炼体 */
+/** 战斗力：属性加权 × 法宝乘区 × 境界系数 × 炼器境 */
 export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
   const a = attrs || totalAttrs(state);
   const weighted =
@@ -666,8 +711,8 @@ export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
     if (eff && eff.combatMult !== 1) mult *= eff.combatMult;
   }
   const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
-  const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
-  return Math.max(1, weighted * mult * realmMult * bodyMult);
+  const forgeMult = forgeMultipliers(currentForgeRealmIndex(state)).combatMult;
+  return Math.max(1, weighted * mult * realmMult * forgeMult);
 }
 
 /** 汇总已装备法宝的越界特效概率（可叠加，上限封顶） */
@@ -843,7 +888,7 @@ function pushChronicle(state: GameState, line: string): GameState {
 
 /**
  * 三资源容器上限：
- * 基础随境界（突破大涨）与层级；炼体扩体术/灵力；
+ * 基础随境界（突破大涨）与层级；炼器境扩体术/灵力；
  * 「洗经伐脉 / 洗髓易筋」等扩容功法按级加上限。
  */
 export function resourceCaps(state: GameState): ResourceMap {
@@ -855,10 +900,10 @@ export function resourceCaps(state: GameState): ResourceMap {
     tishu: base * 0.8,
     jingshen: base * 0.8,
   };
-  // 炼体：扩体术容器，顺带拓灵力
-  if (state.bodyStage > 0) {
-    caps.tishu *= 1 + state.bodyStage * 0.25;
-    caps.lingli *= 1 + state.bodyStage * 0.1;
+  const forgeIdx = currentForgeRealmIndex(state);
+  if (forgeIdx > 0) {
+    caps.tishu *= 1 + forgeIdx * 0.22;
+    caps.lingli *= 1 + forgeIdx * 0.08;
   }
   for (const art of ARTS) {
     if (art.kind !== 'cap') continue;
@@ -1092,7 +1137,7 @@ export function derive(state: GameState): DerivedStats {
     state.legacyAttrs.bone +
     treasureAttrBonus(state).bone +
     artAttrBonus(state).bone +
-    (bodyAttrsBonus(state.bodyStage).bone || 0);
+    (forgeAttrsBonus(currentForgeRealmIndex(state)).bone || 0);
   const fixedSpirit =
     state.attrs.spirit +
     state.legacyAttrs.spirit +
@@ -1122,7 +1167,8 @@ export function derive(state: GameState): DerivedStats {
   clickBase.lingli += cult.click;
   passiveBase.lingli += cult.passive + state.naturalPassive;
 
-  const bodyMult = bodyMultipliers(state.bodyStage).tishuMult;
+  const forgeIdx = currentForgeRealmIndex(state);
+  const forgeMult = forgeMultipliers(forgeIdx).tishuMult;
   const alchemyMult = 1 + state.alchemyMastery * 0.01;
   const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
   const triad = calcTriadMods(state);
@@ -1130,12 +1176,12 @@ export function derive(state: GameState): DerivedStats {
 
   const clickPowers: ResourceMap = {
     lingli: clickBase.lingli * scale * triadFactor('lingli'),
-    tishu: clickBase.tishu * scale * bodyMult * triadFactor('tishu'),
+    tishu: clickBase.tishu * scale * forgeMult * triadFactor('tishu'),
     jingshen: clickBase.jingshen * scale * alchemyMult * triadFactor('jingshen'),
   };
   const perSec: ResourceMap = {
     lingli: passiveBase.lingli * scale * spiritFactor * luckFactor * triadFactor('lingli'),
-    tishu: passiveBase.tishu * scale * bodyMult * luckFactor * triadFactor('tishu'),
+    tishu: passiveBase.tishu * scale * forgeMult * luckFactor * triadFactor('tishu'),
     jingshen:
       passiveBase.jingshen * scale * spiritFactor * alchemyMult * triadFactor('jingshen'),
   };
@@ -1151,7 +1197,9 @@ export function derive(state: GameState): DerivedStats {
   const canReincarnate =
     state.phase === 'playing' && (qiyunGain > 0 && state.realmIndex >= 2 || !!state.endingId);
 
-  const stage = state.bodyStage > 0 ? BODY_STAGES[state.bodyStage - 1] : null;
+  const forgeRealm = getForgeRealm(forgeIdx);
+  const nextForge =
+    forgeIdx + 1 < FORGE_REALMS.length ? FORGE_REALMS[forgeIdx + 1]!.needTotalTishu : null;
 
   return {
     clickPowers,
@@ -1181,7 +1229,10 @@ export function derive(state: GameState): DerivedStats {
     combatPower: calcCombatPower(state, attrs),
     cultivateClickBonus: cult.click,
     cultivatePassiveBonus: cult.passive + state.naturalPassive,
-    bodyStageName: stage ? stage.name : '未炼体',
+    forgeRealmName: forgeRealm.name,
+    forgeRealmIndex: forgeIdx,
+    nextForgeNeed: nextForge,
+    bodyStageName: forgeRealm.name,
     inheritPreview: {
       attrRate: peakRealm.inheritAttrRate,
       treasureSlots: peakRealm.inheritTreasureSlots,
@@ -1332,7 +1383,7 @@ export function toggleEquip(state: GameState, treasureId: string, slotIndex?: nu
   };
 }
 
-/** 体术炼器：强化正面效果 */
+/** 体术炼器：强化正面效果（受炼器境界品阶/等级门槛限制，最高 +9） */
 export function temperTreasure(state: GameState, treasureId: string, now = Date.now()): ActionResult {
   const blocked = ensurePlaying(state);
   if (blocked) return blocked;
@@ -1342,8 +1393,22 @@ export function temperTreasure(state: GameState, treasureId: string, now = Date.
   }
   const ticked = tick(state, now).state;
   const forge = getTreasureForge(ticked, treasureId);
-  if (forge.level >= def.maxTemper) {
-    return { ok: false, state: ticked, reason: '已达炼器上限' };
+  const tier = treasureEffectiveTier(ticked, treasureId);
+  const realm = currentForgeRealm(ticked);
+  if (!tierAllowed(realm.maxTier, tier)) {
+    return {
+      ok: false,
+      state: ticked,
+      reason: `${realm.name}仅可炼${TREASURE_TIER_LABELS[realm.maxTier]}及以下`,
+    };
+  }
+  const levelCap = Math.min(MAX_TEMPER_LEVEL, realm.maxLevel);
+  if (forge.level >= levelCap) {
+    return {
+      ok: false,
+      state: ticked,
+      reason: forge.level >= MAX_TEMPER_LEVEL ? '已达炼器上限 +9' : `${realm.name}最多炼至 +${levelCap}`,
+    };
   }
   const cost = temperCost(def, forge.level);
   if (ticked.tishu < cost) {
@@ -1360,7 +1425,7 @@ export function temperTreasure(state: GameState, treasureId: string, now = Date.
   };
   next = pushChronicle(
     next,
-    `炼器「${def.name}」至 +${forge.level + 1}，耗体术 ${cost}。正面效果增强。`,
+    `炼器「${def.name}」至 +${forge.level + 1}（${TREASURE_TIER_LABELS[tier]}），耗体术 ${cost}。`,
   );
   return { ok: true, state: next, message: `炼器成功 +${forge.level + 1}` };
 }
@@ -1373,7 +1438,8 @@ export function refineTreasure(state: GameState, treasureId: string, now = Date.
   if (!def || !state.treasures.includes(treasureId)) {
     return { ok: false, state, reason: '未持有该法宝' };
   }
-  if (def.tier === 'immortal' || !def.cons) {
+  const tier = treasureEffectiveTier(state, treasureId);
+  if (tier === 'immortal' || !def.cons) {
     return { ok: false, state, reason: '仙品/无负面，无需洗练' };
   }
   const ticked = tick(state, now).state;
@@ -1397,6 +1463,75 @@ export function refineTreasure(state: GameState, treasureId: string, now = Date.
   };
   next = pushChronicle(next, `洗练「${def.name}」，耗体术 ${cost}，负面尽去。`);
   return { ok: true, state: next, message: `洗练成功` };
+}
+
+/** 升品：满 +9 且炼器境界允许时，凡→灵 / 灵→仙 */
+export function promoteTreasure(state: GameState, treasureId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const def = getTreasure(treasureId);
+  if (!def || !state.treasures.includes(treasureId)) {
+    return { ok: false, state, reason: '未持有该法宝' };
+  }
+  const ticked = tick(state, now).state;
+  const forge = getTreasureForge(ticked, treasureId);
+  const tier = treasureEffectiveTier(ticked, treasureId);
+  if (forge.level < MAX_TEMPER_LEVEL) {
+    return { ok: false, state: ticked, reason: '需先炼器至 +9 方可升品' };
+  }
+  const target = TIER_PROMOTE_TARGET[tier];
+  if (!target) {
+    return { ok: false, state: ticked, reason: '已是仙品，无法再升' };
+  }
+  // 找第一个允许从此品升品的境界
+  const forgeIdx = currentForgeRealmIndex(ticked);
+  let promoteRealm = null as (typeof FORGE_REALMS)[number] | null;
+  for (let i = 0; i <= forgeIdx; i++) {
+    const r = FORGE_REALMS[i]!;
+    if (r.canPromoteFrom === tier) promoteRealm = r;
+  }
+  if (!promoteRealm || !promoteRealm.promoteCost) {
+    return {
+      ok: false,
+      state: ticked,
+      reason: `当前炼器境无法将${TREASURE_TIER_LABELS[tier]}升品`,
+    };
+  }
+  if (ticked.tishu < promoteRealm.promoteCost) {
+    return { ok: false, state: ticked, reason: '体术不足' };
+  }
+  const treasureForge = {
+    ...ticked.treasureForge,
+    [treasureId]: {
+      level: 0,
+      refined: true,
+      tierOverride: target,
+    },
+  };
+  let next: GameState = {
+    ...ticked,
+    tishu: ticked.tishu - promoteRealm.promoteCost,
+    treasureForge,
+  };
+  next = pushChronicle(
+    next,
+    `升品「${def.name}」：${TREASURE_TIER_LABELS[tier]} → ${TREASURE_TIER_LABELS[target]}，耗体术 ${promoteRealm.promoteCost}，炼器等级重置。`,
+  );
+  next = pushMilestone(
+    next,
+    {
+      id: `promote_${treasureId}_${target}`,
+      title: `升品·${def.name}`,
+      detail: `${TREASURE_TIER_LABELS[tier]} → ${TREASURE_TIER_LABELS[target]}`,
+      kind: 'loot',
+    },
+    now,
+  );
+  return {
+    ok: true,
+    state: next,
+    message: `升为${TREASURE_TIER_LABELS[target]}`,
+  };
 }
 
 /** 售卖未装备法宝，换灵力 */
@@ -2096,9 +2231,6 @@ export function craftPill(state: GameState, recipeId: string, now = Date.now()):
   if (recipe.effect.attrs) {
     next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
   }
-  if (recipe.effect.bodyProgress) {
-    next = { ...next, bodyProgress: next.bodyProgress + recipe.effect.bodyProgress };
-  }
   // 丹成即食
   const pills = { ...next.pills, [recipeId]: (next.pills[recipeId] || 0) + 1 };
   next = { ...next, pills };
@@ -2106,56 +2238,13 @@ export function craftPill(state: GameState, recipeId: string, now = Date.now()):
   return { ok: true, state: next, message: `炼成「${recipe.name}」` };
 }
 
-export function temperBody(state: GameState, now = Date.now()): ActionResult {
-  const blocked = ensurePlaying(state);
-  if (blocked) return blocked;
-  if (state.bodyStage >= BODY_STAGES.length) {
-    return { ok: false, state, reason: '肉身已至圣体雏形' };
-  }
-  const stage = getBodyStage(state.bodyStage);
-  if (!stage) return { ok: false, state, reason: '炼体数据缺失' };
-  const ticked = tick(state, now).state;
-  if (ticked.realmIndex < stage.minRealm) {
-    return { ok: false, state: ticked, reason: `需达境界方可锤炼「${stage.name}」` };
-  }
-  const spent = spendResources(ticked, stage.temperCost);
-  if (!spent) return { ok: false, state: ticked, reason: '体术或灵力不足' };
-
-  let progress = spent.bodyProgress + stage.temperGain;
-  let bodyStage = spent.bodyStage;
-  let msg = `锤炼「${stage.name}」+${stage.temperGain}`;
-  let next: GameState = { ...spent, bodyProgress: progress };
-
-  if (progress >= stage.progressNeed) {
-    bodyStage += 1;
-    progress = 0;
-    next = {
-      ...next,
-      bodyStage,
-      bodyProgress: 0,
-    };
-    next = pushChronicle(
-      next,
-      `炼体突破：踏入「${stage.name}」。${stage.blurb}`,
-    );
-    next = pushMilestone(
-      next,
-      {
-        id: `body_${stage.id}`,
-        title: `炼体·${stage.name}`,
-        detail: stage.blurb,
-        kind: 'other',
-      },
-      now,
-    );
-    msg = `突破至「${stage.name}」`;
-  } else {
-    next = pushChronicle(
-      next,
-      `炼体锤炼：${stage.name} ${Math.floor(progress)}/${stage.progressNeed}`,
-    );
-  }
-  return { ok: true, state: next, message: msg };
+/** @deprecated 炼体已移除；保留空实现以免旧前端崩溃 */
+export function temperBody(state: GameState, _now = Date.now()): ActionResult {
+  return {
+    ok: false,
+    state,
+    reason: '炼体已改为炼器：累计体术决定炼器境界，请在「炼器」页强化法宝',
+  };
 }
 
 export function formatNumber(n: number): string {
@@ -2228,7 +2317,18 @@ export function getMeta() {
     resourceLabels: RESOURCE_LABELS,
     herbs: HERBS.map((h) => ({ id: h.id, name: h.name, cost: h.cost, minRealm: h.minRealm })),
     pills: PILL_RECIPES.map((p) => ({ id: p.id, name: p.name, minRealm: p.minRealm })),
-    bodyStages: BODY_STAGES.map((b, i) => ({ index: i, id: b.id, name: b.name })),
+    forgeRealms: FORGE_REALMS.map((b, i) => ({
+      index: i,
+      id: b.id,
+      name: b.name,
+      needTotalTishu: b.needTotalTishu,
+      maxTier: b.maxTier,
+      maxLevel: b.maxLevel,
+      canPromoteFrom: b.canPromoteFrom || null,
+    })),
+    maxTemperLevel: MAX_TEMPER_LEVEL,
+    /** @deprecated */
+    bodyStages: FORGE_REALMS.map((b, i) => ({ index: i, id: b.id, name: b.name })),
   };
 }
 
@@ -2245,6 +2345,8 @@ export {
   HERBS,
   PILL_RECIPES,
   BODY_STAGES,
+  FORGE_REALMS,
+  MAX_TEMPER_LEVEL,
   artChannel,
   listEquippedIds,
   slotCapacity,

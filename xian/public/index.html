@@ -146,7 +146,7 @@
               </h2>
               <div id="equipSlots" class="equip-slots"></div>
               <p class="realm-hint" id="naturalHint"></p>
-              <p class="realm-hint equip-bonus-hint">悬停装备可查看属性加成 · 体术可炼器/洗练</p>
+              <p class="realm-hint equip-bonus-hint">悬停装备可查看属性加成 · 体术炼器（境界决定品阶）</p>
             </section>
 
             <section class="market-block" aria-label="坊市">
@@ -164,7 +164,7 @@
             <div class="shop-tabs" role="tablist">
               <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
               <button type="button" class="tab" data-tab="alchemy" role="tab">炼丹</button>
-              <button type="button" class="tab" data-tab="body" role="tab">炼体</button>
+              <button type="button" class="tab" data-tab="forge" role="tab">炼器</button>
               <button type="button" class="tab" data-tab="cycle" role="tab">轮回</button>
             </div>
 
@@ -186,14 +186,14 @@
               <div id="herbShop" class="shop-list"></div>
             </div>
 
-            <div id="tabBody" class="tab-pane">
+            <div id="tabForge" class="tab-pane">
               <div class="cycle-card">
-                <h2 class="pane-title">炼体进度</h2>
-                <p id="bodyStatus" class="cycle-status"></p>
-                <button type="button" id="btnTemper" class="action-btn primary">锤炼肉身</button>
+                <h2 class="pane-title">炼器境界</h2>
+                <p id="forgeStatus" class="cycle-status"></p>
+                <p class="realm-hint">累计体术决定炼器境：皮肉仅炼凡品；气血可炼灵品；脏腑可将满强凡品升灵；器圣可炼仙品并将满强灵品升仙。</p>
               </div>
-              <h2 class="pane-title">体修阶位</h2>
-              <ul id="bodyStageList" class="ending-list"></ul>
+              <h2 class="pane-title">炼器境界一览</h2>
+              <ul id="forgeRealmList" class="ending-list"></ul>
             </div>
 
             <div id="tabCycle" class="tab-pane">

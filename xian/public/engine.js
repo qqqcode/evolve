@@ -1,6 +1,77 @@
 "use strict";
 (() => {
   // xian/src/game/craft.ts
+  var TIER_RANK = {
+    mortal: 0,
+    spirit: 1,
+    immortal: 2
+  };
+  var TIER_PROMOTE_TARGET = {
+    mortal: "spirit",
+    spirit: "immortal"
+  };
+  var MAX_TEMPER_LEVEL = 9;
+  var FORGE_REALMS = [
+    {
+      id: "forge_skin",
+      name: "\u76AE\u8089\u5883",
+      blurb: "\u521A\u5F00\u7089\u706B\uFF0C\u4EC5\u80FD\u6DEC\u70BC\u51E1\u54C1\uFF0C\u6700\u9AD8\u70BC\u81F3 +9\u3002",
+      needTotalTishu: 0,
+      maxTier: "mortal",
+      maxLevel: 9,
+      attrs: { bone: 1 },
+      tishuMult: 1.04,
+      combatMult: 1.02
+    },
+    {
+      id: "forge_tendon",
+      name: "\u7B4B\u9AA8\u5883",
+      blurb: "\u7B4B\u9AA8\u5982\u94B3\uFF0C\u51E1\u54C1\u70BC\u5668\u66F4\u52A0\u5F97\u5FC3\u5E94\u624B\u3002",
+      needTotalTishu: 2e3,
+      maxTier: "mortal",
+      maxLevel: 9,
+      attrs: { bone: 1, def: 1 },
+      tishuMult: 1.08,
+      combatMult: 1.04
+    },
+    {
+      id: "forge_blood",
+      name: "\u6C14\u8840\u5883",
+      blurb: "\u6C14\u8840\u704C\u5668\uFF0C\u53EF\u70BC\u7075\u54C1\u6CD5\u5B9D\u3002",
+      needTotalTishu: 15e3,
+      maxTier: "spirit",
+      maxLevel: 9,
+      attrs: { bone: 2, atk: 1 },
+      tishuMult: 1.12,
+      combatMult: 1.06
+    },
+    {
+      id: "forge_organ",
+      name: "\u810F\u8151\u5883",
+      blurb: "\u4E94\u810F\u4E3A\u7089\uFF1A\u6EE1\u5F3A\u51E1\u54C1\u53EF\u5347\u4E3A\u7075\u54C1\u3002",
+      needTotalTishu: 8e4,
+      maxTier: "spirit",
+      maxLevel: 9,
+      canPromoteFrom: "mortal",
+      promoteCost: 25e3,
+      attrs: { bone: 2, def: 2, spirit: 1 },
+      tishuMult: 1.18,
+      combatMult: 1.1
+    },
+    {
+      id: "forge_saint",
+      name: "\u5668\u5723\u5883",
+      blurb: "\u5668\u9053\u5C0F\u6210\uFF1A\u53EF\u70BC\u4ED9\u54C1\uFF1B\u6EE1\u5F3A\u7075\u54C1\u53EF\u5347\u4ED9\u54C1\u3002",
+      needTotalTishu: 5e5,
+      maxTier: "immortal",
+      maxLevel: 9,
+      canPromoteFrom: "spirit",
+      promoteCost: 2e5,
+      attrs: { bone: 3, atk: 2, def: 2, spirit: 2 },
+      tishuMult: 1.28,
+      combatMult: 1.16
+    }
+  ];
   var HERBS = [
     {
       id: "herb_spirit_grass",
@@ -57,11 +128,11 @@
     {
       id: "pill_bone",
       name: "\u953B\u9AA8\u4E39",
-      description: "\u4E39\u529B\u5165\u9AA8\uFF0C\u52A9\u63A8\u70BC\u4F53\u3002",
+      description: "\u4E39\u529B\u5165\u9AA8\uFF0C\u4F53\u672F\u5927\u6DA8\uFF0C\u52A9\u63A8\u70BC\u5668\u5883\u754C\u3002",
       minRealm: 1,
       herbs: { herb_blood_root: 2, herb_spirit_grass: 1 },
       costs: { jingshen: 20, tishu: 30 },
-      effect: { bodyProgress: 12, resources: { tishu: 80 }, mastery: 1 },
+      effect: { resources: { tishu: 200 }, mastery: 1 },
       mark: "\u9AA8"
     },
     {
@@ -99,76 +170,41 @@
       mark: "\u9053"
     }
   ];
-  var BODY_STAGES = [
-    {
-      id: "body_skin",
-      name: "\u76AE\u8089\u5883",
-      blurb: "\u9524\u76AE\u70BC\u8089\uFF0C\u6297\u51FB\u6253\u7565\u589E\u3002",
-      progressNeed: 40,
-      temperCost: { tishu: 25, lingli: 10 },
-      temperGain: 8,
-      tishuMult: 1.08,
-      combatMult: 1.04,
-      attrs: { def: 1, bone: 1 },
-      minRealm: 0
-    },
-    {
-      id: "body_tendon",
-      name: "\u7B4B\u9AA8\u5883",
-      blurb: "\u7B4B\u5982\u5F13\u5F26\uFF0C\u9AA8\u5982\u7CBE\u94C1\u3002",
-      progressNeed: 90,
-      temperCost: { tishu: 80, lingli: 40 },
-      temperGain: 10,
-      tishuMult: 1.16,
-      combatMult: 1.08,
-      attrs: { atk: 1, def: 1, bone: 2 },
-      minRealm: 1
-    },
-    {
-      id: "body_blood",
-      name: "\u6C14\u8840\u5883",
-      blurb: "\u6C14\u8840\u5982\u6F6E\uFF0C\u62F3\u53EF\u5D29\u77F3\u3002",
-      progressNeed: 180,
-      temperCost: { tishu: 220, lingli: 120, jingshen: 30 },
-      temperGain: 12,
-      tishuMult: 1.28,
-      combatMult: 1.14,
-      attrs: { atk: 2, spd: 1, bone: 2 },
-      minRealm: 3
-    },
-    {
-      id: "body_organ",
-      name: "\u810F\u8151\u5883",
-      blurb: "\u4E94\u810F\u5982\u7089\uFF0C\u529B\u4ECE\u4E2D\u751F\u3002",
-      progressNeed: 360,
-      temperCost: { tishu: 600, lingli: 400, jingshen: 80 },
-      temperGain: 14,
-      tishuMult: 1.42,
-      combatMult: 1.22,
-      attrs: { atk: 2, def: 2, bone: 3 },
-      minRealm: 5
-    },
-    {
-      id: "body_saint",
-      name: "\u5723\u4F53\u96CF\u5F62",
-      blurb: "\u8089\u8EAB\u8FD1\u5723\uFF0C\u4E00\u6B65\u4E00\u9707\u3002",
-      progressNeed: 720,
-      temperCost: { tishu: 2e3, lingli: 1500, jingshen: 300 },
-      temperGain: 16,
-      tishuMult: 1.65,
-      combatMult: 1.35,
-      attrs: { atk: 4, def: 3, bone: 4, spd: 2 },
-      minRealm: 7
-    }
-  ];
   function getHerb(id) {
     return HERBS.find((h) => h.id === id);
   }
   function getPillRecipe(id) {
     return PILL_RECIPES.find((p) => p.id === id);
   }
-  function getBodyStage(index) {
-    return BODY_STAGES[index];
+  function getForgeRealm(index) {
+    const i = Math.max(0, Math.min(FORGE_REALMS.length - 1, index));
+    return FORGE_REALMS[i];
+  }
+  function forgeRealmIndexFromTotal(totalTishu) {
+    let idx = 0;
+    for (let i = 0; i < FORGE_REALMS.length; i++) {
+      if (totalTishu >= FORGE_REALMS[i].needTotalTishu) idx = i;
+    }
+    return idx;
+  }
+  function tierAllowed(realmMax, treasureTier) {
+    return TIER_RANK[treasureTier] <= TIER_RANK[realmMax];
+  }
+  function forgeMultipliers(realmIndex) {
+    const stage = getForgeRealm(realmIndex);
+    return { tishuMult: stage.tishuMult, combatMult: stage.combatMult };
+  }
+  function forgeAttrsBonus(realmIndex) {
+    const sum = {};
+    for (let i = 0; i <= realmIndex && i < FORGE_REALMS.length; i++) {
+      const a = FORGE_REALMS[i].attrs;
+      if (!a) continue;
+      for (const [k, v] of Object.entries(a)) {
+        const key = k;
+        sum[key] = (sum[key] || 0) + (v || 0);
+      }
+    }
+    return sum;
   }
   function emptyHerbs() {
     const o = {};
@@ -180,23 +216,7 @@
     for (const p of PILL_RECIPES) o[p.id] = 0;
     return o;
   }
-  function bodyMultipliers(bodyStage) {
-    if (bodyStage <= 0) return { tishuMult: 1, combatMult: 1 };
-    const stage = BODY_STAGES[Math.min(bodyStage, BODY_STAGES.length) - 1];
-    if (!stage) return { tishuMult: 1, combatMult: 1 };
-    return { tishuMult: stage.tishuMult, combatMult: stage.combatMult };
-  }
-  function bodyAttrsBonus(bodyStage) {
-    const sum = {};
-    for (let i = 0; i < bodyStage && i < BODY_STAGES.length; i++) {
-      const a = BODY_STAGES[i].attrs;
-      for (const [k, v] of Object.entries(a)) {
-        const key = k;
-        sum[key] = (sum[key] || 0) + (v || 0);
-      }
-    }
-    return sum;
-  }
+  var BODY_STAGES = FORGE_REALMS;
 
   // xian/src/game/types.ts
   var RESOURCE_KEYS = ["lingli", "tishu", "jingshen"];
@@ -1320,8 +1340,8 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 9;
-  var STORAGE_KEY = "xian-save-v9";
+  var SAVE_VERSION = 10;
+  var STORAGE_KEY = "xian-save-v10";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_MILESTONES = 40;
@@ -3493,8 +3513,9 @@
         const o = v;
         const def = getTreasure(id);
         treasureForge[id] = {
-          level: clampInt(o.level, 0, def.maxTemper),
-          refined: !!o.refined
+          level: clampInt(o.level, 0, MAX_TEMPER_LEVEL),
+          refined: !!o.refined,
+          tierOverride: o.tierOverride === "mortal" || o.tierOverride === "spirit" || o.tierOverride === "immortal" ? o.tierOverride : void 0
         };
       }
     }
@@ -3634,6 +3655,18 @@
     if (!need) return true;
     return ATTR_KEYS.every((k) => total[k] >= (need[k] || 0));
   }
+  function currentForgeRealmIndex(state) {
+    return forgeRealmIndexFromTotal(state.totalTishu);
+  }
+  function currentForgeRealm(state) {
+    return getForgeRealm(currentForgeRealmIndex(state));
+  }
+  function treasureEffectiveTier(state, id) {
+    const def = getTreasure(id);
+    if (!def) return "mortal";
+    const forge = getTreasureForge(state, id);
+    return forge.tierOverride || def.tier;
+  }
   function getTreasureForge(state, id) {
     return state.treasureForge[id] || { level: 0, refined: false };
   }
@@ -3647,37 +3680,53 @@
     const def = getTreasure(id);
     if (!def) return 0;
     const forge = getTreasureForge(state, id);
-    return Math.floor(def.sellLingli * (1 + forge.level * 0.12) * (forge.refined ? 1.15 : 1));
+    const tier = treasureEffectiveTier(state, id);
+    const tierBonus = tier === "immortal" ? 1.8 : tier === "spirit" ? 1.35 : 1;
+    return Math.floor(
+      def.sellLingli * (1 + forge.level * 0.12) * (forge.refined ? 1.15 : 1) * tierBonus
+    );
   }
-  function treasureConsActive(def, forge) {
-    return def.tier !== "immortal" && !forge.refined && !!def.cons;
+  function treasureConsActive(def, forge, tier) {
+    return tier !== "immortal" && !forge.refined && !!def.cons;
   }
   function effectiveTreasureEffects(state, id) {
     const def = getTreasure(id);
     if (!def) return null;
     const forge = getTreasureForge(state, id);
+    const tier = treasureEffectiveTier(state, id);
     const scale = temperScale(forge.level);
-    const consActive = treasureConsActive(def, forge);
+    const consActive = treasureConsActive(def, forge, tier);
     const cons = consActive ? def.cons : void 0;
     const attrs = zeroAttrs();
     for (const k of ATTR_KEYS) {
       const base = def.attrs[k] || 0;
-      const boosted = base > 0 ? base * scale : base;
+      const tierBoost = tier === "immortal" ? 1.35 : tier === "spirit" ? 1.15 : 1;
+      const boosted = base > 0 ? base * scale * tierBoost : base;
       const pen = cons?.attrs?.[k] || 0;
       attrs[k] = boosted + pen;
     }
     let combatMult = 1;
     if (def.combatMult) {
-      combatMult = 1 + (def.combatMult - 1) * scale;
+      const tierBoost = tier === "immortal" ? 1.08 : tier === "spirit" ? 1.03 : 1;
+      combatMult = 1 + (def.combatMult - 1) * scale * tierBoost;
     }
     if (cons?.combatMult) combatMult *= cons.combatMult;
     let cultivateClick = (def.cultivateClick || 0) * scale;
     let cultivatePassive = (def.cultivatePassive || 0) * scale;
+    if (tier === "spirit") {
+      cultivateClick *= 1.1;
+      cultivatePassive *= 1.1;
+    } else if (tier === "immortal") {
+      cultivateClick *= 1.25;
+      cultivatePassive *= 1.25;
+    }
     if (cons?.cultivateClick) cultivateClick += cons.cultivateClick;
     if (cons?.cultivatePassive) cultivatePassive += cons.cultivatePassive;
     cultivateClick = Math.max(0, cultivateClick);
     cultivatePassive = Math.max(0, cultivatePassive);
     let triadDamp = (def.triadDamp || 0) * (1 + forge.level * 0.04);
+    if (tier === "spirit") triadDamp *= 1.1;
+    if (tier === "immortal") triadDamp *= 1.25;
     const triadBias = zeroResources();
     if (def.triadBias) {
       for (const key of RESOURCE_KEYS) {
@@ -3699,17 +3748,18 @@
       combatEdges: def.combatEdges,
       consActive,
       level: forge.level,
-      refined: forge.refined || def.tier === "immortal"
+      refined: forge.refined || tier === "immortal"
     };
   }
   function describeTreasureBonus(state, id) {
     const def = getTreasure(id);
     const eff = effectiveTreasureEffects(state, id);
     if (!def || !eff) return "";
+    const tier = treasureEffectiveTier(state, id);
     const parts = [];
-    parts.push(TREASURE_TIER_LABELS[def.tier]);
+    parts.push(TREASURE_TIER_LABELS[tier]);
     if (eff.level > 0) parts.push(`\u70BC\u5668+${eff.level}`);
-    if (eff.refined && def.tier !== "immortal") parts.push("\u5DF2\u6D17\u7EC3");
+    if (eff.refined && tier !== "immortal") parts.push("\u5DF2\u6D17\u7EC3");
     for (const k of ATTR_KEYS) {
       if (eff.attrs[k]) {
         const v = Math.round(eff.attrs[k] * 10) / 10;
@@ -3723,7 +3773,7 @@
     if (def.pros?.length) parts.push("\u6B63\uFF1A" + def.pros.slice(0, 3).join("\u3001"));
     if (eff.consActive && def.cons?.labels?.length) {
       parts.push("\u8D1F\uFF1A" + def.cons.labels.join("\u3001"));
-    } else if (def.tier === "immortal") {
+    } else if (tier === "immortal") {
       parts.push("\u4ED9\u54C1\u65E0\u8D1F\u9762");
     } else if (eff.refined) {
       parts.push("\u8D1F\u9762\u5DF2\u6D17");
@@ -3781,7 +3831,7 @@
       addAttrs(addAttrs(state.attrs, state.legacyAttrs), treasureAttrBonus(state)),
       artAttrBonus(state)
     );
-    const withBody = addAttrs(base, bodyAttrsBonus(state.bodyStage));
+    const withBody = addAttrs(base, forgeAttrsBonus(currentForgeRealmIndex(state)));
     return addAttrs(withBody, resourceAttrsFromTotals(state));
   }
   function calcCombatPower(state, attrs) {
@@ -3793,8 +3843,8 @@
       if (eff && eff.combatMult !== 1) mult *= eff.combatMult;
     }
     const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
-    const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
-    return Math.max(1, weighted * mult * realmMult * bodyMult);
+    const forgeMult = forgeMultipliers(currentForgeRealmIndex(state)).combatMult;
+    return Math.max(1, weighted * mult * realmMult * forgeMult);
   }
   function gatherCombatEdges(state) {
     let critChance = 0;
@@ -3932,9 +3982,10 @@
       tishu: base * 0.8,
       jingshen: base * 0.8
     };
-    if (state.bodyStage > 0) {
-      caps.tishu *= 1 + state.bodyStage * 0.25;
-      caps.lingli *= 1 + state.bodyStage * 0.1;
+    const forgeIdx = currentForgeRealmIndex(state);
+    if (forgeIdx > 0) {
+      caps.tishu *= 1 + forgeIdx * 0.22;
+      caps.lingli *= 1 + forgeIdx * 0.08;
     }
     for (const art of ARTS) {
       if (art.kind !== "cap") continue;
@@ -4123,7 +4174,7 @@
     const branchMult = state.branchId ? BRANCH_LABELS[state.branchId].mult : 1;
     const attrs = totalAttrs(state);
     const resourceAttrs = resourceAttrsFromTotals(state);
-    const fixedBone = state.attrs.bone + state.legacyAttrs.bone + treasureAttrBonus(state).bone + artAttrBonus(state).bone + (bodyAttrsBonus(state.bodyStage).bone || 0);
+    const fixedBone = state.attrs.bone + state.legacyAttrs.bone + treasureAttrBonus(state).bone + artAttrBonus(state).bone + (forgeAttrsBonus(currentForgeRealmIndex(state)).bone || 0);
     const fixedSpirit = state.attrs.spirit + state.legacyAttrs.spirit + treasureAttrBonus(state).spirit + artAttrBonus(state).spirit;
     const fixedLuck = state.attrs.luck + state.legacyAttrs.luck + treasureAttrBonus(state).luck + artAttrBonus(state).luck;
     const boneFactor = 1 + fixedBone * 0.015;
@@ -4142,19 +4193,20 @@
     const cult = cultivateBonuses(state);
     clickBase.lingli += cult.click;
     passiveBase.lingli += cult.passive + state.naturalPassive;
-    const bodyMult = bodyMultipliers(state.bodyStage).tishuMult;
+    const forgeIdx = currentForgeRealmIndex(state);
+    const forgeMult = forgeMultipliers(forgeIdx).tishuMult;
     const alchemyMult = 1 + state.alchemyMastery * 0.01;
     const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
     const triad = calcTriadMods(state);
     const triadFactor = (key) => 1 + triad.mods[key];
     const clickPowers = {
       lingli: clickBase.lingli * scale * triadFactor("lingli"),
-      tishu: clickBase.tishu * scale * bodyMult * triadFactor("tishu"),
+      tishu: clickBase.tishu * scale * forgeMult * triadFactor("tishu"),
       jingshen: clickBase.jingshen * scale * alchemyMult * triadFactor("jingshen")
     };
     const perSec = {
       lingli: passiveBase.lingli * scale * spiritFactor * luckFactor * triadFactor("lingli"),
-      tishu: passiveBase.tishu * scale * bodyMult * luckFactor * triadFactor("tishu"),
+      tishu: passiveBase.tishu * scale * forgeMult * luckFactor * triadFactor("tishu"),
       jingshen: passiveBase.jingshen * scale * spiritFactor * alchemyMult * triadFactor("jingshen")
     };
     const nextStarCost = raiseStarCost(state);
@@ -4165,7 +4217,8 @@
     const peakRealm = getRealm(state.peakRealmIndex);
     const qiyunGain = calcQiyunGain(state);
     const canReincarnate = state.phase === "playing" && (qiyunGain > 0 && state.realmIndex >= 2 || !!state.endingId);
-    const stage = state.bodyStage > 0 ? BODY_STAGES[state.bodyStage - 1] : null;
+    const forgeRealm = getForgeRealm(forgeIdx);
+    const nextForge = forgeIdx + 1 < FORGE_REALMS.length ? FORGE_REALMS[forgeIdx + 1].needTotalTishu : null;
     return {
       clickPowers,
       perSec,
@@ -4194,7 +4247,10 @@
       combatPower: calcCombatPower(state, attrs),
       cultivateClickBonus: cult.click,
       cultivatePassiveBonus: cult.passive + state.naturalPassive,
-      bodyStageName: stage ? stage.name : "\u672A\u70BC\u4F53",
+      forgeRealmName: forgeRealm.name,
+      forgeRealmIndex: forgeIdx,
+      nextForgeNeed: nextForge,
+      bodyStageName: forgeRealm.name,
       inheritPreview: {
         attrRate: peakRealm.inheritAttrRate,
         treasureSlots: peakRealm.inheritTreasureSlots
@@ -4339,8 +4395,22 @@
     }
     const ticked = tick(state, now).state;
     const forge = getTreasureForge(ticked, treasureId);
-    if (forge.level >= def.maxTemper) {
-      return { ok: false, state: ticked, reason: "\u5DF2\u8FBE\u70BC\u5668\u4E0A\u9650" };
+    const tier = treasureEffectiveTier(ticked, treasureId);
+    const realm = currentForgeRealm(ticked);
+    if (!tierAllowed(realm.maxTier, tier)) {
+      return {
+        ok: false,
+        state: ticked,
+        reason: `${realm.name}\u4EC5\u53EF\u70BC${TREASURE_TIER_LABELS[realm.maxTier]}\u53CA\u4EE5\u4E0B`
+      };
+    }
+    const levelCap = Math.min(MAX_TEMPER_LEVEL, realm.maxLevel);
+    if (forge.level >= levelCap) {
+      return {
+        ok: false,
+        state: ticked,
+        reason: forge.level >= MAX_TEMPER_LEVEL ? "\u5DF2\u8FBE\u70BC\u5668\u4E0A\u9650 +9" : `${realm.name}\u6700\u591A\u70BC\u81F3 +${levelCap}`
+      };
     }
     const cost = temperCost(def, forge.level);
     if (ticked.tishu < cost) {
@@ -4357,7 +4427,7 @@
     };
     next = pushChronicle(
       next,
-      `\u70BC\u5668\u300C${def.name}\u300D\u81F3 +${forge.level + 1}\uFF0C\u8017\u4F53\u672F ${cost}\u3002\u6B63\u9762\u6548\u679C\u589E\u5F3A\u3002`
+      `\u70BC\u5668\u300C${def.name}\u300D\u81F3 +${forge.level + 1}\uFF08${TREASURE_TIER_LABELS[tier]}\uFF09\uFF0C\u8017\u4F53\u672F ${cost}\u3002`
     );
     return { ok: true, state: next, message: `\u70BC\u5668\u6210\u529F +${forge.level + 1}` };
   }
@@ -4368,7 +4438,8 @@
     if (!def || !state.treasures.includes(treasureId)) {
       return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
     }
-    if (def.tier === "immortal" || !def.cons) {
+    const tier = treasureEffectiveTier(state, treasureId);
+    if (tier === "immortal" || !def.cons) {
       return { ok: false, state, reason: "\u4ED9\u54C1/\u65E0\u8D1F\u9762\uFF0C\u65E0\u9700\u6D17\u7EC3" };
     }
     const ticked = tick(state, now).state;
@@ -4392,6 +4463,72 @@
     };
     next = pushChronicle(next, `\u6D17\u7EC3\u300C${def.name}\u300D\uFF0C\u8017\u4F53\u672F ${cost}\uFF0C\u8D1F\u9762\u5C3D\u53BB\u3002`);
     return { ok: true, state: next, message: `\u6D17\u7EC3\u6210\u529F` };
+  }
+  function promoteTreasure(state, treasureId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const def = getTreasure(treasureId);
+    if (!def || !state.treasures.includes(treasureId)) {
+      return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
+    }
+    const ticked = tick(state, now).state;
+    const forge = getTreasureForge(ticked, treasureId);
+    const tier = treasureEffectiveTier(ticked, treasureId);
+    if (forge.level < MAX_TEMPER_LEVEL) {
+      return { ok: false, state: ticked, reason: "\u9700\u5148\u70BC\u5668\u81F3 +9 \u65B9\u53EF\u5347\u54C1" };
+    }
+    const target = TIER_PROMOTE_TARGET[tier];
+    if (!target) {
+      return { ok: false, state: ticked, reason: "\u5DF2\u662F\u4ED9\u54C1\uFF0C\u65E0\u6CD5\u518D\u5347" };
+    }
+    const forgeIdx = currentForgeRealmIndex(ticked);
+    let promoteRealm = null;
+    for (let i = 0; i <= forgeIdx; i++) {
+      const r = FORGE_REALMS[i];
+      if (r.canPromoteFrom === tier) promoteRealm = r;
+    }
+    if (!promoteRealm || !promoteRealm.promoteCost) {
+      return {
+        ok: false,
+        state: ticked,
+        reason: `\u5F53\u524D\u70BC\u5668\u5883\u65E0\u6CD5\u5C06${TREASURE_TIER_LABELS[tier]}\u5347\u54C1`
+      };
+    }
+    if (ticked.tishu < promoteRealm.promoteCost) {
+      return { ok: false, state: ticked, reason: "\u4F53\u672F\u4E0D\u8DB3" };
+    }
+    const treasureForge = {
+      ...ticked.treasureForge,
+      [treasureId]: {
+        level: 0,
+        refined: true,
+        tierOverride: target
+      }
+    };
+    let next = {
+      ...ticked,
+      tishu: ticked.tishu - promoteRealm.promoteCost,
+      treasureForge
+    };
+    next = pushChronicle(
+      next,
+      `\u5347\u54C1\u300C${def.name}\u300D\uFF1A${TREASURE_TIER_LABELS[tier]} \u2192 ${TREASURE_TIER_LABELS[target]}\uFF0C\u8017\u4F53\u672F ${promoteRealm.promoteCost}\uFF0C\u70BC\u5668\u7B49\u7EA7\u91CD\u7F6E\u3002`
+    );
+    next = pushMilestone(
+      next,
+      {
+        id: `promote_${treasureId}_${target}`,
+        title: `\u5347\u54C1\xB7${def.name}`,
+        detail: `${TREASURE_TIER_LABELS[tier]} \u2192 ${TREASURE_TIER_LABELS[target]}`,
+        kind: "loot"
+      },
+      now
+    );
+    return {
+      ok: true,
+      state: next,
+      message: `\u5347\u4E3A${TREASURE_TIER_LABELS[target]}`
+    };
   }
   function sellTreasure(state, treasureId, now = Date.now()) {
     const blocked = ensurePlaying(state);
@@ -5005,62 +5142,17 @@
     if (recipe.effect.attrs) {
       next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
     }
-    if (recipe.effect.bodyProgress) {
-      next = { ...next, bodyProgress: next.bodyProgress + recipe.effect.bodyProgress };
-    }
     const pills = { ...next.pills, [recipeId]: (next.pills[recipeId] || 0) + 1 };
     next = { ...next, pills };
     next = pushChronicle(next, `\u70BC\u6210\u300C${recipe.name}\u300D\u5E76\u670D\u4E0B\u3002\u4E39\u9053\u7CBE\u901A ${next.alchemyMastery}\u3002`);
     return { ok: true, state: next, message: `\u70BC\u6210\u300C${recipe.name}\u300D` };
   }
-  function temperBody(state, now = Date.now()) {
-    const blocked = ensurePlaying(state);
-    if (blocked) return blocked;
-    if (state.bodyStage >= BODY_STAGES.length) {
-      return { ok: false, state, reason: "\u8089\u8EAB\u5DF2\u81F3\u5723\u4F53\u96CF\u5F62" };
-    }
-    const stage = getBodyStage(state.bodyStage);
-    if (!stage) return { ok: false, state, reason: "\u70BC\u4F53\u6570\u636E\u7F3A\u5931" };
-    const ticked = tick(state, now).state;
-    if (ticked.realmIndex < stage.minRealm) {
-      return { ok: false, state: ticked, reason: `\u9700\u8FBE\u5883\u754C\u65B9\u53EF\u9524\u70BC\u300C${stage.name}\u300D` };
-    }
-    const spent = spendResources(ticked, stage.temperCost);
-    if (!spent) return { ok: false, state: ticked, reason: "\u4F53\u672F\u6216\u7075\u529B\u4E0D\u8DB3" };
-    let progress = spent.bodyProgress + stage.temperGain;
-    let bodyStage = spent.bodyStage;
-    let msg = `\u9524\u70BC\u300C${stage.name}\u300D+${stage.temperGain}`;
-    let next = { ...spent, bodyProgress: progress };
-    if (progress >= stage.progressNeed) {
-      bodyStage += 1;
-      progress = 0;
-      next = {
-        ...next,
-        bodyStage,
-        bodyProgress: 0
-      };
-      next = pushChronicle(
-        next,
-        `\u70BC\u4F53\u7A81\u7834\uFF1A\u8E0F\u5165\u300C${stage.name}\u300D\u3002${stage.blurb}`
-      );
-      next = pushMilestone(
-        next,
-        {
-          id: `body_${stage.id}`,
-          title: `\u70BC\u4F53\xB7${stage.name}`,
-          detail: stage.blurb,
-          kind: "other"
-        },
-        now
-      );
-      msg = `\u7A81\u7834\u81F3\u300C${stage.name}\u300D`;
-    } else {
-      next = pushChronicle(
-        next,
-        `\u70BC\u4F53\u9524\u70BC\uFF1A${stage.name} ${Math.floor(progress)}/${stage.progressNeed}`
-      );
-    }
-    return { ok: true, state: next, message: msg };
+  function temperBody(state, _now = Date.now()) {
+    return {
+      ok: false,
+      state,
+      reason: "\u70BC\u4F53\u5DF2\u6539\u4E3A\u70BC\u5668\uFF1A\u7D2F\u8BA1\u4F53\u672F\u51B3\u5B9A\u70BC\u5668\u5883\u754C\uFF0C\u8BF7\u5728\u300C\u70BC\u5668\u300D\u9875\u5F3A\u5316\u6CD5\u5B9D"
+    };
   }
   function formatNumber(n) {
     if (!Number.isFinite(n)) return "0";
@@ -5131,12 +5223,24 @@
       resourceLabels: RESOURCE_LABELS,
       herbs: HERBS.map((h) => ({ id: h.id, name: h.name, cost: h.cost, minRealm: h.minRealm })),
       pills: PILL_RECIPES.map((p) => ({ id: p.id, name: p.name, minRealm: p.minRealm })),
-      bodyStages: BODY_STAGES.map((b, i) => ({ index: i, id: b.id, name: b.name }))
+      forgeRealms: FORGE_REALMS.map((b, i) => ({
+        index: i,
+        id: b.id,
+        name: b.name,
+        needTotalTishu: b.needTotalTishu,
+        maxTier: b.maxTier,
+        maxLevel: b.maxLevel,
+        canPromoteFrom: b.canPromoteFrom || null
+      })),
+      maxTemperLevel: MAX_TEMPER_LEVEL,
+      /** @deprecated */
+      bodyStages: FORGE_REALMS.map((b, i) => ({ index: i, id: b.id, name: b.name }))
     };
   }
 
   // xian/src/game/browser.ts
   var LEGACY_SAVE_KEYS = [
+    "xian-save-v9",
     "xian-save-v8",
     "xian-save-v7",
     "xian-save-v6",
@@ -5181,6 +5285,7 @@
     ATTR_LABELS,
     BIRTHS,
     BODY_STAGES,
+    FORGE_REALMS,
     BRANCH_LABELS,
     ENDINGS,
     ENEMIES,
@@ -5191,6 +5296,7 @@
     MAX_EQUIP_PER_SLOT,
     MAX_OFFLINE_MS,
     MAX_STAR,
+    MAX_TEMPER_LEVEL,
     NATURALS,
     PILL_RECIPES,
     QIYUN_BONUS_PER,
@@ -5202,6 +5308,7 @@
     STORY_EVENTS,
     TREASURES,
     TREASURE_TIER_LABELS,
+    TIER_RANK,
     RANDOM_EVENTS,
     artChannel,
     getEnding,
@@ -5257,11 +5364,15 @@
     temperBody,
     temperCost,
     temperTreasure,
+    promoteTreasure,
     tick,
     toggleEquip,
     totalAttrs,
     tryRandomEvent,
-    enemyPower
+    enemyPower,
+    treasureEffectiveTier,
+    currentForgeRealm,
+    currentForgeRealmIndex
   };
   window.Xian = Xian;
 })();

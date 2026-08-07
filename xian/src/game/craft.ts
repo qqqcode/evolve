@@ -1,7 +1,8 @@
 /**
- * 炼丹 / 炼体 体系
+ * 炼丹 / 炼器 体系
+ * 炼器境界由累计体术决定：低阶仅能炼凡品，高阶可炼灵/仙并可升品
  */
-import type { AttrMap, ResourceKey, ResourceMap } from './types';
+import type { AttrMap, ResourceKey, ResourceMap, TreasureTier } from './types';
 
 export interface HerbDef {
   id: string;
@@ -28,30 +29,115 @@ export interface PillRecipeDef {
     attrs?: Partial<AttrMap>;
     /** 永久炼丹精通 */
     mastery?: number;
-    /** 体修进度 */
-    bodyProgress?: number;
   };
   mark: string;
 }
 
-export interface BodyStageDef {
+/** 炼器境界：由累计体术自动达成 */
+export interface ForgeRealmDef {
   id: string;
   name: string;
   blurb: string;
-  /** 升至本阶所需体修进度 */
-  progressNeed: number;
-  /** 锤炼一次消耗 */
-  temperCost: Partial<ResourceMap>;
-  /** 锤炼一次获得进度 */
-  temperGain: number;
-  /** 体术产出乘区 */
+  /** 累计体术门槛 */
+  needTotalTishu: number;
+  /** 可炼器的最高品阶 */
+  maxTier: TreasureTier;
+  /** 本境可强化至的最高炼器等级（+1~+9） */
+  maxLevel: number;
+  /**
+   * 可升品的起点品阶；达成后可将该品（+满）升一阶
+   * 例：mortal → 升为灵品
+   */
+  canPromoteFrom?: TreasureTier;
+  /** 升品体术消耗 */
+  promoteCost?: number;
+  /** 达成后永久小幅属性（替代旧炼体加成） */
+  attrs?: Partial<AttrMap>;
+  /** 体术产出微增 */
   tishuMult: number;
-  /** 战力乘区 */
+  /** 战力微增 */
   combatMult: number;
-  /** 达成后永久属性 */
-  attrs: Partial<AttrMap>;
-  minRealm: number;
 }
+
+export const TIER_RANK: Record<TreasureTier, number> = {
+  mortal: 0,
+  spirit: 1,
+  immortal: 2,
+};
+
+export const TIER_PROMOTE_TARGET: Partial<Record<TreasureTier, TreasureTier>> = {
+  mortal: 'spirit',
+  spirit: 'immortal',
+};
+
+/** 全法宝统一炼器上限 */
+export const MAX_TEMPER_LEVEL = 9;
+
+/**
+ * 炼器境界（皮肉→器圣）
+ * 低阶只能炼凡品；气血起可炼灵品；器圣可炼仙品；脏腑/器圣可升品
+ */
+export const FORGE_REALMS: ForgeRealmDef[] = [
+  {
+    id: 'forge_skin',
+    name: '皮肉境',
+    blurb: '刚开炉火，仅能淬炼凡品，最高炼至 +9。',
+    needTotalTishu: 0,
+    maxTier: 'mortal',
+    maxLevel: 9,
+    attrs: { bone: 1 },
+    tishuMult: 1.04,
+    combatMult: 1.02,
+  },
+  {
+    id: 'forge_tendon',
+    name: '筋骨境',
+    blurb: '筋骨如钳，凡品炼器更加得心应手。',
+    needTotalTishu: 2_000,
+    maxTier: 'mortal',
+    maxLevel: 9,
+    attrs: { bone: 1, def: 1 },
+    tishuMult: 1.08,
+    combatMult: 1.04,
+  },
+  {
+    id: 'forge_blood',
+    name: '气血境',
+    blurb: '气血灌器，可炼灵品法宝。',
+    needTotalTishu: 1.5e4,
+    maxTier: 'spirit',
+    maxLevel: 9,
+    attrs: { bone: 2, atk: 1 },
+    tishuMult: 1.12,
+    combatMult: 1.06,
+  },
+  {
+    id: 'forge_organ',
+    name: '脏腑境',
+    blurb: '五脏为炉：满强凡品可升为灵品。',
+    needTotalTishu: 8e4,
+    maxTier: 'spirit',
+    maxLevel: 9,
+    canPromoteFrom: 'mortal',
+    promoteCost: 2.5e4,
+    attrs: { bone: 2, def: 2, spirit: 1 },
+    tishuMult: 1.18,
+    combatMult: 1.1,
+  },
+  {
+    id: 'forge_saint',
+    name: '器圣境',
+    blurb: '器道小成：可炼仙品；满强灵品可升仙品。',
+    needTotalTishu: 5e5,
+    maxTier: 'immortal',
+    maxLevel: 9,
+    canPromoteFrom: 'spirit',
+    promoteCost: 2e5,
+    attrs: { bone: 3, atk: 2, def: 2, spirit: 2 },
+    tishuMult: 1.28,
+    combatMult: 1.16,
+  },
+];
 
 export const HERBS: HerbDef[] = [
   {
@@ -110,11 +196,11 @@ export const PILL_RECIPES: PillRecipeDef[] = [
   {
     id: 'pill_bone',
     name: '锻骨丹',
-    description: '丹力入骨，助推炼体。',
+    description: '丹力入骨，体术大涨，助推炼器境界。',
     minRealm: 1,
     herbs: { herb_blood_root: 2, herb_spirit_grass: 1 },
     costs: { jingshen: 20, tishu: 30 },
-    effect: { bodyProgress: 12, resources: { tishu: 80 }, mastery: 1 },
+    effect: { resources: { tishu: 200 }, mastery: 1 },
     mark: '骨',
   },
   {
@@ -153,70 +239,6 @@ export const PILL_RECIPES: PillRecipeDef[] = [
   },
 ];
 
-/** bodyStage 为已达成阶数（0=未炼体，最高 = BODY_STAGES.length） */
-export const BODY_STAGES: BodyStageDef[] = [
-  {
-    id: 'body_skin',
-    name: '皮肉境',
-    blurb: '锤皮炼肉，抗击打略增。',
-    progressNeed: 40,
-    temperCost: { tishu: 25, lingli: 10 },
-    temperGain: 8,
-    tishuMult: 1.08,
-    combatMult: 1.04,
-    attrs: { def: 1, bone: 1 },
-    minRealm: 0,
-  },
-  {
-    id: 'body_tendon',
-    name: '筋骨境',
-    blurb: '筋如弓弦，骨如精铁。',
-    progressNeed: 90,
-    temperCost: { tishu: 80, lingli: 40 },
-    temperGain: 10,
-    tishuMult: 1.16,
-    combatMult: 1.08,
-    attrs: { atk: 1, def: 1, bone: 2 },
-    minRealm: 1,
-  },
-  {
-    id: 'body_blood',
-    name: '气血境',
-    blurb: '气血如潮，拳可崩石。',
-    progressNeed: 180,
-    temperCost: { tishu: 220, lingli: 120, jingshen: 30 },
-    temperGain: 12,
-    tishuMult: 1.28,
-    combatMult: 1.14,
-    attrs: { atk: 2, spd: 1, bone: 2 },
-    minRealm: 3,
-  },
-  {
-    id: 'body_organ',
-    name: '脏腑境',
-    blurb: '五脏如炉，力从中生。',
-    progressNeed: 360,
-    temperCost: { tishu: 600, lingli: 400, jingshen: 80 },
-    temperGain: 14,
-    tishuMult: 1.42,
-    combatMult: 1.22,
-    attrs: { atk: 2, def: 2, bone: 3 },
-    minRealm: 5,
-  },
-  {
-    id: 'body_saint',
-    name: '圣体雏形',
-    blurb: '肉身近圣，一步一震。',
-    progressNeed: 720,
-    temperCost: { tishu: 2_000, lingli: 1_500, jingshen: 300 },
-    temperGain: 16,
-    tishuMult: 1.65,
-    combatMult: 1.35,
-    attrs: { atk: 4, def: 3, bone: 4, spd: 2 },
-    minRealm: 7,
-  },
-];
-
 export function getHerb(id: string): HerbDef | undefined {
   return HERBS.find((h) => h.id === id);
 }
@@ -225,8 +247,42 @@ export function getPillRecipe(id: string): PillRecipeDef | undefined {
   return PILL_RECIPES.find((p) => p.id === id);
 }
 
-export function getBodyStage(index: number): BodyStageDef | undefined {
-  return BODY_STAGES[index];
+export function getForgeRealm(index: number): ForgeRealmDef {
+  const i = Math.max(0, Math.min(FORGE_REALMS.length - 1, index));
+  return FORGE_REALMS[i]!;
+}
+
+/** 由累计体术判定炼器境界下标 */
+export function forgeRealmIndexFromTotal(totalTishu: number): number {
+  let idx = 0;
+  for (let i = 0; i < FORGE_REALMS.length; i++) {
+    if (totalTishu >= FORGE_REALMS[i]!.needTotalTishu) idx = i;
+  }
+  return idx;
+}
+
+export function tierAllowed(realmMax: TreasureTier, treasureTier: TreasureTier): boolean {
+  return TIER_RANK[treasureTier] <= TIER_RANK[realmMax];
+}
+
+/** 当前炼器境界乘区（已达成最高境） */
+export function forgeMultipliers(realmIndex: number): { tishuMult: number; combatMult: number } {
+  const stage = getForgeRealm(realmIndex);
+  return { tishuMult: stage.tishuMult, combatMult: stage.combatMult };
+}
+
+/** 已达成各炼器境的属性合计 */
+export function forgeAttrsBonus(realmIndex: number): Partial<AttrMap> {
+  const sum: Partial<AttrMap> = {};
+  for (let i = 0; i <= realmIndex && i < FORGE_REALMS.length; i++) {
+    const a = FORGE_REALMS[i]!.attrs;
+    if (!a) continue;
+    for (const [k, v] of Object.entries(a)) {
+      const key = k as keyof AttrMap;
+      sum[key] = (sum[key] || 0) + (v || 0);
+    }
+  }
+  return sum;
 }
 
 export function emptyHerbs(): Record<string, number> {
@@ -241,28 +297,19 @@ export function emptyPills(): Record<string, number> {
   return o;
 }
 
-/** 当前炼体乘区（已完成的最高阶） */
-export function bodyMultipliers(bodyStage: number): { tishuMult: number; combatMult: number } {
-  if (bodyStage <= 0) return { tishuMult: 1, combatMult: 1 };
-  const stage = BODY_STAGES[Math.min(bodyStage, BODY_STAGES.length) - 1];
-  if (!stage) return { tishuMult: 1, combatMult: 1 };
-  return { tishuMult: stage.tishuMult, combatMult: stage.combatMult };
-}
-
-export function bodyAttrsBonus(bodyStage: number): Partial<AttrMap> {
-  const sum: Partial<AttrMap> = {};
-  for (let i = 0; i < bodyStage && i < BODY_STAGES.length; i++) {
-    const a = BODY_STAGES[i]!.attrs;
-    for (const [k, v] of Object.entries(a)) {
-      const key = k as keyof AttrMap;
-      sum[key] = (sum[key] || 0) + (v || 0);
-    }
-  }
-  return sum;
-}
-
 export const RESOURCE_COST_LABEL: Record<ResourceKey, string> = {
   lingli: '灵力',
   tishu: '体术',
   jingshen: '精神力',
 };
+
+/** @deprecated 兼容旧引用 */
+export const BODY_STAGES = FORGE_REALMS;
+/** @deprecated */
+export function getBodyStage(index: number): ForgeRealmDef | undefined {
+  return FORGE_REALMS[index];
+}
+/** @deprecated */
+export const bodyMultipliers = forgeMultipliers;
+/** @deprecated */
+export const bodyAttrsBonus = forgeAttrsBonus;

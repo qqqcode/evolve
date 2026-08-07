@@ -170,10 +170,12 @@ export interface TreasureCons {
   labels?: string[];
 }
 
-/** 本世法宝炼器/洗练状态 */
+/** 本世法宝炼器/洗练/升品状态 */
 export interface TreasureForgeState {
   level: number;
   refined: boolean;
+  /** 升品后的有效品阶；缺省用定义品阶 */
+  tierOverride?: TreasureTier;
 }
 
 /** 装备槽位 */
@@ -394,9 +396,15 @@ export interface GameState {
   herbs: Record<string, number>;
   /** 持有丹药（库存；当前丹成即食，保留字段） */
   pills: Record<string, number>;
-  /** 已完成炼体阶数 */
+  /**
+   * 旧炼体阶数；已废弃，炼器境界改由累计体术决定
+   * @deprecated
+   */
   bodyStage: number;
-  /** 当前阶炼体进度 */
+  /**
+   * 旧炼体进度；已废弃
+   * @deprecated
+   */
   bodyProgress: number;
 }
 
@@ -433,7 +441,7 @@ export interface DerivedStats {
   canReincarnate: boolean;
   pendingEvent: StoryEventDef | null;
   matchedEnding: EndingDef | null;
-  /** 属性 = 固定 + 永久 + 法宝 + 功法 + 炼体 + 资源衍生 */
+  /** 属性 = 固定 + 永久 + 法宝 + 功法 + 炼器境 + 资源衍生 */
   totalAttrs: AttrMap;
   /** 仅由三资源总量衍生的属性 */
   resourceAttrs: AttrMap;
@@ -441,6 +449,12 @@ export interface DerivedStats {
   combatPower: number;
   cultivateClickBonus: number;
   cultivatePassiveBonus: number;
+  /** 炼器境界名（由累计体术） */
+  forgeRealmName: string;
+  forgeRealmIndex: number;
+  /** 下一炼器境所需累计体术；已满则 null */
+  nextForgeNeed: number | null;
+  /** @deprecated 同 forgeRealmName */
   bodyStageName: string;
   inheritPreview: { attrRate: number; treasureSlots: number };
 }

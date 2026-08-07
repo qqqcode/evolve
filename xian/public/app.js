@@ -61,9 +61,8 @@
     herbOwned: document.getElementById('herbOwned'),
     herbShop: document.getElementById('herbShop'),
     alchemyHint: document.getElementById('alchemyHint'),
-    bodyStatus: document.getElementById('bodyStatus'),
-    bodyStageList: document.getElementById('bodyStageList'),
-    btnTemper: document.getElementById('btnTemper'),
+    forgeStatus: document.getElementById('forgeStatus'),
+    forgeRealmList: document.getElementById('forgeRealmList'),
     ownedTreasures: document.getElementById('ownedTreasures'),
     shopTreasures: document.getElementById('shopTreasures'),
     vaultList: document.getElementById('vaultList'),
@@ -221,8 +220,8 @@
     });
     if (els.bodyHint) {
       els.bodyHint.textContent =
-        '炼体：' +
-        (stats.bodyStageName || '未炼体') +
+        '炼器：' +
+        (stats.forgeRealmName || stats.bodyStageName || '皮肉境') +
         ' · 丹道精通 ' +
         state.alchemyMastery;
     }
@@ -365,42 +364,68 @@
     craftBuilt = true;
   }
 
-  function softUpdateCraft() {
+  function softUpdateCraft(stats) {
     if (!craftBuilt) buildCraftPanels();
     if (els.alchemyHint) {
       els.alchemyHint.textContent = '精通 ' + state.alchemyMastery;
     }
-    if (els.bodyStatus) {
-      const stages = X.BODY_STAGES || [];
-      if (state.bodyStage >= stages.length) {
-        els.bodyStatus.textContent = '已达圣体雏形，无需再锤。';
-        if (els.btnTemper) els.btnTemper.classList.add('is-locked');
-      } else {
-        const stage = stages[state.bodyStage];
-        els.bodyStatus.textContent =
-          '当前冲击「' +
-          stage.name +
-          '」：' +
-          Math.floor(state.bodyProgress) +
-          ' / ' +
-          stage.progressNeed +
-          ' · ' +
-          stage.blurb;
-        if (els.btnTemper) els.btnTemper.classList.remove('is-locked');
-      }
+    const realms = X.FORGE_REALMS || X.BODY_STAGES || [];
+    const idx =
+      stats && typeof stats.forgeRealmIndex === 'number'
+        ? stats.forgeRealmIndex
+        : X.currentForgeRealmIndex
+          ? X.currentForgeRealmIndex(state)
+          : 0;
+    const realm = realms[idx] || (X.currentForgeRealm ? X.currentForgeRealm(state) : null);
+    if (els.forgeStatus && realm) {
+      const nextNeed =
+        stats && stats.nextForgeNeed != null
+          ? stats.nextForgeNeed
+          : idx + 1 < realms.length
+            ? realms[idx + 1].needTotalTishu
+            : null;
+      const tierLabel =
+        (X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[realm.maxTier]) || realm.maxTier;
+      els.forgeStatus.textContent =
+        '当前「' +
+        realm.name +
+        '」· 可炼 ' +
+        tierLabel +
+        ' 至 +' +
+        (realm.maxLevel || 9) +
+        (realm.canPromoteFrom
+          ? ' · 可升' +
+            ((X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[realm.canPromoteFrom]) ||
+              realm.canPromoteFrom)
+          : '') +
+        ' · 累计体术 ' +
+        X.formatNumber(state.totalTishu || 0) +
+        (nextNeed != null
+          ? ' / 下一境 ' + X.formatNumber(nextNeed)
+          : ' · 已至器圣') +
+        '。' +
+        (realm.blurb || '');
     }
-    if (els.bodyStageList) {
-      els.bodyStageList.innerHTML = '';
-      (X.BODY_STAGES || []).forEach((s, i) => {
+    if (els.forgeRealmList) {
+      els.forgeRealmList.innerHTML = '';
+      realms.forEach((s, i) => {
         const li = document.createElement('li');
-        if (i < state.bodyStage) li.classList.add('got');
+        if (i <= idx) li.classList.add('got');
+        const tierLabel =
+          (X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[s.maxTier]) || s.maxTier || '';
         li.innerHTML =
-          (i < state.bodyStage ? '◆ ' : '◇ ') +
+          (i <= idx ? '◆ ' : '◇ ') +
           s.name +
           '<span class="ending-title">' +
-          s.blurb +
+          '需累计体术 ' +
+          X.formatNumber(s.needTotalTishu || 0) +
+          ' · 可炼' +
+          tierLabel +
+          (s.canPromoteFrom ? ' · 可升品' : '') +
+          ' · ' +
+          (s.blurb || '') +
           '</span>';
-        els.bodyStageList.appendChild(li);
+        els.forgeRealmList.appendChild(li);
       });
     }
   }
@@ -508,7 +533,12 @@
             (t ? t.name : id) +
             '</span><span class="slot-lore">' +
             label +
-            (t && t.tier && X.TREASURE_TIER_LABELS ? ' · ' + X.TREASURE_TIER_LABELS[t.tier] : '') +
+            (t
+              ? ' · ' +
+                X.TREASURE_TIER_LABELS[
+                  X.treasureEffectiveTier ? X.treasureEffectiveTier(state, id) : t.tier
+                ]
+              : '') +
             (t && t.combatEdges ? ' · 特效' : '') +
             ' · 点卸</span>' +
             (bonus ? '<span class="slot-bonus">' + bonus + '</span>' : '');
@@ -596,15 +626,38 @@
       if (!t) return;
       const eq = isTreasureEquipped(id);
       const forge = X.getTreasureForge ? X.getTreasureForge(state, id) : { level: 0, refined: false };
-      const tierLabel = (X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[t.tier]) || '';
+      const effTier = X.treasureEffectiveTier
+        ? X.treasureEffectiveTier(state, id)
+        : forge.tierOverride || t.tier;
+      const maxLv = X.MAX_TEMPER_LEVEL || 9;
+      const realm = X.currentForgeRealm ? X.currentForgeRealm(state) : null;
+      const tierOk = !realm || !X.TIER_RANK || X.TIER_RANK[effTier] <= X.TIER_RANK[realm.maxTier];
+      const levelCap = realm ? Math.min(maxLv, realm.maxLevel || maxLv) : maxLv;
+      const tierLabel = (X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[effTier]) || '';
       const bonus = X.describeTreasureBonus ? X.describeTreasureBonus(state, id) : '';
       const temperC = X.temperCost ? X.temperCost(t, forge.level) : t.temperBaseCost || 0;
       const sellV = X.sellValue ? X.sellValue(state, id) : t.sellLingli || 0;
-      const canTemper = forge.level < (t.maxTemper || 0) && state.tishu >= temperC && state.phase === 'playing';
-      const needRefine = t.tier !== 'immortal' && t.cons && !forge.refined;
+      const canTemper =
+        forge.level < levelCap && tierOk && state.tishu >= temperC && state.phase === 'playing';
+      const needRefine = effTier !== 'immortal' && t.cons && !forge.refined;
       const canRefine =
         needRefine && state.tishu >= (t.refineCost || 0) && state.phase === 'playing';
       const canSell = !eq && state.phase === 'playing';
+      const promoteTarget =
+        forge.level >= maxLv &&
+        ((effTier === 'mortal' && 'spirit') || (effTier === 'spirit' && 'immortal') || null);
+      let canPromote = false;
+      let promoteCost = 0;
+      if (promoteTarget && X.FORGE_REALMS) {
+        const idx = X.currentForgeRealmIndex ? X.currentForgeRealmIndex(state) : 0;
+        for (let i = 0; i <= idx; i++) {
+          const r = X.FORGE_REALMS[i];
+          if (r && r.canPromoteFrom === effTier && r.promoteCost) {
+            canPromote = state.tishu >= r.promoteCost && state.phase === 'playing';
+            promoteCost = r.promoteCost;
+          }
+        }
+      }
 
       const row = document.createElement('div');
       row.className = 'art-row treasure-row owned-treasure';
@@ -612,7 +665,7 @@
       const consHtml =
         needRefine && t.cons && t.cons.labels
           ? '<p class="treasure-bonus treasure-cons">负：' + t.cons.labels.join('、') + '</p>'
-          : t.tier === 'immortal'
+          : effTier === 'immortal'
             ? '<p class="treasure-bonus">仙品 · 无负面</p>'
             : forge.refined
               ? '<p class="treasure-bonus">已洗练 · 无负面</p>'
@@ -623,7 +676,7 @@
         '</span><span class="treasure-main"><p class="art-name">' +
         t.name +
         '<span class="lore-tag tier-' +
-        (t.tier || 'mortal') +
+        (effTier || 'mortal') +
         '">' +
         tierLabel +
         ' · ' +
@@ -659,6 +712,19 @@
             (canRefine ? '' : ' disabled') +
             '>洗练 ' +
             X.formatNumber(t.refineCost || 0) +
+            '体</button>'
+          : '') +
+        (promoteTarget
+          ? '<button type="button" class="mini-btn' +
+            (canPromote ? '' : ' is-locked') +
+            '" data-treasure-id="' +
+            id +
+            '" data-action="promote"' +
+            (canPromote ? '' : ' disabled') +
+            '>升' +
+            ((X.TREASURE_TIER_LABELS && X.TREASURE_TIER_LABELS[promoteTarget]) || promoteTarget) +
+            ' ' +
+            X.formatNumber(promoteCost) +
             '体</button>'
           : '') +
         '<button type="button" class="mini-btn' +
@@ -1247,7 +1313,7 @@
     }
 
     softUpdateShops(stats);
-    softUpdateCraft();
+    softUpdateCraft(stats);
     if (!soft || !treasuresBuilt) buildTreasures();
     if (!soft || !craftBuilt) buildCraftPanels();
     renderMainTimeline();
@@ -1498,6 +1564,19 @@
         setState(res.state);
         return;
       }
+      if (action === 'promote') {
+        const res = X.promoteTreasure(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法升品');
+          setState(res.state, { soft: true });
+          return;
+        }
+        treasuresBuilt = false;
+        lastEquipSig = '';
+        showToast(res.message || '升品成功');
+        setState(res.state);
+        return;
+      }
       if (action === 'sell') {
         const t = X.getTreasure(id);
         const price = X.sellValue ? X.sellValue(state, id) : t && t.sellLingli;
@@ -1598,6 +1677,19 @@
         setState(res.state);
         return;
       }
+      if (btn.dataset.action === 'promote') {
+        const res = X.promoteTreasure(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法升品');
+          setState(res.state, { soft: true });
+          return;
+        }
+        treasuresBuilt = false;
+        lastEquipSig = '';
+        showToast(res.message || '升品成功');
+        setState(res.state);
+        return;
+      }
       if (btn.dataset.action === 'sell') {
         const t = X.getTreasure(id);
         const price = X.sellValue ? X.sellValue(state, id) : t && t.sellLingli;
@@ -1636,19 +1728,8 @@
   els.ownedTreasures.addEventListener('click', onShopClick);
   els.shopTreasures.addEventListener('click', onShopClick);
 
-  if (els.btnTemper) {
-    els.btnTemper.addEventListener('click', () => {
-      if (els.btnTemper.classList.contains('is-locked')) return;
-      const res = X.temperBody(state);
-      if (!res.ok) {
-        showToast(res.reason || '无法锤炼');
-        setState(res.state, { soft: true });
-        return;
-      }
-      showToast(res.message || '锤炼');
-      setState(res.state);
-    });
-  }
+  // 炼体已移除
+
   els.eventOptions.addEventListener('click', (e) => {
     const btn = e.target.closest('.option-btn');
     if (!btn) return;
@@ -1730,7 +1811,8 @@
       const map = {
         arts: 'tabArts',
         alchemy: 'tabAlchemy',
-        body: 'tabBody',
+        forge: 'tabForge',
+        body: 'tabForge',
         cycle: 'tabCycle',
       };
       const pane = document.getElementById(map[tab.dataset.tab]);
