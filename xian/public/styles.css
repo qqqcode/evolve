@@ -1428,7 +1428,7 @@ body {
 /* 装备/法宝详情气泡：浮层，不撑开列表边框 */
 .equip-tip {
   position: fixed;
-  z-index: 80;
+  z-index: 45;
   min-width: 12rem;
   max-width: min(22rem, calc(100vw - 1.2rem));
   padding: 0.55rem 0.7rem 0.6rem;
