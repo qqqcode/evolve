@@ -393,6 +393,11 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     bodyStage: clampInt(data.bodyStage, 0, BODY_STAGES.length),
     bodyProgress: Math.max(0, Number(data.bodyProgress) || 0),
   };
+  // 载入时按上限钳制旧档资源
+  const caps = resourceCaps(loaded);
+  loaded.lingqi = Math.min(loaded.lingqi, caps.lingli);
+  loaded.tishu = Math.min(loaded.tishu, caps.tishu);
+  loaded.jingshen = Math.min(loaded.jingshen, caps.jingshen);
   return syncEquipCapacity(loaded);
 }
 
@@ -516,7 +521,7 @@ export function effectiveTreasureEffects(
     const base = def.attrs[k] || 0;
     const boosted = base > 0 ? base * scale : base;
     const pen = cons?.attrs?.[k] || 0;
-    attrs[k] = Math.floor(boosted + pen);
+    attrs[k] = boosted + pen;
   }
 
   let combatMult = 1;
@@ -569,7 +574,10 @@ export function describeTreasureBonus(state: GameState, id: string): string {
   if (eff.level > 0) parts.push(`炼器+${eff.level}`);
   if (eff.refined && def.tier !== 'immortal') parts.push('已洗练');
   for (const k of ATTR_KEYS) {
-    if (eff.attrs[k]) parts.push(`${ATTR_LABELS[k]}${eff.attrs[k] > 0 ? '+' : ''}${eff.attrs[k]}`);
+    if (eff.attrs[k]) {
+      const v = Math.round(eff.attrs[k] * 10) / 10;
+      parts.push(`${ATTR_LABELS[k]}${v > 0 ? '+' : ''}${v}`);
+    }
   }
   if (eff.combatMult !== 1) parts.push(`战力×${eff.combatMult.toFixed(2)}`);
   if (eff.cultivateClick) parts.push(`点击+${eff.cultivateClick.toFixed(1)}`);
@@ -586,14 +594,21 @@ export function describeTreasureBonus(state: GameState, id: string): string {
   return parts.join(' · ');
 }
 
-/** 法宝提供的属性（已装备，含炼器/负面） */
+/** 法宝提供的属性（已装备，含炼器/负面；合计后取整） */
 export function treasureAttrBonus(state: GameState): AttrMap {
   let sum = zeroAttrs();
   for (const id of listEquippedIds(state.equipped)) {
     const eff = effectiveTreasureEffects(state, id);
     if (eff) sum = addAttrs(sum, eff.attrs);
   }
-  return sum;
+  return {
+    atk: Math.floor(sum.atk),
+    def: Math.floor(sum.def),
+    spd: Math.floor(sum.spd),
+    spirit: Math.floor(sum.spirit),
+    bone: Math.floor(sum.bone),
+    luck: Math.floor(sum.luck),
+  };
 }
 
 export function cultivateBonuses(state: GameState): { click: number; passive: number } {
@@ -826,6 +841,34 @@ function pushChronicle(state: GameState, line: string): GameState {
   return { ...state, chronicle: [...state.chronicle, line].slice(-MAX_CHRONICLE) };
 }
 
+/**
+ * 三资源容器上限：
+ * 基础随境界（突破大涨）与层级；炼体扩体术/灵力；
+ * 「洗经伐脉 / 洗髓易筋」等扩容功法按级加上限。
+ */
+export function resourceCaps(state: GameState): ResourceMap {
+  const realm = getRealm(state.realmIndex);
+  const starMult = 1 + (state.star - 1) * 0.25;
+  const base = realm.starCostBase * 40 * starMult;
+  const caps: ResourceMap = {
+    lingli: base,
+    tishu: base * 0.8,
+    jingshen: base * 0.8,
+  };
+  // 炼体：扩体术容器，顺带拓灵力
+  if (state.bodyStage > 0) {
+    caps.tishu *= 1 + state.bodyStage * 0.25;
+    caps.lingli *= 1 + state.bodyStage * 0.1;
+  }
+  for (const art of ARTS) {
+    if (art.kind !== 'cap') continue;
+    const n = state.owned[art.id] ?? 0;
+    if (n <= 0 || !artAvailable(state, art)) continue;
+    caps[artChannel(art)] += art.power * n;
+  }
+  return caps;
+}
+
 function grantLingqi(state: GameState, amount: number): GameState {
   return grantResource(state, 'lingli', amount);
 }
@@ -838,19 +881,22 @@ function getResource(state: GameState, key: ResourceKey): number {
 
 function grantResource(state: GameState, key: ResourceKey, amount: number): GameState {
   if (amount === 0) return state;
-  if (key === 'lingli') {
-    const next = Math.max(0, state.lingqi + amount);
-    const total = amount > 0 ? state.totalLingqi + amount : state.totalLingqi;
-    return { ...state, lingqi: next, totalLingqi: total };
+  if (amount > 0) {
+    const caps = resourceCaps(state);
+    if (key === 'lingli') {
+      const next = Math.min(caps.lingli, state.lingqi + amount);
+      return { ...state, lingqi: next, totalLingqi: state.totalLingqi + (next - state.lingqi) };
+    }
+    if (key === 'tishu') {
+      const next = Math.min(caps.tishu, state.tishu + amount);
+      return { ...state, tishu: next, totalTishu: state.totalTishu + (next - state.tishu) };
+    }
+    const next = Math.min(caps.jingshen, state.jingshen + amount);
+    return { ...state, jingshen: next, totalJingshen: state.totalJingshen + (next - state.jingshen) };
   }
-  if (key === 'tishu') {
-    const next = Math.max(0, state.tishu + amount);
-    const total = amount > 0 ? state.totalTishu + amount : state.totalTishu;
-    return { ...state, tishu: next, totalTishu: total };
-  }
-  const next = Math.max(0, state.jingshen + amount);
-  const total = amount > 0 ? state.totalJingshen + amount : state.totalJingshen;
-  return { ...state, jingshen: next, totalJingshen: total };
+  if (key === 'lingli') return { ...state, lingqi: Math.max(0, state.lingqi + amount) };
+  if (key === 'tishu') return { ...state, tishu: Math.max(0, state.tishu + amount) };
+  return { ...state, jingshen: Math.max(0, state.jingshen + amount) };
 }
 
 function spendResource(state: GameState, key: ResourceKey, amount: number): GameState | null {
@@ -1069,7 +1115,7 @@ export function derive(state: GameState): DerivedStats {
     if (n <= 0) continue;
     const ch = artChannel(art);
     if (art.kind === 'click') clickBase[ch] += art.power * n;
-    else passiveBase[ch] += art.power * n;
+    else if (art.kind === 'passive') passiveBase[ch] += art.power * n;
   }
 
   const cult = cultivateBonuses(state);
@@ -1115,6 +1161,7 @@ export function derive(state: GameState): DerivedStats {
     triadMods: triad.mods,
     resourceShares: triad.shares,
     triadDamp: triad.damp,
+    caps: resourceCaps(state),
     qiyunMult,
     realmMult,
     starMult,
@@ -1156,15 +1203,15 @@ export function tick(state: GameState, now = Date.now()): TickResult {
   const offlineSeconds = elapsedRaw / 1000;
   const cappedSeconds = elapsed / 1000;
   const { perSec } = derive(state);
-  const gained: ResourceMap = {
-    lingli: perSec.lingli * cappedSeconds,
-    tishu: perSec.tishu * cappedSeconds,
-    jingshen: perSec.jingshen * cappedSeconds,
-  };
   let next = state;
   for (const key of RESOURCE_KEYS) {
-    next = grantResource(next, key, gained[key]);
+    next = grantResource(next, key, perSec[key] * cappedSeconds);
   }
+  const gained: ResourceMap = {
+    lingli: next.lingqi - state.lingqi,
+    tishu: next.tishu - state.tishu,
+    jingshen: next.jingshen - state.jingshen,
+  };
   next = { ...next, lastTickAt: now };
   return { state: next, gained, cappedSeconds, offlineSeconds };
 }
@@ -1372,11 +1419,11 @@ export function sellTreasure(state: GameState, treasureId: string, now = Date.no
     ...ticked,
     treasures,
     treasureForge,
-    lingqi: ticked.lingqi + gain,
-    totalLingqi: ticked.totalLingqi + gain,
   };
-  next = pushChronicle(next, `售出「${def.name}」，得灵力 ${Math.floor(gain)}。`);
-  return { ok: true, state: next, message: `售出得灵力 ${formatNumber(gain)}` };
+  next = grantLingqi(next, gain);
+  const got = Math.floor(next.lingqi - ticked.lingqi);
+  next = pushChronicle(next, `售出「${def.name}」，得灵力 ${got}。`);
+  return { ok: true, state: next, message: `售出得灵力 ${formatNumber(got)}` };
 }
 
 function slotLabel(slot: EquipSlot): string {

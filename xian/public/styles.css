@@ -1227,6 +1227,107 @@ body {
   cursor: pointer;
 }
 
+.res-cap-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.66rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.res.at-cap .res-value {
+  color: var(--gold);
+}
+
+.res.at-cap .res-cap-line {
+  color: var(--gold-soft);
+}
+
+/* —— 桌面端整屏铺满：页面不滚动，各栏内部滚动 —— */
+@media (min-width: 1101px) {
+  body {
+    overflow: hidden;
+  }
+
+  .shell {
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 0.5rem;
+  }
+
+  .layout {
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 100%);
+  }
+
+  .realm-panel,
+  .core-panel,
+  .right-workspace {
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  .realm-panel,
+  .core-panel {
+    overflow-y: auto;
+  }
+
+  .right-workspace {
+    align-items: stretch;
+    grid-template-rows: minmax(0, 100%);
+  }
+
+  .equipment-market-panel,
+  .arts-panel {
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+
+  .timeline-list {
+    max-height: 16vh;
+  }
+
+  .milestone-list {
+    max-height: 18vh;
+  }
+
+  .chronicle-list {
+    max-height: 20vh;
+  }
+
+  .shop-list {
+    max-height: 12rem;
+  }
+
+  .market-block .shop-list {
+    max-height: 10rem;
+  }
+}
+
+/* 持有法宝：默认只显示摘要行，悬停/点开展开详情 */
+.owned-treasure {
+  cursor: default;
+}
+
+.owned-treasure .treasure-main {
+  min-width: 0;
+}
+
+.owned-treasure .treasure-detail {
+  display: none;
+  margin-top: 0.25rem;
+}
+
+.owned-treasure:hover .treasure-detail,
+.owned-treasure.detail-open .treasure-detail {
+  display: block;
+}
+
+.owned-treasure:hover {
+  border-color: rgba(201, 162, 39, 0.55);
+}
+
 .treasure-row .lore-tag {
   display: inline-block;
   margin-left: 0.25rem;

@@ -1606,11 +1606,11 @@
     {
       id: "meridian_open",
       name: "\u6D17\u7ECF\u4F10\u8109",
-      description: "\u758F\u901A\u7ECF\u8109\uFF0C\u70B9\u51FB\u66F4\u731B\u3002",
-      kind: "click",
+      description: "\u758F\u901A\u7ECF\u8109\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
+      kind: "cap",
       baseCost: 140,
       costMult: 1.15,
-      power: 2.2,
+      power: 120,
       minRealm: 0,
       attrs: { bone: 0.2 },
       mark: "\u8109"
@@ -1741,6 +1741,29 @@
       minRealm: 9,
       mark: "\u5929"
     },
+    {
+      id: "qi_sea_vast",
+      name: "\u6C14\u6D77\u65E0\u91CF",
+      description: "\u6C14\u6D77\u65E0\u6DAF\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      kind: "cap",
+      baseCost: 3e4,
+      costMult: 1.16,
+      power: 3e4,
+      minRealm: 4,
+      attrs: { spirit: 0.3 },
+      mark: "\u6D77"
+    },
+    {
+      id: "void_dantian",
+      name: "\u865A\u7A7A\u4E39\u7530",
+      description: "\u4E39\u7530\u5316\u865A\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u66B4\u6DA8\u3002",
+      kind: "cap",
+      baseCost: 2e6,
+      costMult: 1.17,
+      power: 9e5,
+      minRealm: 7,
+      mark: "\u7530"
+    },
     // —— 体术通道 ——
     {
       id: "fist_temper",
@@ -1758,12 +1781,12 @@
     {
       id: "bone_forge",
       name: "\u953B\u9AA8\u5343\u9524",
-      description: "\u9AA8\u54CD\u5982\u96F7\uFF0C\u70B9\u51FB\u4F53\u672F\u66B4\u6DA8\u3002",
-      kind: "click",
+      description: "\u953B\u9AA8\u5982\u9F0E\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
+      kind: "cap",
       channel: "tishu",
       baseCost: 1600,
       costMult: 1.15,
-      power: 8,
+      power: 900,
       minRealm: 1,
       attrs: { atk: 0.2, bone: 0.2 },
       mark: "\u953B"
@@ -1784,15 +1807,28 @@
     {
       id: "marrow_wash",
       name: "\u6D17\u9AD3\u6613\u7B4B",
-      description: "\u591C\u591C\u81EA\u6DEC\uFF0C\u4F53\u672F\u7EC6\u6C34\u957F\u6D41\u3002",
-      kind: "passive",
+      description: "\u6D17\u9AD3\u6362\u8840\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      kind: "cap",
       channel: "tishu",
       baseCost: 4500,
       costMult: 1.15,
-      power: 10,
+      power: 3e3,
       minRealm: 2,
       attrs: { bone: 0.3 },
       mark: "\u9AD3"
+    },
+    {
+      id: "saint_vessel",
+      name: "\u5723\u8EAF\u9F0E\u7089",
+      description: "\u8EAF\u82E5\u9F0E\u7089\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      kind: "cap",
+      channel: "tishu",
+      baseCost: 6e4,
+      costMult: 1.16,
+      power: 5e4,
+      minRealm: 4,
+      attrs: { bone: 0.5 },
+      mark: "\u7089"
     },
     // —— 精神力通道 ——
     {
@@ -1811,12 +1847,12 @@
     {
       id: "soul_sea",
       name: "\u8BC6\u6D77\u5F00\u7586",
-      description: "\u62D3\u5E7F\u8BC6\u6D77\uFF0C\u70B9\u51FB\u7CBE\u795E\u529B\u66B4\u6DA8\u3002",
-      kind: "click",
+      description: "\u62D3\u5E7F\u8BC6\u6D77\uFF0C\u7CBE\u795E\u529B\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
+      kind: "cap",
       channel: "jingshen",
       baseCost: 1600,
       costMult: 1.15,
-      power: 8,
+      power: 900,
       minRealm: 1,
       attrs: { spirit: 0.3 },
       mark: "\u6D77"
@@ -1846,6 +1882,19 @@
       minRealm: 2,
       attrs: { spirit: 0.3 },
       mark: "\u89C2"
+    },
+    {
+      id: "spirit_court",
+      name: "\u795E\u5EAD\u7389\u5B87",
+      description: "\u795E\u5EAD\u5E7F\u53A6\uFF0C\u7CBE\u795E\u529B\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      kind: "cap",
+      channel: "jingshen",
+      baseCost: 6e4,
+      costMult: 1.16,
+      power: 5e4,
+      minRealm: 4,
+      attrs: { spirit: 0.5 },
+      mark: "\u5EAD"
     },
     // 分支功法
     {
@@ -3527,6 +3576,10 @@
       bodyStage: clampInt(data.bodyStage, 0, BODY_STAGES.length),
       bodyProgress: Math.max(0, Number(data.bodyProgress) || 0)
     };
+    const caps = resourceCaps(loaded);
+    loaded.lingqi = Math.min(loaded.lingqi, caps.lingli);
+    loaded.tishu = Math.min(loaded.tishu, caps.tishu);
+    loaded.jingshen = Math.min(loaded.jingshen, caps.jingshen);
     return syncEquipCapacity(loaded);
   }
   function artAvailable(state, art) {
@@ -3611,7 +3664,7 @@
       const base = def.attrs[k] || 0;
       const boosted = base > 0 ? base * scale : base;
       const pen = cons?.attrs?.[k] || 0;
-      attrs[k] = Math.floor(boosted + pen);
+      attrs[k] = boosted + pen;
     }
     let combatMult = 1;
     if (def.combatMult) {
@@ -3658,7 +3711,10 @@
     if (eff.level > 0) parts.push(`\u70BC\u5668+${eff.level}`);
     if (eff.refined && def.tier !== "immortal") parts.push("\u5DF2\u6D17\u7EC3");
     for (const k of ATTR_KEYS) {
-      if (eff.attrs[k]) parts.push(`${ATTR_LABELS[k]}${eff.attrs[k] > 0 ? "+" : ""}${eff.attrs[k]}`);
+      if (eff.attrs[k]) {
+        const v = Math.round(eff.attrs[k] * 10) / 10;
+        parts.push(`${ATTR_LABELS[k]}${v > 0 ? "+" : ""}${v}`);
+      }
     }
     if (eff.combatMult !== 1) parts.push(`\u6218\u529B\xD7${eff.combatMult.toFixed(2)}`);
     if (eff.cultivateClick) parts.push(`\u70B9\u51FB+${eff.cultivateClick.toFixed(1)}`);
@@ -3680,7 +3736,14 @@
       const eff = effectiveTreasureEffects(state, id);
       if (eff) sum = addAttrs(sum, eff.attrs);
     }
-    return sum;
+    return {
+      atk: Math.floor(sum.atk),
+      def: Math.floor(sum.def),
+      spd: Math.floor(sum.spd),
+      spirit: Math.floor(sum.spirit),
+      bone: Math.floor(sum.bone),
+      luck: Math.floor(sum.luck)
+    };
   }
   function cultivateBonuses(state) {
     let click = 0;
@@ -3860,6 +3923,27 @@
   function pushChronicle(state, line) {
     return { ...state, chronicle: [...state.chronicle, line].slice(-MAX_CHRONICLE) };
   }
+  function resourceCaps(state) {
+    const realm = getRealm(state.realmIndex);
+    const starMult = 1 + (state.star - 1) * 0.25;
+    const base = realm.starCostBase * 40 * starMult;
+    const caps = {
+      lingli: base,
+      tishu: base * 0.8,
+      jingshen: base * 0.8
+    };
+    if (state.bodyStage > 0) {
+      caps.tishu *= 1 + state.bodyStage * 0.25;
+      caps.lingli *= 1 + state.bodyStage * 0.1;
+    }
+    for (const art of ARTS) {
+      if (art.kind !== "cap") continue;
+      const n = state.owned[art.id] ?? 0;
+      if (n <= 0 || !artAvailable(state, art)) continue;
+      caps[artChannel(art)] += art.power * n;
+    }
+    return caps;
+  }
   function grantLingqi(state, amount) {
     return grantResource(state, "lingli", amount);
   }
@@ -3870,19 +3954,22 @@
   }
   function grantResource(state, key, amount) {
     if (amount === 0) return state;
-    if (key === "lingli") {
-      const next2 = Math.max(0, state.lingqi + amount);
-      const total2 = amount > 0 ? state.totalLingqi + amount : state.totalLingqi;
-      return { ...state, lingqi: next2, totalLingqi: total2 };
+    if (amount > 0) {
+      const caps = resourceCaps(state);
+      if (key === "lingli") {
+        const next2 = Math.min(caps.lingli, state.lingqi + amount);
+        return { ...state, lingqi: next2, totalLingqi: state.totalLingqi + (next2 - state.lingqi) };
+      }
+      if (key === "tishu") {
+        const next2 = Math.min(caps.tishu, state.tishu + amount);
+        return { ...state, tishu: next2, totalTishu: state.totalTishu + (next2 - state.tishu) };
+      }
+      const next = Math.min(caps.jingshen, state.jingshen + amount);
+      return { ...state, jingshen: next, totalJingshen: state.totalJingshen + (next - state.jingshen) };
     }
-    if (key === "tishu") {
-      const next2 = Math.max(0, state.tishu + amount);
-      const total2 = amount > 0 ? state.totalTishu + amount : state.totalTishu;
-      return { ...state, tishu: next2, totalTishu: total2 };
-    }
-    const next = Math.max(0, state.jingshen + amount);
-    const total = amount > 0 ? state.totalJingshen + amount : state.totalJingshen;
-    return { ...state, jingshen: next, totalJingshen: total };
+    if (key === "lingli") return { ...state, lingqi: Math.max(0, state.lingqi + amount) };
+    if (key === "tishu") return { ...state, tishu: Math.max(0, state.tishu + amount) };
+    return { ...state, jingshen: Math.max(0, state.jingshen + amount) };
   }
   function spendResource(state, key, amount) {
     if (amount <= 0) return state;
@@ -4050,7 +4137,7 @@
       if (n <= 0) continue;
       const ch = artChannel(art);
       if (art.kind === "click") clickBase[ch] += art.power * n;
-      else passiveBase[ch] += art.power * n;
+      else if (art.kind === "passive") passiveBase[ch] += art.power * n;
     }
     const cult = cultivateBonuses(state);
     clickBase.lingli += cult.click;
@@ -4087,6 +4174,7 @@
       triadMods: triad.mods,
       resourceShares: triad.shares,
       triadDamp: triad.damp,
+      caps: resourceCaps(state),
       qiyunMult,
       realmMult,
       starMult,
@@ -4127,15 +4215,15 @@
     const offlineSeconds = elapsedRaw / 1e3;
     const cappedSeconds = elapsed / 1e3;
     const { perSec } = derive(state);
-    const gained = {
-      lingli: perSec.lingli * cappedSeconds,
-      tishu: perSec.tishu * cappedSeconds,
-      jingshen: perSec.jingshen * cappedSeconds
-    };
     let next = state;
     for (const key of RESOURCE_KEYS) {
-      next = grantResource(next, key, gained[key]);
+      next = grantResource(next, key, perSec[key] * cappedSeconds);
     }
+    const gained = {
+      lingli: next.lingqi - state.lingqi,
+      tishu: next.tishu - state.tishu,
+      jingshen: next.jingshen - state.jingshen
+    };
     next = { ...next, lastTickAt: now };
     return { state: next, gained, cappedSeconds, offlineSeconds };
   }
@@ -4323,12 +4411,12 @@
     let next = {
       ...ticked,
       treasures,
-      treasureForge,
-      lingqi: ticked.lingqi + gain,
-      totalLingqi: ticked.totalLingqi + gain
+      treasureForge
     };
-    next = pushChronicle(next, `\u552E\u51FA\u300C${def.name}\u300D\uFF0C\u5F97\u7075\u529B ${Math.floor(gain)}\u3002`);
-    return { ok: true, state: next, message: `\u552E\u51FA\u5F97\u7075\u529B ${formatNumber(gain)}` };
+    next = grantLingqi(next, gain);
+    const got = Math.floor(next.lingqi - ticked.lingqi);
+    next = pushChronicle(next, `\u552E\u51FA\u300C${def.name}\u300D\uFF0C\u5F97\u7075\u529B ${got}\u3002`);
+    return { ok: true, state: next, message: `\u552E\u51FA\u5F97\u7075\u529B ${formatNumber(got)}` };
   }
   function slotLabel(slot) {
     return EQUIP_SLOT_LABELS[slot];
@@ -5159,6 +5247,7 @@
     refineTreasure,
     resolveEvent,
     resourceAttrsFromTotals,
+    resourceCaps,
     saveToStorage,
     clearStorage,
     sellTreasure,

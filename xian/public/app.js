@@ -30,6 +30,9 @@
     lingliDps: document.getElementById('lingliDps'),
     tishuDps: document.getElementById('tishuDps'),
     jingshenDps: document.getElementById('jingshenDps'),
+    lingliCap: document.getElementById('lingliCap'),
+    tishuCap: document.getElementById('tishuCap'),
+    jingshenCap: document.getElementById('jingshenCap'),
     lingliTriad: document.getElementById('lingliTriad'),
     tishuTriad: document.getElementById('tishuTriad'),
     jingshenTriad: document.getElementById('jingshenTriad'),
@@ -245,7 +248,8 @@
       btn.type = 'button';
       btn.className = 'art-row';
       btn.dataset.artId = art.id;
-      const kindTag = art.kind === 'click' ? '吐纳' : '运转';
+      const kindTag =
+        art.kind === 'click' ? '吐纳' : art.kind === 'cap' ? '扩容' : '运转';
       btn.innerHTML =
         '<span class="art-mark">' +
         art.mark +
@@ -431,7 +435,10 @@
     if (!eff) return '';
     const bits = [];
     X.ATTR_KEYS.forEach((k) => {
-      if (eff.attrs[k]) bits.push(X.ATTR_LABELS[k] + (eff.attrs[k] > 0 ? '+' : '') + eff.attrs[k]);
+      if (eff.attrs[k]) {
+        const v = Math.round(eff.attrs[k] * 10) / 10;
+        bits.push(X.ATTR_LABELS[k] + (v > 0 ? '+' : '') + v);
+      }
     });
     if (eff.combatMult !== 1) bits.push('战×' + eff.combatMult.toFixed(2));
     if (eff.cultivateClick) bits.push('点+' + Math.round(eff.cultivateClick * 10) / 10);
@@ -599,8 +606,8 @@
       const canSell = !eq && state.phase === 'playing';
 
       const row = document.createElement('div');
-      row.className = 'art-row treasure-row';
-      row.title = bonus;
+      row.className = 'art-row treasure-row owned-treasure';
+      row.dataset.treasureId = id;
       const consHtml =
         needRefine && t.cons && t.cons.labels
           ? '<p class="treasure-bonus treasure-cons">负：' + t.cons.labels.join('、') + '</p>'
@@ -612,7 +619,7 @@
       row.innerHTML =
         '<span class="art-mark">' +
         t.mark +
-        '</span><span><p class="art-name">' +
+        '</span><span class="treasure-main"><p class="art-name">' +
         t.name +
         '<span class="lore-tag tier-' +
         (t.tier || 'mortal') +
@@ -621,7 +628,7 @@
         ' · ' +
         (X.EQUIP_SLOT_LABELS[t.slot] || t.slot) +
         (forge.level ? ' · +' + forge.level : '') +
-        '</span></p><p class="art-desc">' +
+        '</span></p><div class="treasure-detail"><p class="art-desc">' +
         t.description +
         '</p><p class="treasure-bonus">' +
         (bonus || '') +
@@ -662,7 +669,7 @@
         '>出售 ' +
         X.formatNumber(sellV) +
         '</button>' +
-        '</div></span><span class="art-meta">' +
+        '</div></div></span><span class="art-meta">' +
         (eq ? '装备中' : '未装备') +
         '</span>';
       els.ownedTreasures.appendChild(row);
@@ -737,6 +744,52 @@
       els.vaultList.innerHTML = '<p class="realm-hint">宝库空空如也</p>';
     }
     treasuresBuilt = true;
+  }
+
+  function refreshTreasureLocks() {
+    if (!treasuresBuilt) return;
+    const playing = state.phase === 'playing';
+    els.ownedTreasures.querySelectorAll('.owned-treasure').forEach((row) => {
+      const id = row.dataset.treasureId;
+      const t = X.getTreasure(id);
+      if (!t) return;
+      const forge = X.getTreasureForge ? X.getTreasureForge(state, id) : { level: 0, refined: false };
+      const eq = isTreasureEquipped(id);
+      const temperBtn = row.querySelector('[data-action="temper"]');
+      if (temperBtn) {
+        const cost = X.temperCost ? X.temperCost(t, forge.level) : t.temperBaseCost || 0;
+        const can = forge.level < (t.maxTemper || 0) && state.tishu >= cost && playing;
+        temperBtn.disabled = !can;
+        temperBtn.classList.toggle('is-locked', !can);
+        temperBtn.textContent =
+          forge.level >= (t.maxTemper || 0)
+            ? '炼器已满 +' + forge.level
+            : '炼器 ' + X.formatNumber(cost) + '体';
+      }
+      const refineBtn = row.querySelector('[data-action="refine"]');
+      if (refineBtn) {
+        const can = state.tishu >= (t.refineCost || 0) && playing;
+        refineBtn.disabled = !can;
+        refineBtn.classList.toggle('is-locked', !can);
+      }
+      const sellBtn = row.querySelector('[data-action="sell"]');
+      if (sellBtn) {
+        const can = !eq && playing;
+        sellBtn.disabled = !can;
+        sellBtn.classList.toggle('is-locked', !can);
+      }
+      const toggleBtn = row.querySelector('[data-action="toggle"]');
+      if (toggleBtn) toggleBtn.textContent = eq ? '卸下' : '装备';
+      const meta = row.querySelector('.art-meta');
+      if (meta) meta.textContent = eq ? '装备中' : '未装备';
+    });
+    els.shopTreasures.querySelectorAll('.treasure-row[data-action="buy"]').forEach((btn) => {
+      const t = X.getTreasure(btn.dataset.treasureId);
+      if (!t) return;
+      const locked =
+        state.realmIndex < t.minRealm || state.lingqi < t.cost || !playing;
+      btn.classList.toggle('is-locked', locked);
+    });
   }
 
   function renderChronicle() {
@@ -1072,6 +1125,17 @@
     if (els.tishuDps) els.tishuDps.textContent = X.formatNumber(per.tishu || 0);
     if (els.jingshenDps) els.jingshenDps.textContent = X.formatNumber(per.jingshen || 0);
 
+    const caps = stats.caps || null;
+    const paintCap = (el, capEl, cur, cap) => {
+      if (!capEl) return;
+      capEl.textContent = X.formatNumber(Math.floor(cap || 0));
+      const block = el && el.closest ? el.closest('.res') : null;
+      if (block) block.classList.toggle('at-cap', !!cap && cur >= cap - 1e-6);
+    };
+    paintCap(els.lingqiVal, els.lingliCap, state.lingqi, caps ? caps.lingli : 0);
+    paintCap(els.tishuVal, els.tishuCap, state.tishu || 0, caps ? caps.tishu : 0);
+    paintCap(els.jingshenVal, els.jingshenCap, state.jingshen || 0, caps ? caps.jingshen : 0);
+
     const mods = stats.triadMods || { lingli: 0, tishu: 0, jingshen: 0 };
     const shares = stats.resourceShares || { lingli: 1 / 3, tishu: 1 / 3, jingshen: 1 / 3 };
     const fmtMod = (m) => {
@@ -1159,20 +1223,14 @@
         renderChronicle();
       }
       renderCombat(false);
-      // 装备/法宝变化时刷新坊市列表（与装备栏签名分离，避免每 tick 重建装备 DOM）
-      const treasureSig =
-        equipmentSignature() +
-        '|' +
-        state.treasures.join(',') +
-        '|' +
-        Math.floor(state.tishu) +
-        '|' +
-        Math.floor(state.lingqi);
+      // 装备/法宝变化时刷新坊市列表；资源变动只就地刷新按钮锁定态，避免悬停闪烁
+      const treasureSig = equipmentSignature() + '|' + state.treasures.join(',');
       if (treasureSig !== lastTreasureSig) {
         lastTreasureSig = treasureSig;
         treasuresBuilt = false;
         buildTreasures();
       }
+      refreshTreasureLocks();
     }
 
     const canRein = stats.canReincarnate || state.phase === 'ended';
@@ -1424,6 +1482,10 @@
     }
     const btn = e.target.closest('.art-row');
     if (!btn || btn.classList.contains('is-locked')) return;
+    if (btn.classList.contains('owned-treasure')) {
+      btn.classList.toggle('detail-open');
+      return;
+    }
     if (btn.dataset.pillId) {
       const res = X.craftPill(state, btn.dataset.pillId);
       if (!res.ok) {

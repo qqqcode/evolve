@@ -1,5 +1,5 @@
-/** 功法：吐纳点击 / 运转被动 */
-export type ArtKind = 'click' | 'passive';
+/** 功法：吐纳点击 / 运转被动 / 扩容上限 */
+export type ArtKind = 'click' | 'passive' | 'cap';
 
 /** 三修炼资源：灵力 / 体术 / 精神力 */
 export type ResourceKey = 'lingli' | 'tishu' | 'jingshen';
@@ -418,6 +418,8 @@ export interface DerivedStats {
   resourceShares: ResourceMap;
   /** 法宝提供的互扰阻尼 0~1 */
   triadDamp: number;
+  /** 三资源容器上限 */
+  caps: ResourceMap;
   qiyunMult: number;
   realmMult: number;
   starMult: number;
