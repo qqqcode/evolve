@@ -1,0 +1,31 @@
+# 示例：把文字游戏集合挂到 https://你的域名/webgame/
+#
+# 1. 容器/进程环境变量：
+#    BASE_PATH=/webgame
+#
+# 2. nginx（推荐：保留前缀转发给应用；若你习惯去掉前缀，见下方备选）
+
+# —— 推荐：nginx 去掉 /webgame 前缀后再转给 Express ——
+# 说明：应用内部路由仍是 /hub.css、/api/games；
+#       设置 BASE_PATH=/webgame 后，HTML 会生成 /webgame/hub.css 等对外路径，
+#       nginx 用 proxy_pass 末尾斜杠去掉前缀，后端仍收到 /hub.css。
+
+server {
+    listen 80;
+    server_name example.com;
+
+    location /webgame/ {
+        proxy_pass http://127.0.0.1:3000/;   # 注意末尾 / ：去掉 /webgame 前缀
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Prefix /webgame;
+    }
+
+    # 可选：/webgame → /webgame/
+    location = /webgame {
+        return 301 /webgame/;
+    }
+}

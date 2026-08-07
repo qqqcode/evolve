@@ -1,6 +1,6 @@
 # 文字游戏集合
 
-当前版本：**0.9.14**（每次功能修改将根目录 `package.json` 版本号最后一位 +1，并同步页脚展示）。
+当前版本：**0.9.15**（每次功能修改将根目录 `package.json` 版本号最后一位 +1，并同步页脚展示）。
 
 本仓库是一个文字游戏集合门户：
 
@@ -61,6 +61,18 @@ cd evolve
 cp .env.example .env
 docker compose up -d --build
 ```
+
+### nginx 子路径（例如 `/webgame`）
+
+若域名通过 nginx 把 `/webgame/` 反代到容器 3000 端口，需在 `.env` 中设置：
+
+```bash
+BASE_PATH=/webgame
+```
+
+然后 `docker compose up -d --build`。示例配置见 `deploy/nginx-webgame.conf.example`。
+
+要点：HTML/JS 不再使用根绝对路径 `/hub.css`，而会生成 `/webgame/hub.css`；nginx 用 `proxy_pass http://127.0.0.1:3000/;`（末尾斜杠）去掉前缀后转给应用。
 
 更新：
 

@@ -1,5 +1,6 @@
 import express, { Router } from 'express';
 import path from 'path';
+import { sendHtmlFile } from '../../src/htmlInject';
 import {
   chooseOption,
   createNewSave,
@@ -16,6 +17,7 @@ import type { GameSave } from './game/types';
 export function createEvolveRouter(): Router {
   const router = Router();
   const publicDir = path.join(process.cwd(), 'evolve', 'public');
+  const indexHtml = path.join(publicDir, 'index.html');
 
   router.get('/api/meta', (_req, res) => {
     res.json(getMeta());
@@ -75,15 +77,14 @@ export function createEvolveRouter(): Router {
     }
   });
 
-  router.use(express.static(publicDir));
+  router.use(express.static(publicDir, { index: false }));
 
   router.get('/', (_req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    sendHtmlFile(res, indexHtml, '/evolve/');
   });
 
-  // SPA 回退：未命中静态文件的 GET 均回游戏页
   router.get('*', (_req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    sendHtmlFile(res, indexHtml, '/evolve/');
   });
 
   return router;

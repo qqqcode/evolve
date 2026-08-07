@@ -1,6 +1,13 @@
 const SAVE_KEY = 'evolve-save-v3';
-/** 本游戏挂载在 /evolve 下 */
-const GAME_BASE = '/evolve';
+/** 由 <base href> 推导（支持 /webgame/evolve/ 子路径部署） */
+const GAME_BASE = (() => {
+  try {
+    const path = new URL('.', document.baseURI).pathname.replace(/\/+$/, '');
+    return path || '/evolve';
+  } catch {
+    return '/evolve';
+  }
+})();
 
 function apiUrl(path) {
   if (!path) return GAME_BASE;

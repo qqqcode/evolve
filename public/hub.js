@@ -1,10 +1,26 @@
+function appBase() {
+  const raw = typeof window !== 'undefined' ? window.APP_BASE : '';
+  if (typeof raw === 'string' && raw) return raw.replace(/\/+$/, '');
+  return '';
+}
+
+function withBase(path) {
+  const base = appBase();
+  if (!path) return base || '/';
+  if (/^https?:\/\//i.test(path)) return path;
+  const p = path.startsWith('/') ? path : `/${path}`;
+  if (!base) return p;
+  if (p === '/') return `${base}/`;
+  return `${base}${p}`;
+}
+
 async function bootHub() {
   const list = document.getElementById('gameList');
   const versionEl = document.getElementById('hubVersion');
   if (!list) return;
 
   try {
-    const res = await fetch('/api/games');
+    const res = await fetch(withBase('/api/games'));
     const data = await res.json();
     const games = Array.isArray(data.games) ? data.games : [];
 
@@ -23,9 +39,8 @@ async function bootHub() {
       list.appendChild(card);
     });
 
-    // 版本与进化史页脚对齐：读 evolve meta（失败则保留默认）
     try {
-      const metaRes = await fetch('/evolve/api/meta');
+      const metaRes = await fetch(withBase('/evolve/api/meta'));
       const meta = await metaRes.json();
       if (versionEl && meta?.version) versionEl.textContent = `v${meta.version}`;
     } catch {

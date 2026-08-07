@@ -1,5 +1,6 @@
 import express, { Router } from 'express';
 import path from 'path';
+import { sendHtmlFile } from '../../src/htmlInject';
 import { getMeta } from './game/engine';
 import { APP_VERSION } from './version';
 
@@ -7,19 +8,20 @@ import { APP_VERSION } from './version';
 export function createEvolve2Router(): Router {
   const router = Router();
   const publicDir = path.join(process.cwd(), 'evolve2', 'public');
+  const indexHtml = path.join(publicDir, 'index.html');
 
   router.get('/api/meta', (_req, res) => {
     res.json({ ...getMeta(), version: APP_VERSION, title: '进化点击' });
   });
 
-  router.use(express.static(publicDir));
+  router.use(express.static(publicDir, { index: false }));
 
   router.get('/', (_req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    sendHtmlFile(res, indexHtml, '/evolve2/');
   });
 
   router.get('*', (_req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    sendHtmlFile(res, indexHtml, '/evolve2/');
   });
 
   return router;
