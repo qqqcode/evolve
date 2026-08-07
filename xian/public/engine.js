@@ -1,5 +1,203 @@
 "use strict";
 (() => {
+  // xian/src/game/craft.ts
+  var HERBS = [
+    {
+      id: "herb_spirit_grass",
+      name: "\u767E\u5E74\u7075\u8349",
+      description: "\u6700\u57FA\u7840\u7684\u836F\u5F15\uFF0C\u51E1\u4EBA\u836F\u56ED\u5E38\u89C1\u3002",
+      cost: 40,
+      minRealm: 0,
+      mark: "\u8349"
+    },
+    {
+      id: "herb_blood_root",
+      name: "\u51DD\u8840\u6839",
+      description: "\u6DEC\u4F53\u5E38\u7528\uFF0C\u6C14\u5473\u8165\u751C\u3002",
+      cost: 120,
+      minRealm: 1,
+      mark: "\u6839"
+    },
+    {
+      id: "herb_soul_petal",
+      name: "\u795E\u8BC6\u82B1\u74E3",
+      description: "\u51DD\u795E\u5F00\u7A8D\u7684\u8F85\u6750\u3002",
+      cost: 280,
+      minRealm: 2,
+      mark: "\u74E3"
+    },
+    {
+      id: "herb_flame_fruit",
+      name: "\u8D64\u7130\u679C",
+      description: "\u5165\u9F0E\u5373\u71C3\uFF0C\u4E39\u6210\u8272\u6B63\u3002",
+      cost: 900,
+      minRealm: 3,
+      mark: "\u679C"
+    },
+    {
+      id: "herb_void_dew",
+      name: "\u865A\u7A7A\u9732",
+      description: "\u79D8\u5883\u51DD\u9732\uFF0C\u4E00\u6EF4\u5343\u91D1\u3002",
+      cost: 6e3,
+      minRealm: 5,
+      mark: "\u9732"
+    }
+  ];
+  var PILL_RECIPES = [
+    {
+      id: "pill_qi",
+      name: "\u805A\u6C14\u4E39",
+      description: "\u70BC\u5316\u7075\u529B\uFF0C\u7A33\u56FA\u6C14\u6D77\u3002",
+      minRealm: 0,
+      herbs: { herb_spirit_grass: 2 },
+      costs: { jingshen: 8, lingli: 20 },
+      effect: { resources: { lingli: 120 }, mastery: 1 },
+      mark: "\u6C14"
+    },
+    {
+      id: "pill_bone",
+      name: "\u953B\u9AA8\u4E39",
+      description: "\u4E39\u529B\u5165\u9AA8\uFF0C\u52A9\u63A8\u70BC\u4F53\u3002",
+      minRealm: 1,
+      herbs: { herb_blood_root: 2, herb_spirit_grass: 1 },
+      costs: { jingshen: 20, tishu: 30 },
+      effect: { bodyProgress: 12, resources: { tishu: 80 }, mastery: 1 },
+      mark: "\u9AA8"
+    },
+    {
+      id: "pill_mind",
+      name: "\u51DD\u795E\u4E39",
+      description: "\u6E05\u5FC3\u51DD\u795E\uFF0C\u7CBE\u795E\u529B\u66B4\u6DA8\u3002",
+      minRealm: 2,
+      herbs: { herb_soul_petal: 2 },
+      costs: { jingshen: 40, lingli: 60 },
+      effect: { resources: { jingshen: 220 }, attrs: { spirit: 1 }, mastery: 2 },
+      mark: "\u795E"
+    },
+    {
+      id: "pill_battle",
+      name: "\u7834\u519B\u4E39",
+      description: "\u77ED\u671F\u6FC0\u53D1\u6C14\u8840\uFF0C\u653B\u4F10\u5927\u589E\u3002",
+      minRealm: 3,
+      herbs: { herb_flame_fruit: 1, herb_blood_root: 2 },
+      costs: { jingshen: 80, tishu: 50, lingli: 100 },
+      effect: { attrs: { atk: 2, bone: 1 }, mastery: 2 },
+      mark: "\u519B"
+    },
+    {
+      id: "pill_dao",
+      name: "\u95EE\u9053\u4E39",
+      description: "\u4E39\u6210\u609F\u9053\uFF0C\u4E09\u624D\u9F50\u589E\u3002",
+      minRealm: 5,
+      herbs: { herb_void_dew: 1, herb_soul_petal: 2, herb_flame_fruit: 1 },
+      costs: { jingshen: 400, lingli: 800, tishu: 200 },
+      effect: {
+        resources: { lingli: 5e3, tishu: 2e3, jingshen: 3e3 },
+        attrs: { spirit: 2, luck: 1 },
+        mastery: 4
+      },
+      mark: "\u9053"
+    }
+  ];
+  var BODY_STAGES = [
+    {
+      id: "body_skin",
+      name: "\u76AE\u8089\u5883",
+      blurb: "\u9524\u76AE\u70BC\u8089\uFF0C\u6297\u51FB\u6253\u7565\u589E\u3002",
+      progressNeed: 40,
+      temperCost: { tishu: 25, lingli: 10 },
+      temperGain: 8,
+      tishuMult: 1.08,
+      combatMult: 1.04,
+      attrs: { def: 1, bone: 1 },
+      minRealm: 0
+    },
+    {
+      id: "body_tendon",
+      name: "\u7B4B\u9AA8\u5883",
+      blurb: "\u7B4B\u5982\u5F13\u5F26\uFF0C\u9AA8\u5982\u7CBE\u94C1\u3002",
+      progressNeed: 90,
+      temperCost: { tishu: 80, lingli: 40 },
+      temperGain: 10,
+      tishuMult: 1.16,
+      combatMult: 1.08,
+      attrs: { atk: 1, def: 1, bone: 2 },
+      minRealm: 1
+    },
+    {
+      id: "body_blood",
+      name: "\u6C14\u8840\u5883",
+      blurb: "\u6C14\u8840\u5982\u6F6E\uFF0C\u62F3\u53EF\u5D29\u77F3\u3002",
+      progressNeed: 180,
+      temperCost: { tishu: 220, lingli: 120, jingshen: 30 },
+      temperGain: 12,
+      tishuMult: 1.28,
+      combatMult: 1.14,
+      attrs: { atk: 2, spd: 1, bone: 2 },
+      minRealm: 3
+    },
+    {
+      id: "body_organ",
+      name: "\u810F\u8151\u5883",
+      blurb: "\u4E94\u810F\u5982\u7089\uFF0C\u529B\u4ECE\u4E2D\u751F\u3002",
+      progressNeed: 360,
+      temperCost: { tishu: 600, lingli: 400, jingshen: 80 },
+      temperGain: 14,
+      tishuMult: 1.42,
+      combatMult: 1.22,
+      attrs: { atk: 2, def: 2, bone: 3 },
+      minRealm: 5
+    },
+    {
+      id: "body_saint",
+      name: "\u5723\u4F53\u96CF\u5F62",
+      blurb: "\u8089\u8EAB\u8FD1\u5723\uFF0C\u4E00\u6B65\u4E00\u9707\u3002",
+      progressNeed: 720,
+      temperCost: { tishu: 2e3, lingli: 1500, jingshen: 300 },
+      temperGain: 16,
+      tishuMult: 1.65,
+      combatMult: 1.35,
+      attrs: { atk: 4, def: 3, bone: 4, spd: 2 },
+      minRealm: 7
+    }
+  ];
+  function getHerb(id) {
+    return HERBS.find((h) => h.id === id);
+  }
+  function getPillRecipe(id) {
+    return PILL_RECIPES.find((p) => p.id === id);
+  }
+  function getBodyStage(index) {
+    return BODY_STAGES[index];
+  }
+  function emptyHerbs() {
+    const o = {};
+    for (const h of HERBS) o[h.id] = 0;
+    return o;
+  }
+  function emptyPills() {
+    const o = {};
+    for (const p of PILL_RECIPES) o[p.id] = 0;
+    return o;
+  }
+  function bodyMultipliers(bodyStage) {
+    if (bodyStage <= 0) return { tishuMult: 1, combatMult: 1 };
+    const stage = BODY_STAGES[Math.min(bodyStage, BODY_STAGES.length) - 1];
+    if (!stage) return { tishuMult: 1, combatMult: 1 };
+    return { tishuMult: stage.tishuMult, combatMult: stage.combatMult };
+  }
+  function bodyAttrsBonus(bodyStage) {
+    const sum = {};
+    for (let i = 0; i < bodyStage && i < BODY_STAGES.length; i++) {
+      const a = BODY_STAGES[i].attrs;
+      for (const [k, v] of Object.entries(a)) {
+        const key = k;
+        sum[key] = (sum[key] || 0) + (v || 0);
+      }
+    }
+    return sum;
+  }
+
   // xian/src/game/loot.ts
   function emptyEquipped() {
     return { combat: null, cultivate: null, assist: null };
@@ -482,12 +680,13 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 5;
-  var STORAGE_KEY = "xian-save-v5";
+  var SAVE_VERSION = 6;
+  var STORAGE_KEY = "xian-save-v6";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_MILESTONES = 40;
   var MAX_EQUIP = 3;
+  var FREE_POINT_TO_RESOURCE = 100;
   var RANDOM_COOLDOWN_MS = 18e3;
   var RANDOM_CHANCE = {
     click: 0.07,
@@ -496,6 +695,15 @@
   };
   function zeroAttrs() {
     return { atk: 0, def: 0, spd: 0, spirit: 0, bone: 0, luck: 0 };
+  }
+  function zeroResources() {
+    return { lingli: 0, tishu: 0, jingshen: 0 };
+  }
+  function artChannel(art) {
+    if (art.channel) return art.channel;
+    if (art.branch === "body") return "tishu";
+    if (art.branch === "soul" || art.branch === "alchemy") return "jingshen";
+    return "lingli";
   }
   function addAttrs(a, b) {
     return {
@@ -745,7 +953,7 @@
     {
       id: "tuna_basic",
       name: "\u57FA\u7840\u5410\u7EB3",
-      description: "\u6BCF\u6B21\u5410\u7EB3\u5438\u5165\u66F4\u591A\u7075\u6C14\u3002",
+      description: "\u6BCF\u6B21\u5410\u7EB3\u5438\u5165\u66F4\u591A\u7075\u529B\u3002",
       kind: "click",
       baseCost: 15,
       costMult: 1.13,
@@ -817,7 +1025,7 @@
     {
       id: "sit_meditation",
       name: "\u9759\u5BA4\u6253\u5750",
-      description: "\u6BCF\u79D2\u7F13\u6162\u79EF\u6512\u7075\u6C14\u3002",
+      description: "\u6BCF\u79D2\u7F13\u6162\u79EF\u6512\u7075\u529B\u3002",
       kind: "passive",
       baseCost: 50,
       costMult: 1.12,
@@ -891,6 +1099,112 @@
       power: 3800,
       minRealm: 9,
       mark: "\u5929"
+    },
+    // —— 体术通道 ——
+    {
+      id: "fist_temper",
+      name: "\u94C1\u7802\u78E8\u62F3",
+      description: "\u4EE5\u62F3\u9524\u4F53\uFF0C\u70B9\u51FB\u589E\u957F\u4F53\u672F\u3002",
+      kind: "click",
+      channel: "tishu",
+      baseCost: 18,
+      costMult: 1.13,
+      power: 0.55,
+      minRealm: 0,
+      attrs: { bone: 0.15 },
+      mark: "\u62F3"
+    },
+    {
+      id: "bone_forge",
+      name: "\u953B\u9AA8\u5343\u9524",
+      description: "\u9AA8\u54CD\u5982\u96F7\uFF0C\u70B9\u51FB\u4F53\u672F\u66B4\u6DA8\u3002",
+      kind: "click",
+      channel: "tishu",
+      baseCost: 1600,
+      costMult: 1.15,
+      power: 8,
+      minRealm: 1,
+      attrs: { atk: 0.2, bone: 0.2 },
+      mark: "\u953B"
+    },
+    {
+      id: "blood_surge",
+      name: "\u6C14\u8840\u6F6E\u751F",
+      description: "\u5468\u8EAB\u6C14\u8840\u81EA\u884C\u9F13\u8361\u3002",
+      kind: "passive",
+      channel: "tishu",
+      baseCost: 60,
+      costMult: 1.12,
+      power: 0.35,
+      minRealm: 0,
+      attrs: { def: 0.1 },
+      mark: "\u8840"
+    },
+    {
+      id: "marrow_wash",
+      name: "\u6D17\u9AD3\u6613\u7B4B",
+      description: "\u591C\u591C\u81EA\u6DEC\uFF0C\u4F53\u672F\u7EC6\u6C34\u957F\u6D41\u3002",
+      kind: "passive",
+      channel: "tishu",
+      baseCost: 4500,
+      costMult: 1.15,
+      power: 10,
+      minRealm: 2,
+      attrs: { bone: 0.3 },
+      mark: "\u9AD3"
+    },
+    // —— 精神力通道 ——
+    {
+      id: "mind_focus",
+      name: "\u51DD\u795E\u4E00\u5FF5",
+      description: "\u6536\u675F\u795E\u8BC6\uFF0C\u70B9\u51FB\u589E\u957F\u7CBE\u795E\u529B\u3002",
+      kind: "click",
+      channel: "jingshen",
+      baseCost: 18,
+      costMult: 1.13,
+      power: 0.55,
+      minRealm: 0,
+      attrs: { spirit: 0.15 },
+      mark: "\u5FF5"
+    },
+    {
+      id: "soul_sea",
+      name: "\u8BC6\u6D77\u5F00\u7586",
+      description: "\u62D3\u5E7F\u8BC6\u6D77\uFF0C\u70B9\u51FB\u7CBE\u795E\u529B\u66B4\u6DA8\u3002",
+      kind: "click",
+      channel: "jingshen",
+      baseCost: 1600,
+      costMult: 1.15,
+      power: 8,
+      minRealm: 1,
+      attrs: { spirit: 0.3 },
+      mark: "\u6D77"
+    },
+    {
+      id: "spirit_hum",
+      name: "\u795E\u9B42\u8F7B\u9E23",
+      description: "\u795E\u9B42\u81EA\u8F6C\uFF0C\u7CBE\u795E\u529B\u7F13\u751F\u3002",
+      kind: "passive",
+      channel: "jingshen",
+      baseCost: 60,
+      costMult: 1.12,
+      power: 0.35,
+      minRealm: 0,
+      attrs: { luck: 0.1 },
+      mark: "\u9E23"
+    },
+    {
+      id: "void_gaze",
+      name: "\u865A\u7A7A\u89C2\u60F3",
+      description: "\u89C2\u60F3\u865A\u7A7A\uFF0C\u7CBE\u795E\u529B\u957F\u6D41\u3002",
+      kind: "passive",
+      channel: "jingshen",
+      baseCost: 4500,
+      costMult: 1.15,
+      power: 10,
+      minRealm: 2,
+      attrs: { spirit: 0.3 },
+      mark: "\u89C2"
     },
     // 分支功法
     {
@@ -2304,6 +2618,12 @@
   }
 
   // xian/src/game/types.ts
+  var RESOURCE_KEYS = ["lingli", "tishu", "jingshen"];
+  var RESOURCE_LABELS = {
+    lingli: "\u7075\u529B",
+    tishu: "\u4F53\u672F",
+    jingshen: "\u7CBE\u795E\u529B"
+  };
   var ATTR_KEYS = ["atk", "def", "spd", "spirit", "bone", "luck"];
   var ATTR_LABELS = {
     atk: "\u653B\u4F10",
@@ -2396,6 +2716,10 @@
     return {
       lingqi: 0,
       totalLingqi: 0,
+      tishu: 0,
+      totalTishu: 0,
+      jingshen: 0,
+      totalJingshen: 0,
       qiyun: 0,
       owned: emptyOwned(),
       realmIndex: 0,
@@ -2428,7 +2752,12 @@
       combatWins: 0,
       combatLosses: 0,
       randomEventId: null,
-      lastRandomAt: 0
+      lastRandomAt: 0,
+      alchemyMastery: 0,
+      herbs: emptyHerbs(),
+      pills: emptyPills(),
+      bodyStage: 0,
+      bodyProgress: 0
     };
   }
   function createNewState(now = Date.now()) {
@@ -2458,10 +2787,40 @@
     const safeLast = Number.isFinite(lastTickAt) && lastTickAt > 0 ? Math.min(lastTickAt, now) : now;
     const lingqi = Math.max(0, Number(data.lingqi ?? data.douqi) || 0);
     const totalLingqi = Math.max(lingqi, Number(data.totalLingqi ?? data.totalDouqi) || 0);
+    let tishu = Math.max(0, Number(data.tishu) || 0);
+    let totalTishu = Math.max(tishu, Number(data.totalTishu) || 0);
+    let jingshen = Math.max(0, Number(data.jingshen) || 0);
+    let totalJingshen = Math.max(jingshen, Number(data.totalJingshen) || 0);
+    const legacyFree = Math.max(0, Math.floor(Number(data.freePoints) || 0));
+    if (legacyFree > 0) {
+      const grant = legacyFree * FREE_POINT_TO_RESOURCE;
+      tishu += grant;
+      totalTishu += grant;
+      jingshen += grant;
+      totalJingshen += grant;
+    }
+    const herbs = emptyHerbs();
+    if (data.herbs && typeof data.herbs === "object") {
+      for (const h of HERBS) {
+        const n = Number(data.herbs[h.id] ?? 0);
+        herbs[h.id] = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+      }
+    }
+    const pills = emptyPills();
+    if (data.pills && typeof data.pills === "object") {
+      for (const p of PILL_RECIPES) {
+        const n = Number(data.pills[p.id] ?? 0);
+        pills[p.id] = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+      }
+    }
     const phase = data.phase === "playing" || data.phase === "rebirth" || data.phase === "ended" ? data.phase : data.birthId ? "playing" : "rebirth";
     return {
       lingqi,
       totalLingqi,
+      tishu,
+      totalTishu,
+      jingshen,
+      totalJingshen,
       qiyun: Math.max(0, Math.floor(Number(data.qiyun) || 0)),
       owned,
       realmIndex: clampInt(data.realmIndex, 0, REALMS.length - 1),
@@ -2479,7 +2838,7 @@
       chronicle,
       birthId: typeof data.birthId === "string" ? data.birthId : null,
       attrs: parseAttrs(data.attrs, zeroAttrs()),
-      freePoints: Math.max(0, Math.floor(Number(data.freePoints) || 0)),
+      freePoints: 0,
       treasures,
       equipped,
       vault,
@@ -2494,7 +2853,12 @@
       combatWins: Math.max(0, Math.floor(Number(data.combatWins) || 0)),
       combatLosses: Math.max(0, Math.floor(Number(data.combatLosses) || 0)),
       randomEventId: typeof data.randomEventId === "string" ? data.randomEventId : null,
-      lastRandomAt: Math.max(0, Number(data.lastRandomAt) || 0)
+      lastRandomAt: Math.max(0, Number(data.lastRandomAt) || 0),
+      alchemyMastery: Math.max(0, Math.floor(Number(data.alchemyMastery) || 0)),
+      herbs,
+      pills,
+      bodyStage: clampInt(data.bodyStage, 0, BODY_STAGES.length),
+      bodyProgress: Math.max(0, Number(data.bodyProgress) || 0)
     };
   }
   function artAvailable(state, art) {
@@ -2526,7 +2890,8 @@
     return getRealm(state.realmIndex).breakCost;
   }
   function calcQiyunGain(state) {
-    const fromLingqi = Math.floor(Math.sqrt(state.totalLingqi / 8e4));
+    const lifetime = state.totalLingqi + state.totalTishu * 0.8 + state.totalJingshen * 0.8;
+    const fromLingqi = Math.floor(Math.sqrt(lifetime / 8e4));
     const fromRealm = Math.max(0, state.peakRealmIndex - 2);
     const fromFlags = state.flags.includes("survived_tribulation") ? 2 : 0;
     const fromCombat = Math.floor(state.combatWins / 3);
@@ -2592,10 +2957,12 @@
     };
   }
   function totalAttrs(state) {
-    return addAttrs(
+    const base = addAttrs(
       addAttrs(addAttrs(state.attrs, state.legacyAttrs), treasureAttrBonus(state)),
       artAttrBonus(state)
     );
+    const withBody = addAttrs(base, bodyAttrsBonus(state.bodyStage));
+    return addAttrs(withBody, resourceAttrsFromTotals(state));
   }
   function calcCombatPower(state, attrs) {
     const a = attrs || totalAttrs(state);
@@ -2608,7 +2975,8 @@
       if (t?.combatMult) mult *= t.combatMult;
     }
     const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
-    return Math.max(1, weighted * mult * realmMult);
+    const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
+    return Math.max(1, weighted * mult * realmMult * bodyMult);
   }
   function enemyPower(enemyAttrs, realmIndex) {
     const weighted = enemyAttrs.atk * 1.2 + enemyAttrs.def * 1 + enemyAttrs.spd * 0.9 + enemyAttrs.spirit * 1.1 + enemyAttrs.bone * 0.8 + enemyAttrs.luck * 0.6;
@@ -2712,10 +3080,66 @@
     return { ...state, chronicle: [...state.chronicle, line].slice(-MAX_CHRONICLE) };
   }
   function grantLingqi(state, amount) {
+    return grantResource(state, "lingli", amount);
+  }
+  function getResource(state, key) {
+    if (key === "lingli") return state.lingqi;
+    if (key === "tishu") return state.tishu;
+    return state.jingshen;
+  }
+  function grantResource(state, key, amount) {
     if (amount === 0) return state;
-    const next = Math.max(0, state.lingqi + amount);
-    const total = amount > 0 ? state.totalLingqi + amount : state.totalLingqi;
-    return { ...state, lingqi: next, totalLingqi: total };
+    if (key === "lingli") {
+      const next2 = Math.max(0, state.lingqi + amount);
+      const total2 = amount > 0 ? state.totalLingqi + amount : state.totalLingqi;
+      return { ...state, lingqi: next2, totalLingqi: total2 };
+    }
+    if (key === "tishu") {
+      const next2 = Math.max(0, state.tishu + amount);
+      const total2 = amount > 0 ? state.totalTishu + amount : state.totalTishu;
+      return { ...state, tishu: next2, totalTishu: total2 };
+    }
+    const next = Math.max(0, state.jingshen + amount);
+    const total = amount > 0 ? state.totalJingshen + amount : state.totalJingshen;
+    return { ...state, jingshen: next, totalJingshen: total };
+  }
+  function spendResource(state, key, amount) {
+    if (amount <= 0) return state;
+    if (getResource(state, key) < amount) return null;
+    return grantResource(state, key, -amount);
+  }
+  function spendResources(state, costs) {
+    let next = state;
+    for (const key of RESOURCE_KEYS) {
+      const c = costs[key] || 0;
+      if (c <= 0) continue;
+      const spent = spendResource(next, key, c);
+      if (!spent) return null;
+      next = spent;
+    }
+    return next;
+  }
+  function grantFromFreePoints(state, points) {
+    if (points <= 0) return state;
+    const amt = points * FREE_POINT_TO_RESOURCE;
+    let next = grantResource(state, "lingli", amt);
+    next = grantResource(next, "tishu", amt);
+    next = grantResource(next, "jingshen", amt);
+    return next;
+  }
+  function resourceAttrsFromTotals(state) {
+    const score = (total, scale) => Math.floor(Math.log2(1 + Math.max(0, total) / scale) * 3);
+    const L = score(state.totalLingqi, 80);
+    const T = score(state.totalTishu, 60);
+    const J = score(state.totalJingshen, 60);
+    return {
+      atk: Math.floor(T * 1 + L * 0.35),
+      def: Math.floor(T * 0.8 + L * 0.25),
+      spd: Math.floor(T * 0.4 + J * 0.55),
+      spirit: Math.floor(J * 0.75 + L * 0.25),
+      bone: Math.floor(T * 1 + L * 0.2),
+      luck: Math.floor(J * 0.55 + L * 0.4)
+    };
   }
   function grantTreasure(state, id) {
     if (!getTreasure(id)) return state;
@@ -2744,7 +3168,7 @@
     next = grantLingqi(next, n.lingqiGain);
     next = pushChronicle(
       next,
-      `\u83B7\u5F97\u5929\u624D\u5730\u5B9D\u300C${n.name}\u300D\uFF1A\u7075\u6C14 +${Math.floor(n.lingqiGain)}\uFF0C\u6C38\u4E45\u88AB\u52A8 +${n.passiveBonus}/\u79D2\u3010${n.lore}\u3011`
+      `\u83B7\u5F97\u5929\u624D\u5730\u5B9D\u300C${n.name}\u300D\uFF1A\u7075\u529B +${Math.floor(n.lingqiGain)}\uFF0C\u6C38\u4E45\u88AB\u52A8 +${n.passiveBonus}/\u79D2\u3010${n.lore}\u3011`
     );
     if (n.minRealm >= 3 || n.passiveBonus >= 3) {
       next = pushMilestone(
@@ -2752,7 +3176,7 @@
         {
           id: `nat_${id}`,
           title: `\u5929\u624D\u5730\u5B9D\xB7${n.name}`,
-          detail: `\u7075\u6C14 +${Math.floor(n.lingqiGain)}\uFF0C\u88AB\u52A8 +${n.passiveBonus}/\u79D2\uFF08${n.lore}\uFF09`,
+          detail: `\u7075\u529B +${Math.floor(n.lingqiGain)}\uFF0C\u88AB\u52A8 +${n.passiveBonus}/\u79D2\uFF08${n.lore}\uFF09`,
           kind: "loot"
         }
       );
@@ -2772,24 +3196,39 @@
     const starMult = starMultiplier(state.star);
     const branchMult = state.branchId ? BRANCH_LABELS[state.branchId].mult : 1;
     const attrs = totalAttrs(state);
-    const boneFactor = 1 + attrs.bone * 0.015;
-    const spiritFactor = 1 + attrs.spirit * 0.012;
-    const luckFactor = 1 + attrs.luck * 0.01;
-    let clickBase = 1;
-    let passiveBase = 0;
+    const resourceAttrs = resourceAttrsFromTotals(state);
+    const fixedBone = state.attrs.bone + state.legacyAttrs.bone + treasureAttrBonus(state).bone + artAttrBonus(state).bone + (bodyAttrsBonus(state.bodyStage).bone || 0);
+    const fixedSpirit = state.attrs.spirit + state.legacyAttrs.spirit + treasureAttrBonus(state).spirit + artAttrBonus(state).spirit;
+    const fixedLuck = state.attrs.luck + state.legacyAttrs.luck + treasureAttrBonus(state).luck + artAttrBonus(state).luck;
+    const boneFactor = 1 + fixedBone * 0.015;
+    const spiritFactor = 1 + fixedSpirit * 0.012;
+    const luckFactor = 1 + fixedLuck * 0.01;
+    const clickBase = { lingli: 1, tishu: 1, jingshen: 1 };
+    const passiveBase = zeroResources();
     for (const art of ARTS) {
       if (!artAvailable(state, art)) continue;
       const n = state.owned[art.id] ?? 0;
       if (n <= 0) continue;
-      if (art.kind === "click") clickBase += art.power * n;
-      else passiveBase += art.power * n;
+      const ch = artChannel(art);
+      if (art.kind === "click") clickBase[ch] += art.power * n;
+      else passiveBase[ch] += art.power * n;
     }
     const cult = cultivateBonuses(state);
-    clickBase += cult.click;
-    passiveBase += cult.passive + state.naturalPassive;
+    clickBase.lingli += cult.click;
+    passiveBase.lingli += cult.passive + state.naturalPassive;
+    const bodyMult = bodyMultipliers(state.bodyStage).tishuMult;
+    const alchemyMult = 1 + state.alchemyMastery * 0.01;
     const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
-    const clickPower = clickBase * scale;
-    const lingqiPerSec = passiveBase * scale * spiritFactor * luckFactor;
+    const clickPowers = {
+      lingli: clickBase.lingli * scale,
+      tishu: clickBase.tishu * scale * bodyMult,
+      jingshen: clickBase.jingshen * scale * alchemyMult
+    };
+    const perSec = {
+      lingli: passiveBase.lingli * scale * spiritFactor * luckFactor,
+      tishu: passiveBase.tishu * scale * bodyMult * luckFactor,
+      jingshen: passiveBase.jingshen * scale * spiritFactor * alchemyMult
+    };
     const nextStarCost = raiseStarCost(state);
     const breakCost = breakthroughCost(state);
     const playing = state.phase === "playing" && !state.endingId;
@@ -2798,9 +3237,12 @@
     const peakRealm = getRealm(state.peakRealmIndex);
     const qiyunGain = calcQiyunGain(state);
     const canReincarnate = state.phase === "playing" && (qiyunGain > 0 && state.realmIndex >= 2 || !!state.endingId);
+    const stage = state.bodyStage > 0 ? BODY_STAGES[state.bodyStage - 1] : null;
     return {
-      clickPower,
-      lingqiPerSec,
+      clickPowers,
+      perSec,
+      clickPower: clickPowers.lingli,
+      lingqiPerSec: perSec.lingli,
       qiyunMult,
       realmMult,
       starMult,
@@ -2815,10 +3257,12 @@
       pendingEvent: findPendingEvent(state),
       matchedEnding: matchEnding(state),
       totalAttrs: attrs,
+      resourceAttrs,
       treasureAttrs: treasureAttrBonus(state),
       combatPower: calcCombatPower(state, attrs),
       cultivateClickBonus: cult.click,
       cultivatePassiveBonus: cult.passive + state.naturalPassive,
+      bodyStageName: stage ? stage.name : "\u672A\u70BC\u4F53",
       inheritPreview: {
         attrRate: peakRealm.inheritAttrRate,
         treasureSlots: peakRealm.inheritTreasureSlots
@@ -2827,15 +3271,27 @@
   }
   function tick(state, now = Date.now()) {
     if (state.phase !== "playing") {
-      return { state: { ...state, lastTickAt: now }, gained: 0, cappedSeconds: 0, offlineSeconds: 0 };
+      return {
+        state: { ...state, lastTickAt: now },
+        gained: zeroResources(),
+        cappedSeconds: 0,
+        offlineSeconds: 0
+      };
     }
     const elapsedRaw = Math.max(0, now - state.lastTickAt);
     const elapsed = Math.min(elapsedRaw, MAX_OFFLINE_MS);
     const offlineSeconds = elapsedRaw / 1e3;
     const cappedSeconds = elapsed / 1e3;
-    const { lingqiPerSec } = derive(state);
-    const gained = lingqiPerSec * cappedSeconds;
-    let next = grantLingqi(state, gained);
+    const { perSec } = derive(state);
+    const gained = {
+      lingli: perSec.lingli * cappedSeconds,
+      tishu: perSec.tishu * cappedSeconds,
+      jingshen: perSec.jingshen * cappedSeconds
+    };
+    let next = state;
+    for (const key of RESOURCE_KEYS) {
+      next = grantResource(next, key, gained[key]);
+    }
     next = { ...next, lastTickAt: now };
     return { state: next, gained, cappedSeconds, offlineSeconds };
   }
@@ -2848,18 +3304,21 @@
     }
     return null;
   }
-  function clickAbsorb(state, now = Date.now()) {
+  function clickAbsorb(state, channel = "lingli", now = Date.now()) {
     const blocked = ensurePlaying(state);
     if (blocked) return blocked;
+    if (!RESOURCE_KEYS.includes(channel)) {
+      return { ok: false, state, reason: "\u672A\u77E5\u4FEE\u70BC\u901A\u9053" };
+    }
     const ticked = tick(state, now).state;
     if (findPendingEvent(ticked)) {
       return { ok: false, state: ticked, reason: "\u8BF7\u5148\u5B8C\u6210\u5F53\u524D\u6289\u62E9" };
     }
-    const { clickPower } = derive(ticked);
-    let next = grantLingqi(ticked, clickPower);
+    const { clickPowers } = derive(ticked);
+    let next = grantResource(ticked, channel, clickPowers[channel]);
     const rnd = tryRandomEvent(next, "click", now);
     if (rnd.ok) next = rnd.state;
-    return { ok: true, state: next };
+    return { ok: true, state: next, message: `\u5410\u7EB3\xB7${RESOURCE_LABELS[channel]}` };
   }
   function buyArt(state, artId, now = Date.now()) {
     const blocked = ensurePlaying(state);
@@ -2874,13 +3333,16 @@
       return { ok: false, state: ticked, reason: "\u5C1A\u672A\u89E3\u9501\u8BE5\u529F\u6CD5" };
     }
     const cost = artCost(ticked, artId);
-    if (cost == null || ticked.lingqi < cost) {
-      return { ok: false, state: ticked, reason: "\u7075\u6C14\u4E0D\u8DB3" };
+    const ch = artChannel(def);
+    if (cost == null || getResource(ticked, ch) < cost) {
+      return { ok: false, state: ticked, reason: `${RESOURCE_LABELS[ch]}\u4E0D\u8DB3` };
     }
-    const owned = { ...ticked.owned, [artId]: (ticked.owned[artId] ?? 0) + 1 };
+    const spent = spendResource(ticked, ch, cost);
+    if (!spent) return { ok: false, state: ticked, reason: `${RESOURCE_LABELS[ch]}\u4E0D\u8DB3` };
+    const owned = { ...spent.owned, [artId]: (spent.owned[artId] ?? 0) + 1 };
     return {
       ok: true,
-      state: { ...ticked, lingqi: ticked.lingqi - cost, owned },
+      state: { ...spent, owned },
       message: `\u4FEE\u4E60\u300C${def.name}\u300D`
     };
   }
@@ -2897,7 +3359,7 @@
       return { ok: false, state: ticked, reason: "\u5883\u754C\u4E0D\u8DB3" };
     }
     if (ticked.lingqi < def.cost) {
-      return { ok: false, state: ticked, reason: "\u7075\u6C14\u4E0D\u8DB3" };
+      return { ok: false, state: ticked, reason: "\u7075\u529B\u4E0D\u8DB3" };
     }
     let next = { ...ticked, lingqi: ticked.lingqi - def.cost };
     next = grantTreasure(next, treasureId);
@@ -2924,17 +3386,11 @@
   function slotLabel(slot) {
     return slot === "combat" ? "\u6218\u6597" : slot === "cultivate" ? "\u4FEE\u70BC" : "\u8F85\u52A9";
   }
-  function allocatePoint(state, key) {
-    if (state.phase !== "playing") return { ok: false, state, reason: "\u5F53\u524D\u65E0\u6CD5\u5206\u914D\u5C5E\u6027" };
-    if (state.freePoints <= 0) return { ok: false, state, reason: "\u6CA1\u6709\u53EF\u5206\u914D\u5C5E\u6027\u70B9" };
-    if (!ATTR_KEYS.includes(key)) return { ok: false, state, reason: "\u672A\u77E5\u5C5E\u6027" };
+  function allocatePoint(_state, _key) {
     return {
-      ok: true,
-      state: {
-        ...state,
-        freePoints: state.freePoints - 1,
-        attrs: { ...state.attrs, [key]: state.attrs[key] + 1 }
-      }
+      ok: false,
+      state: _state,
+      reason: "\u5C5E\u6027\u7531\u7075\u529B/\u4F53\u672F/\u7CBE\u795E\u529B\u81EA\u52A8\u83B7\u5F97\uFF0C\u65E0\u9700\u624B\u52A8\u5206\u914D"
     };
   }
   function raiseStar(state, now = Date.now()) {
@@ -2946,7 +3402,7 @@
     }
     const cost = raiseStarCost(ticked);
     if (cost == null) return { ok: false, state: ticked, reason: "\u5DF2\u6EE1\u4E5D\u5C42\uFF0C\u53EF\u5C1D\u8BD5\u7834\u5883" };
-    if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: "\u7075\u6C14\u4E0D\u8DB3" };
+    if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: "\u7075\u529B\u4E0D\u8DB3" };
     const nextStar = ticked.star + 1;
     let next = updatePeak({
       ...ticked,
@@ -2954,7 +3410,7 @@
       star: nextStar
     });
     if (nextStar % 3 === 0) {
-      next = { ...next, freePoints: next.freePoints + 1 };
+      next = grantFromFreePoints(next, 1);
     }
     next = pushChronicle(next, `${getRealm(next.realmIndex).name}${nextStar}\u5C42\u3002`);
     const rnd = tryRandomEvent(next, "level", now);
@@ -2972,16 +3428,16 @@
     if (cost == null) {
       return { ok: false, state: ticked, reason: "\u65E0\u6CD5\u7834\u5883\uFF08\u9700\u4E5D\u5C42\u4E14\u672A\u81F3\u5927\u9053\uFF09" };
     }
-    if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: "\u7075\u6C14\u4E0D\u8DB3" };
+    if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: "\u7075\u529B\u4E0D\u8DB3" };
     const nextIndex = ticked.realmIndex + 1;
     const nextRealm = getRealm(nextIndex);
     let next = updatePeak({
       ...ticked,
       lingqi: ticked.lingqi - cost,
       realmIndex: nextIndex,
-      star: 1,
-      freePoints: ticked.freePoints + 2
+      star: 1
     });
+    next = grantFromFreePoints(next, 2);
     next = pushChronicle(next, `\u7834\u5883\u6210\u529F\uFF1A${nextRealm.name}\u3002${nextRealm.blurb}`);
     if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
       next = pushMilestone(
@@ -3038,9 +3494,11 @@
       let next2 = grantLingqi(ticked, enemy.rewardLingqi);
       next2 = {
         ...next2,
-        combatWins: next2.combatWins + 1,
-        freePoints: next2.freePoints + (enemy.rewardPoints || 0)
+        combatWins: next2.combatWins + 1
       };
+      if (enemy.rewardPoints) next2 = grantFromFreePoints(next2, enemy.rewardPoints);
+      next2 = grantResource(next2, "tishu", Math.floor(enemy.rewardLingqi * 0.15));
+      next2 = grantResource(next2, "jingshen", Math.floor(enemy.rewardLingqi * 0.12));
       const lootBits = [];
       if (enemy.dropTreasureId && Math.random() < (enemy.dropChance || 0)) {
         next2 = grantTreasure(next2, enemy.dropTreasureId);
@@ -3071,6 +3529,15 @@
             }
           }
           next2 = grantNatural(next2, pick.id);
+          lootBits.push(pick.name);
+        }
+      }
+      if (Math.random() < 0.35) {
+        const pool = HERBS.filter((h) => h.minRealm <= next2.realmIndex);
+        if (pool.length) {
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          const herbs = { ...next2.herbs, [pick.id]: (next2.herbs[pick.id] || 0) + 1 };
+          next2 = { ...next2, herbs };
           lootBits.push(pick.name);
         }
       }
@@ -3226,9 +3693,15 @@
       if (t && !equipped[t.slot]) equipped[t.slot] = id;
     }
     const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
+    const startTishu = birth.freePoints * FREE_POINT_TO_RESOURCE;
+    const startJingshen = birth.freePoints * FREE_POINT_TO_RESOURCE;
     const next = {
       lingqi: birth.startLingqi,
       totalLingqi: birth.startLingqi,
+      tishu: startTishu,
+      totalTishu: startTishu,
+      jingshen: startJingshen,
+      totalJingshen: startJingshen,
       qiyun: state.qiyun,
       owned: emptyOwned(),
       realmIndex: 0,
@@ -3245,11 +3718,12 @@
       saveVersion: SAVE_VERSION,
       chronicle: [
         `\u7B2C ${lifeNo} \u4E16\uFF1A\u51FA\u8EAB\u300C${birth.name}\u300D\u3002${birth.blurb}`,
-        inheritRate > 0 ? `\u7EE7\u627F\u6C38\u4E45\u5C5E\u6027\uFF08${Math.floor(inheritRate * 100)}%\uFF09\uFF0C\u643A\u6CD5\u5B9D ${bring.length}/${slots}\u3002` : "\u521D\u5165\u4ED9\u9014\uFF0C\u5C1A\u65E0\u7EE7\u627F\u3002\u597D\u597D\u6D3B\u7740\u3002"
+        inheritRate > 0 ? `\u7EE7\u627F\u6C38\u4E45\u5C5E\u6027\uFF08${Math.floor(inheritRate * 100)}%\uFF09\uFF0C\u643A\u6CD5\u5B9D ${bring.length}/${slots}\u3002` : "\u521D\u5165\u4ED9\u9014\uFF0C\u5C1A\u65E0\u7EE7\u627F\u3002\u597D\u597D\u6D3B\u7740\u3002",
+        `\u4E09\u624D\u5F00\u5C40\uFF1A\u7075\u529B ${birth.startLingqi} \xB7 \u4F53\u672F ${startTishu} \xB7 \u7CBE\u795E\u529B ${startJingshen}\uFF08\u5C5E\u6027\u968F\u4E09\u8D44\u6E90\u81EA\u52A8\u589E\u957F\uFF09\u3002`
       ],
       birthId,
       attrs,
-      freePoints: birth.freePoints,
+      freePoints: 0,
       treasures: [...bring],
       equipped,
       vault,
@@ -3264,7 +3738,12 @@
       combatWins: 0,
       combatLosses: 0,
       randomEventId: null,
-      lastRandomAt: 0
+      lastRandomAt: 0,
+      alchemyMastery: 0,
+      herbs: emptyHerbs(),
+      pills: emptyPills(),
+      bodyStage: 0,
+      bodyProgress: 0
     };
     return { ok: true, state: next, message: `\u8F6C\u751F\u4E3A\u300C${birth.name}\u300D` };
   }
@@ -3300,11 +3779,13 @@
       next = { ...next, flags };
     }
     if (option.lingqiDelta) next = grantLingqi(next, option.lingqiDelta);
+    if (option.tishuDelta) next = grantResource(next, "tishu", option.tishuDelta);
+    if (option.jingshenDelta) next = grantResource(next, "jingshen", option.jingshenDelta);
     if (option.qiyunDelta) {
       next = { ...next, qiyun: Math.max(0, next.qiyun + option.qiyunDelta) };
     }
-    if (option.freePointsDelta) {
-      next = { ...next, freePoints: Math.max(0, next.freePoints + option.freePointsDelta) };
+    if (option.freePointsDelta && option.freePointsDelta > 0) {
+      next = grantFromFreePoints(next, option.freePointsDelta);
     }
     if (option.attrsDelta) {
       next = { ...next, attrs: addAttrs(next.attrs, option.attrsDelta) };
@@ -3314,6 +3795,14 @@
     }
     if (option.grantNaturalId) {
       next = grantNatural(next, option.grantNaturalId);
+    }
+    if (option.grantHerbId && getHerb(option.grantHerbId)) {
+      const count = Math.max(1, option.grantHerbCount || 1);
+      const herbs = {
+        ...next.herbs,
+        [option.grantHerbId]: (next.herbs[option.grantHerbId] || 0) + count
+      };
+      next = { ...next, herbs };
     }
     next = pushChronicle(
       next,
@@ -3386,6 +3875,114 @@
     }
     return { ok: true, state: next, message: option.label };
   }
+  function buyHerb(state, herbId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const def = getHerb(herbId);
+    if (!def || def.cost <= 0) return { ok: false, state, reason: "\u65E0\u6CD5\u8D2D\u4E70\u8BE5\u836F\u6750" };
+    const ticked = tick(state, now).state;
+    if (ticked.realmIndex < def.minRealm) {
+      return { ok: false, state: ticked, reason: "\u5883\u754C\u4E0D\u8DB3" };
+    }
+    if (ticked.lingqi < def.cost) return { ok: false, state: ticked, reason: "\u7075\u529B\u4E0D\u8DB3" };
+    const herbs = { ...ticked.herbs, [herbId]: (ticked.herbs[herbId] || 0) + 1 };
+    return {
+      ok: true,
+      state: { ...ticked, lingqi: ticked.lingqi - def.cost, herbs },
+      message: `\u8D2D\u5F97\u836F\u6750\u300C${def.name}\u300D`
+    };
+  }
+  function craftPill(state, recipeId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const recipe = getPillRecipe(recipeId);
+    if (!recipe) return { ok: false, state, reason: "\u672A\u77E5\u4E39\u65B9" };
+    const ticked = tick(state, now).state;
+    if (ticked.realmIndex < recipe.minRealm) {
+      return { ok: false, state: ticked, reason: "\u5883\u754C\u4E0D\u8DB3\uFF0C\u706B\u5019\u4E0D\u591F" };
+    }
+    for (const [hid, need] of Object.entries(recipe.herbs)) {
+      if ((ticked.herbs[hid] || 0) < need) {
+        return { ok: false, state: ticked, reason: `\u836F\u6750\u4E0D\u8DB3\uFF1A${getHerb(hid)?.name || hid}` };
+      }
+    }
+    const spent = spendResources(ticked, recipe.costs);
+    if (!spent) return { ok: false, state: ticked, reason: "\u4FEE\u70BC\u8D44\u6E90\u4E0D\u8DB3" };
+    const herbs = { ...spent.herbs };
+    for (const [hid, need] of Object.entries(recipe.herbs)) {
+      herbs[hid] = Math.max(0, (herbs[hid] || 0) - need);
+    }
+    let next = {
+      ...spent,
+      herbs,
+      alchemyMastery: spent.alchemyMastery + (recipe.effect.mastery || 0)
+    };
+    if (recipe.effect.resources) {
+      for (const key of RESOURCE_KEYS) {
+        const amt = recipe.effect.resources[key] || 0;
+        if (amt) next = grantResource(next, key, amt);
+      }
+    }
+    if (recipe.effect.attrs) {
+      next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
+    }
+    if (recipe.effect.bodyProgress) {
+      next = { ...next, bodyProgress: next.bodyProgress + recipe.effect.bodyProgress };
+    }
+    const pills = { ...next.pills, [recipeId]: (next.pills[recipeId] || 0) + 1 };
+    next = { ...next, pills };
+    next = pushChronicle(next, `\u70BC\u6210\u300C${recipe.name}\u300D\u5E76\u670D\u4E0B\u3002\u4E39\u9053\u7CBE\u901A ${next.alchemyMastery}\u3002`);
+    return { ok: true, state: next, message: `\u70BC\u6210\u300C${recipe.name}\u300D` };
+  }
+  function temperBody(state, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    if (state.bodyStage >= BODY_STAGES.length) {
+      return { ok: false, state, reason: "\u8089\u8EAB\u5DF2\u81F3\u5723\u4F53\u96CF\u5F62" };
+    }
+    const stage = getBodyStage(state.bodyStage);
+    if (!stage) return { ok: false, state, reason: "\u70BC\u4F53\u6570\u636E\u7F3A\u5931" };
+    const ticked = tick(state, now).state;
+    if (ticked.realmIndex < stage.minRealm) {
+      return { ok: false, state: ticked, reason: `\u9700\u8FBE\u5883\u754C\u65B9\u53EF\u9524\u70BC\u300C${stage.name}\u300D` };
+    }
+    const spent = spendResources(ticked, stage.temperCost);
+    if (!spent) return { ok: false, state: ticked, reason: "\u4F53\u672F\u6216\u7075\u529B\u4E0D\u8DB3" };
+    let progress = spent.bodyProgress + stage.temperGain;
+    let bodyStage = spent.bodyStage;
+    let msg = `\u9524\u70BC\u300C${stage.name}\u300D+${stage.temperGain}`;
+    let next = { ...spent, bodyProgress: progress };
+    if (progress >= stage.progressNeed) {
+      bodyStage += 1;
+      progress = 0;
+      next = {
+        ...next,
+        bodyStage,
+        bodyProgress: 0
+      };
+      next = pushChronicle(
+        next,
+        `\u70BC\u4F53\u7A81\u7834\uFF1A\u8E0F\u5165\u300C${stage.name}\u300D\u3002${stage.blurb}`
+      );
+      next = pushMilestone(
+        next,
+        {
+          id: `body_${stage.id}`,
+          title: `\u70BC\u4F53\xB7${stage.name}`,
+          detail: stage.blurb,
+          kind: "other"
+        },
+        now
+      );
+      msg = `\u7A81\u7834\u81F3\u300C${stage.name}\u300D`;
+    } else {
+      next = pushChronicle(
+        next,
+        `\u70BC\u4F53\u9524\u70BC\uFF1A${stage.name} ${Math.floor(progress)}/${stage.progressNeed}`
+      );
+    }
+    return { ok: true, state: next, message: msg };
+  }
   function formatNumber(n) {
     if (!Number.isFinite(n)) return "0";
     const abs = Math.abs(n);
@@ -3445,12 +4042,23 @@
       equipSlots: EQUIP_SLOTS,
       naturals: NATURALS.map((n) => ({ id: n.id, name: n.name, minRealm: n.minRealm })),
       mainStory: MAIN_STORY.map((e) => ({ id: e.id, title: e.title, chapter: e.mainChapter })),
-      attrKeys: ATTR_KEYS
+      attrKeys: ATTR_KEYS,
+      resourceKeys: RESOURCE_KEYS,
+      resourceLabels: RESOURCE_LABELS,
+      herbs: HERBS.map((h) => ({ id: h.id, name: h.name, cost: h.cost, minRealm: h.minRealm })),
+      pills: PILL_RECIPES.map((p) => ({ id: p.id, name: p.name, minRealm: p.minRealm })),
+      bodyStages: BODY_STAGES.map((b, i) => ({ index: i, id: b.id, name: b.name }))
     };
   }
 
   // xian/src/game/browser.ts
-  var LEGACY_SAVE_KEYS = ["xian-save-v4", "xian-save-v3", "xian-save-v2", "xian-save-v1"];
+  var LEGACY_SAVE_KEYS = [
+    "xian-save-v5",
+    "xian-save-v4",
+    "xian-save-v3",
+    "xian-save-v2",
+    "xian-save-v1"
+  ];
   function saveToStorage(state) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -3485,26 +4093,34 @@
     ATTR_KEYS,
     ATTR_LABELS,
     BIRTHS,
+    BODY_STAGES,
     BRANCH_LABELS,
     ENDINGS,
     ENEMIES,
     EQUIP_SLOTS,
     EQUIP_SLOT_LABELS,
+    HERBS,
     MAIN_STORY,
     MAX_EQUIP,
     MAX_OFFLINE_MS,
     MAX_STAR,
     NATURALS,
+    PILL_RECIPES,
     QIYUN_BONUS_PER,
     REALMS,
+    RESOURCE_KEYS,
+    RESOURCE_LABELS,
     SAVE_VERSION,
     STORAGE_KEY,
     STORY_EVENTS,
     TREASURES,
     RANDOM_EVENTS,
+    artChannel,
     getEnding,
     getEnemy,
+    getHerb,
     getNatural,
+    getPillRecipe,
     getRealm,
     getTreasure,
     allocatePoint,
@@ -3514,11 +4130,13 @@
     breakthrough,
     breakthroughCost,
     buyArt,
+    buyHerb,
     buyTreasure,
     calcCombatPower,
     calcQiyunGain,
     chooseBirth,
     clickAbsorb,
+    craftPill,
     createNewState,
     derive,
     die,
@@ -3532,9 +4150,11 @@
     raiseStar,
     raiseStarCost,
     resolveEvent,
+    resourceAttrsFromTotals,
     saveToStorage,
     clearStorage,
     startCombat,
+    temperBody,
     tick,
     toggleEquip,
     totalAttrs,

@@ -6,21 +6,53 @@ import type {
   EndingDef,
   EnemyDef,
   RealmDef,
+  ResourceKey,
+  ResourceMap,
   StoryEventDef,
   TreasureDef,
 } from './types';
+import {
+  BODY_STAGES,
+  HERBS,
+  PILL_RECIPES,
+  bodyAttrsBonus,
+  bodyMultipliers,
+  emptyHerbs,
+  emptyPills,
+  getBodyStage,
+  getHerb,
+  getPillRecipe,
+} from './craft';
 import { MAIN_STORY, NATURALS, TREASURES, emptyEquipped, getNatural } from './loot';
 
-export { MAIN_STORY, NATURALS, TREASURES, emptyEquipped, getNatural };
+export {
+  MAIN_STORY,
+  NATURALS,
+  TREASURES,
+  emptyEquipped,
+  getNatural,
+  BODY_STAGES,
+  HERBS,
+  PILL_RECIPES,
+  bodyAttrsBonus,
+  bodyMultipliers,
+  emptyHerbs,
+  emptyPills,
+  getBodyStage,
+  getHerb,
+  getPillRecipe,
+};
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 5;
-export const STORAGE_KEY = 'xian-save-v5';
+export const SAVE_VERSION = 6;
+export const STORAGE_KEY = 'xian-save-v6';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_MILESTONES = 40;
 export const MAX_EQUIP = 3;
+/** 旧版 1 自由点折算为各资源量 */
+export const FREE_POINT_TO_RESOURCE = 100;
 /** 随机奇遇冷却（毫秒） */
 export const RANDOM_COOLDOWN_MS = 18_000;
 export const RANDOM_CHANCE = {
@@ -31,6 +63,18 @@ export const RANDOM_CHANCE = {
 
 export function zeroAttrs(): AttrMap {
   return { atk: 0, def: 0, spd: 0, spirit: 0, bone: 0, luck: 0 };
+}
+
+export function zeroResources(): ResourceMap {
+  return { lingli: 0, tishu: 0, jingshen: 0 };
+}
+
+/** 功法所属修炼通道 */
+export function artChannel(art: ArtDef): ResourceKey {
+  if (art.channel) return art.channel;
+  if (art.branch === 'body') return 'tishu';
+  if (art.branch === 'soul' || art.branch === 'alchemy') return 'jingshen';
+  return 'lingli';
 }
 
 export function addAttrs(a: AttrMap, b: Partial<AttrMap>): AttrMap {
@@ -290,7 +334,7 @@ export const ARTS: ArtDef[] = [
   {
     id: 'tuna_basic',
     name: '基础吐纳',
-    description: '每次吐纳吸入更多灵气。',
+    description: '每次吐纳吸入更多灵力。',
     kind: 'click',
     baseCost: 15,
     costMult: 1.13,
@@ -362,7 +406,7 @@ export const ARTS: ArtDef[] = [
   {
     id: 'sit_meditation',
     name: '静室打坐',
-    description: '每秒缓慢积攒灵气。',
+    description: '每秒缓慢积攒灵力。',
     kind: 'passive',
     baseCost: 50,
     costMult: 1.12,
@@ -436,6 +480,112 @@ export const ARTS: ArtDef[] = [
     power: 3800,
     minRealm: 9,
     mark: '天',
+  },
+  // —— 体术通道 ——
+  {
+    id: 'fist_temper',
+    name: '铁砂磨拳',
+    description: '以拳锤体，点击增长体术。',
+    kind: 'click',
+    channel: 'tishu',
+    baseCost: 18,
+    costMult: 1.13,
+    power: 0.55,
+    minRealm: 0,
+    attrs: { bone: 0.15 },
+    mark: '拳',
+  },
+  {
+    id: 'bone_forge',
+    name: '锻骨千锤',
+    description: '骨响如雷，点击体术暴涨。',
+    kind: 'click',
+    channel: 'tishu',
+    baseCost: 1_600,
+    costMult: 1.15,
+    power: 8,
+    minRealm: 1,
+    attrs: { atk: 0.2, bone: 0.2 },
+    mark: '锻',
+  },
+  {
+    id: 'blood_surge',
+    name: '气血潮生',
+    description: '周身气血自行鼓荡。',
+    kind: 'passive',
+    channel: 'tishu',
+    baseCost: 60,
+    costMult: 1.12,
+    power: 0.35,
+    minRealm: 0,
+    attrs: { def: 0.1 },
+    mark: '血',
+  },
+  {
+    id: 'marrow_wash',
+    name: '洗髓易筋',
+    description: '夜夜自淬，体术细水长流。',
+    kind: 'passive',
+    channel: 'tishu',
+    baseCost: 4_500,
+    costMult: 1.15,
+    power: 10,
+    minRealm: 2,
+    attrs: { bone: 0.3 },
+    mark: '髓',
+  },
+  // —— 精神力通道 ——
+  {
+    id: 'mind_focus',
+    name: '凝神一念',
+    description: '收束神识，点击增长精神力。',
+    kind: 'click',
+    channel: 'jingshen',
+    baseCost: 18,
+    costMult: 1.13,
+    power: 0.55,
+    minRealm: 0,
+    attrs: { spirit: 0.15 },
+    mark: '念',
+  },
+  {
+    id: 'soul_sea',
+    name: '识海开疆',
+    description: '拓广识海，点击精神力暴涨。',
+    kind: 'click',
+    channel: 'jingshen',
+    baseCost: 1_600,
+    costMult: 1.15,
+    power: 8,
+    minRealm: 1,
+    attrs: { spirit: 0.3 },
+    mark: '海',
+  },
+  {
+    id: 'spirit_hum',
+    name: '神魂轻鸣',
+    description: '神魂自转，精神力缓生。',
+    kind: 'passive',
+    channel: 'jingshen',
+    baseCost: 60,
+    costMult: 1.12,
+    power: 0.35,
+    minRealm: 0,
+    attrs: { luck: 0.1 },
+    mark: '鸣',
+  },
+  {
+    id: 'void_gaze',
+    name: '虚空观想',
+    description: '观想虚空，精神力长流。',
+    kind: 'passive',
+    channel: 'jingshen',
+    baseCost: 4_500,
+    costMult: 1.15,
+    power: 10,
+    minRealm: 2,
+    attrs: { spirit: 0.3 },
+    mark: '观',
   },
   // 分支功法
   {

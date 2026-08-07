@@ -215,7 +215,7 @@ body {
 
 .resource-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
@@ -326,6 +326,28 @@ body {
   font-weight: 700;
   color: var(--gold-soft);
   font-variant-numeric: tabular-nums;
+}
+
+.res-sub {
+  margin: 0.05rem 0 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.res-lingli .res-mark {
+  color: var(--gold);
+  border-color: rgba(201, 162, 39, 0.45);
+}
+
+.res-tishu .res-mark {
+  color: #c45c3e;
+  border-color: rgba(196, 92, 62, 0.45);
+}
+
+.res-jingshen .res-mark {
+  color: #6a9bb8;
+  border-color: rgba(106, 155, 184, 0.45);
 }
 
 .layout {
@@ -460,10 +482,19 @@ body {
   color: var(--muted);
 }
 
+.absorb-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85rem;
+  width: 100%;
+  margin-bottom: 0.35rem;
+}
+
 .absorb-btn {
   position: relative;
-  width: min(42vw, 180px);
-  height: min(42vw, 180px);
+  width: min(28vw, 112px);
+  height: min(28vw, 112px);
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -479,7 +510,7 @@ body {
   display: grid;
   place-items: center;
   font-family: 'Ma Shan Zheng', cursive;
-  font-size: 2.6rem;
+  font-size: 1.7rem;
   color: var(--gold-soft);
   background:
     radial-gradient(circle at 35% 30%, hsl(var(--hue) 55% 42%), hsl(var(--hue) 40% 16%) 70%);
@@ -488,6 +519,16 @@ body {
     0 0 28px var(--glow);
   z-index: 2;
   transition: transform 0.12s ease;
+}
+
+.channel-tishu .absorb-core {
+  background: radial-gradient(circle at 35% 30%, #a85a3c, #3a1c14 70%);
+  color: #f0d2c4;
+}
+
+.channel-jingshen .absorb-core {
+  background: radial-gradient(circle at 35% 30%, #4a7a96, #152433 70%);
+  color: #d5e8f2;
 }
 
 .absorb-btn:active .absorb-core {
@@ -740,17 +781,19 @@ body {
 
 .shop-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
   margin-bottom: 0.35rem;
 }
 
 .tab {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 3rem;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   letter-spacing: 0.1em;
   padding: 0.4rem;
   cursor: pointer;

@@ -24,23 +24,38 @@
 
   const els = {
     lingqiVal: document.getElementById('lingqiVal'),
-    dpsVal: document.getElementById('dpsVal'),
+    tishuVal: document.getElementById('tishuVal'),
+    jingshenVal: document.getElementById('jingshenVal'),
+    lingliDps: document.getElementById('lingliDps'),
+    tishuDps: document.getElementById('tishuDps'),
+    jingshenDps: document.getElementById('jingshenDps'),
     qiyunVal: document.getElementById('qiyunVal'),
     combatVal: document.getElementById('combatVal'),
-    clickPowerVal: document.getElementById('clickPowerVal'),
+    clickPowerLingli: document.getElementById('clickPowerLingli'),
+    clickPowerTishu: document.getElementById('clickPowerTishu'),
+    clickPowerJingshen: document.getElementById('clickPowerJingshen'),
     realmRail: document.getElementById('realmRail'),
     realmBlurb: document.getElementById('realmBlurb'),
     pathLine: document.getElementById('pathLine'),
     realmHint: document.getElementById('realmHint'),
     freePointsHint: document.getElementById('freePointsHint'),
+    bodyHint: document.getElementById('bodyHint'),
     attrList: document.getElementById('attrList'),
     combatList: document.getElementById('combatList'),
     equipSlots: document.getElementById('equipSlots'),
     naturalHint: document.getElementById('naturalHint'),
-    absorbBtn: document.getElementById('absorbBtn'),
+    absorbGrid: document.getElementById('absorbGrid'),
     floatLayer: document.getElementById('floatLayer'),
-    clickShop: document.getElementById('clickShop'),
-    passiveShop: document.getElementById('passiveShop'),
+    shopLingli: document.getElementById('shopLingli'),
+    shopTishu: document.getElementById('shopTishu'),
+    shopJingshen: document.getElementById('shopJingshen'),
+    pillList: document.getElementById('pillList'),
+    herbOwned: document.getElementById('herbOwned'),
+    herbShop: document.getElementById('herbShop'),
+    alchemyHint: document.getElementById('alchemyHint'),
+    bodyStatus: document.getElementById('bodyStatus'),
+    bodyStageList: document.getElementById('bodyStageList'),
+    btnTemper: document.getElementById('btnTemper'),
     ownedTreasures: document.getElementById('ownedTreasures'),
     shopTreasures: document.getElementById('shopTreasures'),
     vaultList: document.getElementById('vaultList'),
@@ -76,6 +91,14 @@
     mainTimeline: document.getElementById('mainTimeline'),
     milestoneList: document.getElementById('milestoneList'),
   };
+
+  let craftBuilt = false;
+
+  function resourceOf(key) {
+    if (key === 'lingli') return state.lingqi;
+    if (key === 'tishu') return state.tishu;
+    return state.jingshen;
+  }
 
   function showToast(msg) {
     els.toast.hidden = false;
@@ -165,9 +188,7 @@
       row.innerHTML =
         '<span class="attr-name">' +
         X.ATTR_LABELS[key] +
-        '</span><span class="attr-val"></span><button type="button" data-attr="' +
-        key +
-        '">+1</button>';
+        '</span><span class="attr-val"></span>';
       els.attrList.appendChild(row);
     });
     attrsBuilt = true;
@@ -175,20 +196,203 @@
 
   function softUpdateAttrs(stats) {
     if (!attrsBuilt) buildAttrs();
-    els.freePointsHint.textContent =
-      state.freePoints > 0 ? '（可分配 ' + state.freePoints + '）' : '';
+    if (els.freePointsHint) {
+      els.freePointsHint.textContent = '随三资源自动增长';
+    }
+    const ra = stats.resourceAttrs || {};
     els.attrList.querySelectorAll('.attr-row').forEach((row) => {
       const key = row.dataset.attrKey;
       const total = stats.totalAttrs[key];
-      const base = state.attrs[key] + state.legacyAttrs[key];
+      const fromRes = ra[key] || 0;
       const val = row.querySelector('.attr-val');
       if (val) {
         val.innerHTML =
-          total + ' <small style="opacity:.6">(基' + base + ')</small>';
+          total + ' <small style="opacity:.65">(修' + fromRes + ')</small>';
       }
-      const btn = row.querySelector('button');
-      if (btn) btn.disabled = state.freePoints <= 0 || state.phase !== 'playing';
     });
+    if (els.bodyHint) {
+      els.bodyHint.textContent =
+        '炼体：' +
+        (stats.bodyStageName || '未炼体') +
+        ' · 丹道精通 ' +
+        state.alchemyMastery;
+    }
+  }
+
+  function shopHost(channel) {
+    if (channel === 'tishu') return els.shopTishu;
+    if (channel === 'jingshen') return els.shopJingshen;
+    return els.shopLingli;
+  }
+
+  function buildShops() {
+    els.shopLingli.innerHTML = '';
+    els.shopTishu.innerHTML = '';
+    els.shopJingshen.innerHTML = '';
+    X.ARTS.forEach((art) => {
+      if (!X.artAvailable(state, art) && (state.owned[art.id] || 0) <= 0) {
+        if (art.minRealm > state.realmIndex + 1) return;
+        if (art.branch && art.branch !== state.branchId) return;
+        if (art.faction && art.faction !== state.factionId) return;
+      }
+      const ch = X.artChannel(art);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'art-row';
+      btn.dataset.artId = art.id;
+      const kindTag = art.kind === 'click' ? '吐纳' : '运转';
+      btn.innerHTML =
+        '<span class="art-mark">' +
+        art.mark +
+        '</span><span><p class="art-name"></p><p class="art-desc"></p></span><span class="art-meta"></span>';
+      btn.querySelector('.art-name').textContent = art.name + ' · ' + kindTag;
+      btn.querySelector('.art-desc').textContent = art.description;
+      shopHost(ch).appendChild(btn);
+    });
+    shopsBuilt = true;
+  }
+
+  function softUpdateShops(stats) {
+    if (!shopsBuilt) buildShops();
+    document
+      .querySelectorAll('#shopLingli .art-row, #shopTishu .art-row, #shopJingshen .art-row')
+      .forEach((btn) => {
+        const id = btn.dataset.artId;
+        const art = X.ARTS.find((a) => a.id === id);
+        if (!art) return;
+        const available = X.artAvailable(state, art);
+        const cost = X.artCost(state, id);
+        const owned = state.owned[id] || 0;
+        const ch = X.artChannel(art);
+        const meta = btn.querySelector('.art-meta');
+        const label = (X.RESOURCE_LABELS && X.RESOURCE_LABELS[ch]) || ch;
+        if (!available) {
+          btn.classList.add('is-locked');
+          meta.textContent = art.branch
+            ? '需道途'
+            : art.faction
+              ? '需阵营'
+              : '需' + X.REALMS[art.minRealm].name;
+          return;
+        }
+        const canBuy =
+          cost != null &&
+          resourceOf(ch) >= cost &&
+          state.phase === 'playing' &&
+          !stats.pendingEvent;
+        btn.classList.toggle('is-locked', !canBuy);
+        meta.textContent =
+          '×' + owned + ' · ' + X.formatNumber(cost || 0) + label;
+      });
+  }
+
+  function buildCraftPanels() {
+    if (!els.pillList) return;
+    els.pillList.innerHTML = '';
+    els.herbOwned.innerHTML = '';
+    els.herbShop.innerHTML = '';
+    X.PILL_RECIPES.forEach((p) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'art-row';
+      btn.dataset.pillId = p.id;
+      const herbNeed = Object.entries(p.herbs)
+        .map(([id, n]) => {
+          const h = X.getHerb(id);
+          return (h ? h.name : id) + '×' + n;
+        })
+        .join('、');
+      btn.innerHTML =
+        '<span class="art-mark">' +
+        p.mark +
+        '</span><span><p class="art-name">' +
+        p.name +
+        '</p><p class="art-desc">' +
+        p.description +
+        ' · 需 ' +
+        herbNeed +
+        '</p></span><span class="art-meta">炼丹</span>';
+      els.pillList.appendChild(btn);
+    });
+    X.HERBS.forEach((h) => {
+      const owned = (state.herbs && state.herbs[h.id]) || 0;
+      if (owned > 0) {
+        const row = document.createElement('div');
+        row.className = 'art-row';
+        row.innerHTML =
+          '<span class="art-mark">' +
+          h.mark +
+          '</span><span><p class="art-name">' +
+          h.name +
+          '</p><p class="art-desc">' +
+          h.description +
+          '</p></span><span class="art-meta">×' +
+          owned +
+          '</span>';
+        els.herbOwned.appendChild(row);
+      }
+      if (h.cost > 0) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'art-row';
+        btn.dataset.herbId = h.id;
+        btn.innerHTML =
+          '<span class="art-mark">' +
+          h.mark +
+          '</span><span><p class="art-name">' +
+          h.name +
+          '</p><p class="art-desc">' +
+          h.description +
+          '</p></span><span class="art-meta">' +
+          X.formatNumber(h.cost) +
+          '灵力</span>';
+        els.herbShop.appendChild(btn);
+      }
+    });
+    if (!els.herbOwned.childElementCount) {
+      els.herbOwned.innerHTML = '<p class="realm-hint">暂无药材 · 可购药或战后拾取</p>';
+    }
+    craftBuilt = true;
+  }
+
+  function softUpdateCraft() {
+    if (!craftBuilt) buildCraftPanels();
+    if (els.alchemyHint) {
+      els.alchemyHint.textContent = '精通 ' + state.alchemyMastery;
+    }
+    if (els.bodyStatus) {
+      const stages = X.BODY_STAGES || [];
+      if (state.bodyStage >= stages.length) {
+        els.bodyStatus.textContent = '已达圣体雏形，无需再锤。';
+        if (els.btnTemper) els.btnTemper.classList.add('is-locked');
+      } else {
+        const stage = stages[state.bodyStage];
+        els.bodyStatus.textContent =
+          '当前冲击「' +
+          stage.name +
+          '」：' +
+          Math.floor(state.bodyProgress) +
+          ' / ' +
+          stage.progressNeed +
+          ' · ' +
+          stage.blurb;
+        if (els.btnTemper) els.btnTemper.classList.remove('is-locked');
+      }
+    }
+    if (els.bodyStageList) {
+      els.bodyStageList.innerHTML = '';
+      (X.BODY_STAGES || []).forEach((s, i) => {
+        const li = document.createElement('li');
+        if (i < state.bodyStage) li.classList.add('got');
+        li.innerHTML =
+          (i < state.bodyStage ? '◆ ' : '◇ ') +
+          s.name +
+          '<span class="ending-title">' +
+          s.blurb +
+          '</span>';
+        els.bodyStageList.appendChild(li);
+      });
+    }
   }
 
   function renderEquipBar() {
@@ -276,56 +480,6 @@
         X.formatNumber(enemy.rewardLingqi) +
         '</span>';
       els.combatList.appendChild(btn);
-    });
-  }
-
-  function buildShops() {
-    els.clickShop.innerHTML = '';
-    els.passiveShop.innerHTML = '';
-    X.ARTS.forEach((art) => {
-      if (!X.artAvailable(state, art) && (state.owned[art.id] || 0) <= 0) {
-        if (art.minRealm > state.realmIndex + 1) return;
-        if (art.branch && art.branch !== state.branchId) return;
-        if (art.faction && art.faction !== state.factionId) return;
-      }
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'art-row';
-      btn.dataset.artId = art.id;
-      btn.innerHTML =
-        '<span class="art-mark">' +
-        art.mark +
-        '</span><span><p class="art-name"></p><p class="art-desc"></p></span><span class="art-meta"></span>';
-      btn.querySelector('.art-name').textContent = art.name;
-      btn.querySelector('.art-desc').textContent = art.description;
-      (art.kind === 'click' ? els.clickShop : els.passiveShop).appendChild(btn);
-    });
-    shopsBuilt = true;
-  }
-
-  function softUpdateShops(stats) {
-    if (!shopsBuilt) buildShops();
-    document.querySelectorAll('#clickShop .art-row, #passiveShop .art-row').forEach((btn) => {
-      const id = btn.dataset.artId;
-      const art = X.ARTS.find((a) => a.id === id);
-      if (!art) return;
-      const available = X.artAvailable(state, art);
-      const cost = X.artCost(state, id);
-      const owned = state.owned[id] || 0;
-      const meta = btn.querySelector('.art-meta');
-      if (!available) {
-        btn.classList.add('is-locked');
-        meta.textContent = art.branch
-          ? '需道途'
-          : art.faction
-            ? '需阵营'
-            : '需' + X.REALMS[art.minRealm].name;
-        return;
-      }
-      const canBuy =
-        cost != null && state.lingqi >= cost && state.phase === 'playing' && !stats.pendingEvent;
-      btn.classList.toggle('is-locked', !canBuy);
-      meta.textContent = '×' + owned + ' · ' + X.formatNumber(cost || 0);
     });
   }
 
@@ -606,8 +760,8 @@
         b.name +
         '</strong><span>' +
         b.blurb +
-        ' · 自由点 ' +
-        b.freePoints +
+        ' · 开局体神 ' +
+        b.freePoints * 100 +
         '</span>';
       els.birthOptions.appendChild(btn);
     });
@@ -668,10 +822,23 @@
     const stats = X.derive(state);
 
     els.lingqiVal.textContent = X.formatNumber(state.lingqi);
-    els.dpsVal.textContent = X.formatNumber(stats.lingqiPerSec);
+    if (els.tishuVal) els.tishuVal.textContent = X.formatNumber(state.tishu || 0);
+    if (els.jingshenVal) els.jingshenVal.textContent = X.formatNumber(state.jingshen || 0);
+    const per = stats.perSec || { lingli: stats.lingqiPerSec, tishu: 0, jingshen: 0 };
+    const clicks = stats.clickPowers || {
+      lingli: stats.clickPower,
+      tishu: 1,
+      jingshen: 1,
+    };
+    if (els.lingliDps) els.lingliDps.textContent = X.formatNumber(per.lingli || 0);
+    if (els.tishuDps) els.tishuDps.textContent = X.formatNumber(per.tishu || 0);
+    if (els.jingshenDps) els.jingshenDps.textContent = X.formatNumber(per.jingshen || 0);
     els.qiyunVal.textContent = String(state.qiyun);
     els.combatVal.textContent = X.formatNumber(stats.combatPower);
-    els.clickPowerVal.textContent = X.formatNumber(stats.clickPower);
+    if (els.clickPowerLingli) els.clickPowerLingli.textContent = X.formatNumber(clicks.lingli || 0);
+    if (els.clickPowerTishu) els.clickPowerTishu.textContent = X.formatNumber(clicks.tishu || 0);
+    if (els.clickPowerJingshen)
+      els.clickPowerJingshen.textContent = X.formatNumber(clicks.jingshen || 0);
     els.pathLine.textContent = pathLabel();
 
     renderRealmRail(stats);
@@ -679,7 +846,7 @@
     renderEquipBar();
 
     if (stats.nextStarCost != null) {
-      els.btnRaiseStar.textContent = '升层（' + X.formatNumber(stats.nextStarCost) + '）';
+      els.btnRaiseStar.textContent = '升层（' + X.formatNumber(stats.nextStarCost) + '灵力）';
       els.btnRaiseStar.classList.toggle(
         'is-locked',
         !stats.canRaiseStar || !!stats.pendingEvent,
@@ -690,12 +857,12 @@
     }
 
     if (stats.breakCost != null) {
-      els.btnBreak.textContent = '破境（' + X.formatNumber(stats.breakCost) + '）';
+      els.btnBreak.textContent = '破境（' + X.formatNumber(stats.breakCost) + '灵力）';
       els.btnBreak.classList.toggle(
         'is-locked',
         !stats.canBreakthrough || !!stats.pendingEvent,
       );
-      els.realmHint.textContent = '九层圆满，可破入下一境。破境+2属性点。';
+      els.realmHint.textContent = '九层圆满，可破入下一境。破境赠三资源。';
     } else if (state.realmIndex >= X.REALMS.length - 1) {
       els.btnBreak.textContent = '已至大道';
       els.btnBreak.classList.add('is-locked');
@@ -707,7 +874,9 @@
     }
 
     softUpdateShops(stats);
+    softUpdateCraft();
     if (!soft || !treasuresBuilt) buildTreasures();
+    if (!soft || !craftBuilt) buildCraftPanels();
     renderMainTimeline();
     renderMilestones();
     if (!soft) {
@@ -748,35 +917,34 @@
     syncEndingModal();
   }
 
-  els.absorbBtn.addEventListener('click', () => {
-    const before = state.lingqi;
+  els.absorbGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.absorb-btn[data-channel]');
+    if (!btn) return;
+    const channel = btn.dataset.channel;
+    const before = resourceOf(channel);
     const hadEvent = !!state.randomEventId;
-    const res = X.clickAbsorb(state);
+    const res = X.clickAbsorb(state, channel);
     if (!res.ok) {
       if (res.reason) showToast(res.reason);
       setState(res.state, { soft: true });
       return;
     }
-    spawnFloat(res.state.lingqi - before);
+    spawnFloat(resourceOfFrom(res.state, channel) - before);
     if (!hadEvent && res.state.randomEventId) {
-      showToast('奇遇：' + (X.RANDOM_EVENTS.find((e) => e.id === res.state.randomEventId) || {}).title);
+      const title =
+        (X.MAIN_STORY.find((ev) => ev.id === res.state.randomEventId) ||
+          X.RANDOM_EVENTS.find((ev) => ev.id === res.state.randomEventId) ||
+          {}).title || '未知';
+      showToast('奇遇：' + title);
     }
     setState(res.state, { soft: true });
   });
 
-  els.attrList.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-attr]');
-    if (!btn || btn.disabled) return;
-    e.preventDefault();
-    const key = btn.dataset.attr;
-    const res = X.allocatePoint(state, key);
-    if (!res.ok) {
-      showToast(res.reason || '无法加点');
-      return;
-    }
-    setState(res.state, { soft: true });
-  });
-
+  function resourceOfFrom(st, key) {
+    if (key === 'lingli') return st.lingqi;
+    if (key === 'tishu') return st.tishu;
+    return st.jingshen;
+  }
   els.equipSlots.addEventListener('click', (e) => {
     const btn = e.target.closest('.equip-slot[data-treasure-id]');
     if (!btn) return;
@@ -810,6 +978,7 @@
         (res.loot ? ' · 获 ' + res.loot : ''),
     );
     treasuresBuilt = false;
+    craftBuilt = false;
     setState(res.state);
   });
 
@@ -850,6 +1019,30 @@
   function onShopClick(e) {
     const btn = e.target.closest('.art-row');
     if (!btn || btn.classList.contains('is-locked')) return;
+    if (btn.dataset.pillId) {
+      const res = X.craftPill(state, btn.dataset.pillId);
+      if (!res.ok) {
+        showToast(res.reason || '炼丹失败');
+        setState(res.state, { soft: true });
+        return;
+      }
+      craftBuilt = false;
+      showToast(res.message || '丹成');
+      setState(res.state);
+      return;
+    }
+    if (btn.dataset.herbId) {
+      const res = X.buyHerb(state, btn.dataset.herbId);
+      if (!res.ok) {
+        showToast(res.reason || '无法购药');
+        setState(res.state, { soft: true });
+        return;
+      }
+      craftBuilt = false;
+      showToast(res.message || '购得药材');
+      setState(res.state, { soft: true });
+      return;
+    }
     if (btn.dataset.treasureId) {
       const id = btn.dataset.treasureId;
       if (btn.dataset.action === 'buy') {
@@ -885,11 +1078,27 @@
     }
     setState(res.state, { soft: true });
   }
-  els.clickShop.addEventListener('click', onShopClick);
-  els.passiveShop.addEventListener('click', onShopClick);
+  els.shopLingli.addEventListener('click', onShopClick);
+  els.shopTishu.addEventListener('click', onShopClick);
+  els.shopJingshen.addEventListener('click', onShopClick);
+  if (els.pillList) els.pillList.addEventListener('click', onShopClick);
+  if (els.herbShop) els.herbShop.addEventListener('click', onShopClick);
   els.ownedTreasures.addEventListener('click', onShopClick);
   els.shopTreasures.addEventListener('click', onShopClick);
 
+  if (els.btnTemper) {
+    els.btnTemper.addEventListener('click', () => {
+      if (els.btnTemper.classList.contains('is-locked')) return;
+      const res = X.temperBody(state);
+      if (!res.ok) {
+        showToast(res.reason || '无法锤炼');
+        setState(res.state, { soft: true });
+        return;
+      }
+      showToast(res.message || '锤炼');
+      setState(res.state);
+    });
+  }
   els.eventOptions.addEventListener('click', (e) => {
     const btn = e.target.closest('.option-btn');
     if (!btn) return;
@@ -948,6 +1157,7 @@
     lastEndingShown = null;
     shopsBuilt = false;
     treasuresBuilt = false;
+    craftBuilt = false;
     attrsBuilt = false;
     renderedRealmIndex = -1;
     eventModalOpen = false;
@@ -966,7 +1176,13 @@
       document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
       tab.classList.add('active');
-      const map = { arts: 'tabArts', treasures: 'tabTreasures', cycle: 'tabCycle' };
+      const map = {
+        arts: 'tabArts',
+        alchemy: 'tabAlchemy',
+        body: 'tabBody',
+        treasures: 'tabTreasures',
+        cycle: 'tabCycle',
+      };
       const pane = document.getElementById(map[tab.dataset.tab]);
       if (pane) pane.classList.add('active');
     });
@@ -976,13 +1192,16 @@
   if (state.phase === 'playing') {
     const boot = X.tick(state);
     state = boot.state;
-    if (boot.offlineSeconds > 30 && boot.gained > 0) {
+    const gainedSum =
+      (boot.gained && typeof boot.gained === 'object'
+        ? boot.gained.lingli + boot.gained.tishu + boot.gained.jingshen
+        : boot.gained) || 0;
+    if (boot.offlineSeconds > 30 && gainedSum > 0) {
       showToast(
         '离线约 ' +
           Math.floor(boot.cappedSeconds / 60) +
-          ' 分钟，+' +
-          X.formatNumber(boot.gained) +
-          ' 灵气',
+          ' 分钟，三资源共 +' +
+          X.formatNumber(gainedSum),
       );
     }
   }
@@ -992,8 +1211,12 @@
   setInterval(() => {
     if (state.phase !== 'playing') return;
     const t = X.tick(state);
-    // 仅有产出时才触发完整 soft 渲染，避免打掉属性按钮点击
-    if (t.gained > 0) {
+    const gainedSum =
+      (t.gained && typeof t.gained === 'object'
+        ? t.gained.lingli + t.gained.tishu + t.gained.jingshen
+        : t.gained) || 0;
+    // 仅有产出时才触发完整 soft 渲染
+    if (gainedSum > 0) {
       let next = t.state;
       timeRandomAcc += 250;
       if (timeRandomAcc >= 12000) {

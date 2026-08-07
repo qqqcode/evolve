@@ -33,7 +33,7 @@ export const GAMES: GameEntry[] = [
     id: 'xian',
     title: '斗气苍穹',
     path: '/xian/',
-    blurb: '凡人修仙体系：出身轮回、属性点与法宝对战；融合斗破/凡人/遮天/仙逆等诸天剧情梗。',
+    blurb: '三途修炼：灵力 / 体术 / 精神力；炼丹炼体；属性随资源自动增长；出身轮回与诸天剧情梗。',
     ready: true,
   },
   {

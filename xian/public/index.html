@@ -33,18 +33,28 @@
       </header>
 
       <section class="resource-bar" aria-label="资源">
-        <div class="res">
+        <div class="res res-lingli">
           <span class="res-mark" aria-hidden="true">灵</span>
           <div>
-            <p class="res-label">灵气</p>
+            <p class="res-label">灵力</p>
             <p class="res-value" id="lingqiVal">0</p>
+            <p class="res-sub">+<span id="lingliDps">0</span>/秒</p>
           </div>
         </div>
-        <div class="res">
-          <span class="res-mark" aria-hidden="true">息</span>
+        <div class="res res-tishu">
+          <span class="res-mark" aria-hidden="true">体</span>
           <div>
-            <p class="res-label">每秒</p>
-            <p class="res-value" id="dpsVal">0</p>
+            <p class="res-label">体术</p>
+            <p class="res-value" id="tishuVal">0</p>
+            <p class="res-sub">+<span id="tishuDps">0</span>/秒</p>
+          </div>
+        </div>
+        <div class="res res-jingshen">
+          <span class="res-mark" aria-hidden="true">神</span>
+          <div>
+            <p class="res-label">精神力</p>
+            <p class="res-value" id="jingshenVal">0</p>
+            <p class="res-sub">+<span id="jingshenDps">0</span>/秒</p>
           </div>
         </div>
         <div class="res">
@@ -83,22 +93,36 @@
           </div>
           <p class="realm-hint" id="realmHint"></p>
 
-          <h2 class="pane-title">属性 <span id="freePointsHint" class="inline-hint"></span></h2>
+          <h2 class="pane-title">属性 <span id="freePointsHint" class="inline-hint">随三资源自动增长</span></h2>
           <div id="attrList" class="attr-list"></div>
+          <p class="realm-hint" id="bodyHint"></p>
 
           <h2 class="pane-title">随机对战</h2>
           <div id="combatList" class="combat-list"></div>
         </aside>
 
         <section class="core-panel">
-          <p class="click-hint">点击吐纳，吸收灵气（偶遇奇事）</p>
-          <button type="button" id="absorbBtn" class="absorb-btn" aria-label="吐纳吸收灵气">
-            <span class="absorb-ring"></span>
-            <span class="absorb-core" id="absorbCore">炁</span>
-            <span class="absorb-glow"></span>
-          </button>
-          <p class="click-power">
-            每次 <span id="clickPowerVal">1</span> 灵气
+          <p class="click-hint">三途吐纳：灵力 · 体术 · 精神力（偶遇奇事）</p>
+          <div class="absorb-grid" id="absorbGrid">
+            <button type="button" class="absorb-btn channel-lingli" data-channel="lingli" aria-label="吐纳灵力">
+              <span class="absorb-ring"></span>
+              <span class="absorb-core">灵</span>
+              <span class="absorb-glow"></span>
+            </button>
+            <button type="button" class="absorb-btn channel-tishu" data-channel="tishu" aria-label="锤炼体术">
+              <span class="absorb-ring"></span>
+              <span class="absorb-core">体</span>
+              <span class="absorb-glow"></span>
+            </button>
+            <button type="button" class="absorb-btn channel-jingshen" data-channel="jingshen" aria-label="凝聚精神">
+              <span class="absorb-ring"></span>
+              <span class="absorb-core">神</span>
+              <span class="absorb-glow"></span>
+            </button>
+          </div>
+          <p class="click-power" id="clickPowerLine">
+            每次 灵 <span id="clickPowerLingli">1</span> · 体 <span id="clickPowerTishu">1</span> · 神
+            <span id="clickPowerJingshen">1</span>
           </p>
           <div id="floatLayer" class="float-layer" aria-hidden="true"></div>
 
@@ -121,15 +145,38 @@
         <aside class="shop-panel">
           <div class="shop-tabs" role="tablist">
             <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
+            <button type="button" class="tab" data-tab="alchemy" role="tab">炼丹</button>
+            <button type="button" class="tab" data-tab="body" role="tab">炼体</button>
             <button type="button" class="tab" data-tab="treasures" role="tab">坊市</button>
             <button type="button" class="tab" data-tab="cycle" role="tab">轮回</button>
           </div>
 
           <div id="tabArts" class="tab-pane active">
-            <h2 class="pane-title">吐纳</h2>
-            <div id="clickShop" class="shop-list"></div>
-            <h2 class="pane-title">运转</h2>
-            <div id="passiveShop" class="shop-list"></div>
+            <h2 class="pane-title">灵力 · 吐纳 / 运转</h2>
+            <div id="shopLingli" class="shop-list"></div>
+            <h2 class="pane-title">体术 · 锤炼 / 运功</h2>
+            <div id="shopTishu" class="shop-list"></div>
+            <h2 class="pane-title">精神 · 凝神 / 神转</h2>
+            <div id="shopJingshen" class="shop-list"></div>
+          </div>
+
+          <div id="tabAlchemy" class="tab-pane">
+            <h2 class="pane-title">丹方 <span class="inline-hint" id="alchemyHint"></span></h2>
+            <div id="pillList" class="shop-list"></div>
+            <h2 class="pane-title">药材</h2>
+            <div id="herbOwned" class="shop-list"></div>
+            <h2 class="pane-title">购药</h2>
+            <div id="herbShop" class="shop-list"></div>
+          </div>
+
+          <div id="tabBody" class="tab-pane">
+            <div class="cycle-card">
+              <h2 class="pane-title">炼体进度</h2>
+              <p id="bodyStatus" class="cycle-status"></p>
+              <button type="button" id="btnTemper" class="action-btn primary">锤炼肉身</button>
+            </div>
+            <h2 class="pane-title">体修阶位</h2>
+            <ul id="bodyStageList" class="ending-list"></ul>
           </div>
 
           <div id="tabTreasures" class="tab-pane">

@@ -1,6 +1,19 @@
 /** 功法：吐纳点击 / 运转被动 */
 export type ArtKind = 'click' | 'passive';
 
+/** 三修炼资源：灵力 / 体术 / 精神力 */
+export type ResourceKey = 'lingli' | 'tishu' | 'jingshen';
+
+export const RESOURCE_KEYS: ResourceKey[] = ['lingli', 'tishu', 'jingshen'];
+
+export const RESOURCE_LABELS: Record<ResourceKey, string> = {
+  lingli: '灵力',
+  tishu: '体术',
+  jingshen: '精神力',
+};
+
+export type ResourceMap = Record<ResourceKey, number>;
+
 /** 凡人修仙式大道倾向（中期选定） */
 export type BranchId =
   | 'flame' // 斗破·异火
@@ -13,7 +26,7 @@ export type BranchId =
 export type FactionId = 'orthodox' | 'dark' | 'hermit';
 export type DestinyId = 'emperor' | 'guardian' | 'void';
 
-/** 六维属性（对战拼点核心） */
+/** 六维属性（对战拼点核心；由三资源自动衍生，不可手动加点） */
 export type AttrKey = 'atk' | 'def' | 'spd' | 'spirit' | 'bone' | 'luck';
 
 export const ATTR_KEYS: AttrKey[] = ['atk', 'def', 'spd', 'spirit', 'bone', 'luck'];
@@ -47,11 +60,14 @@ export interface BirthDef {
   id: string;
   name: string;
   blurb: string;
-  /** 出身赠送属性 */
+  /** 出身赠送固定属性（事件/出身基底，不含资源衍生） */
   attrs: Partial<AttrMap>;
-  /** 额外自由属性点 */
+  /**
+   * 旧版自由属性点；现折算为开局体术/精神力
+   * @deprecated 保留字段以兼容出身数据
+   */
   freePoints: number;
-  /** 开局灵气 */
+  /** 开局灵力 */
   startLingqi: number;
   flags?: string[];
   mark: string;
@@ -70,6 +86,8 @@ export interface ArtDef {
   faction?: FactionId;
   /** 每级额外属性 */
   attrs?: Partial<AttrMap>;
+  /** 作用通道；缺省按分支推断 */
+  channel?: ResourceKey;
   mark: string;
 }
 
@@ -79,7 +97,7 @@ export interface TreasureDef {
   description: string;
   /** 出处梗标签 */
   lore: string;
-  /** 获得价格（灵气）；0 表示仅剧情/掉落 */
+  /** 获得价格（灵力）；0 表示仅剧情/掉落 */
   cost: number;
   minRealm: number;
   attrs: Partial<AttrMap>;
@@ -87,9 +105,9 @@ export interface TreasureDef {
   slot: EquipSlot;
   /** 对战斗力额外乘区（战斗槽为主） */
   combatMult?: number;
-  /** 修炼槽：点击加成 */
+  /** 修炼槽：点击加成（默认加在灵力通道） */
   cultivateClick?: number;
-  /** 修炼槽：被动每秒加成 */
+  /** 修炼槽：被动每秒加成（默认加在灵力通道） */
   cultivatePassive?: number;
   mark: string;
   /** 可跨世存入宝库 */
@@ -109,16 +127,16 @@ export const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
 
 export type EquippedMap = Record<EquipSlot, string | null>;
 
-/** 天才地宝：不占装备槽，直接提升灵气/永久被动 */
+/** 天才地宝：不占装备槽，直接提升灵力/永久被动 */
 export interface NaturalDef {
   id: string;
   name: string;
   description: string;
   lore: string;
   minRealm: number;
-  /** 立即获得灵气 */
+  /** 立即获得灵力 */
   lingqiGain: number;
-  /** 本世永久每秒灵气 */
+  /** 本世永久每秒灵力 */
   passiveBonus: number;
   mark: string;
   weight?: number;
@@ -132,9 +150,12 @@ export interface EnemyDef {
   maxRealm: number;
   /** 敌人基础属性 */
   attrs: AttrMap;
-  /** 战胜奖励灵气 */
+  /** 战胜奖励灵力 */
   rewardLingqi: number;
-  /** 战胜奖励自由属性点 */
+  /**
+   * 旧版自由点奖励；现折算为三资源
+   * @deprecated
+   */
   rewardPoints?: number;
   /** 可能掉落法宝 */
   dropTreasureId?: string;
@@ -153,12 +174,21 @@ export interface ChoiceOption {
   }>;
   flags?: string[];
   lingqiDelta?: number;
+  tishuDelta?: number;
+  jingshenDelta?: number;
   qiyunDelta?: number;
+  /**
+   * 旧版自由点；正数折算为三资源，不再进手动加点池
+   * @deprecated
+   */
   freePointsDelta?: number;
   attrsDelta?: Partial<AttrMap>;
   grantTreasureId?: string;
   /** 获得天才地宝 */
   grantNaturalId?: string;
+  /** 获得药材 */
+  grantHerbId?: string;
+  grantHerbCount?: number;
   /** 触发一场对战 */
   combatEnemyId?: string;
   /** 失败则死亡 */
@@ -205,8 +235,7 @@ export interface EndingDef {
   minAttrs?: Partial<AttrMap>;
 }
 
-/** 轮回待选阶段（死亡或主动轮回后） */
-export type LifePhase = 'playing' | 'rebirth' | 'ended';
+export type LifePhase = 'rebirth' | 'playing' | 'ended';
 
 export type MilestoneKind = 'main' | 'branch' | 'combat' | 'loot' | 'destiny' | 'other';
 
@@ -221,9 +250,18 @@ export interface MilestoneEntry {
 }
 
 export interface GameState {
-  /** 灵气（本世资源） */
+  /**
+   * 灵力（本世资源；字段名 lingqi 兼容旧档）
+   * UI 展示为「灵力」
+   */
   lingqi: number;
   totalLingqi: number;
+  /** 体术 */
+  tishu: number;
+  totalTishu: number;
+  /** 精神力 */
+  jingshen: number;
+  totalJingshen: number;
   /** 跨世气运（永久产出加成） */
   qiyun: number;
   owned: Record<string, number>;
@@ -243,9 +281,12 @@ export interface GameState {
 
   /** 出身 */
   birthId: string | null;
-  /** 本世分配后的属性 */
+  /** 本世固定属性（出身/事件/丹药；不含资源衍生） */
   attrs: AttrMap;
-  /** 未分配自由点 */
+  /**
+   * 已废弃的手动加点池；加载时折算为资源后清零
+   * @deprecated
+   */
   freePoints: number;
   /** 本世持有法宝 id */
   treasures: string[];
@@ -255,7 +296,7 @@ export interface GameState {
   vault: string[];
   /** 本世已获天才地宝 */
   naturals: string[];
-  /** 天才地宝累计的永久被动灵气/秒 */
+  /** 天才地宝累计的永久被动灵力/秒 */
   naturalPassive: number;
   /** 主线进度：下一章编号（从 1 开始） */
   mainChapter: number;
@@ -279,10 +320,26 @@ export interface GameState {
   randomEventId: string | null;
   /** 上次随机奇遇触发时间 */
   lastRandomAt: number;
+  /** 炼丹精通 */
+  alchemyMastery: number;
+  /** 持有药材 */
+  herbs: Record<string, number>;
+  /** 持有丹药（库存；当前丹成即食，保留字段） */
+  pills: Record<string, number>;
+  /** 已完成炼体阶数 */
+  bodyStage: number;
+  /** 当前阶炼体进度 */
+  bodyProgress: number;
 }
 
 export interface DerivedStats {
+  /** 各通道点击产出 */
+  clickPowers: ResourceMap;
+  /** 各通道每秒产出 */
+  perSec: ResourceMap;
+  /** @deprecated 等同 clickPowers.lingli */
   clickPower: number;
+  /** @deprecated 等同 perSec.lingli */
   lingqiPerSec: number;
   qiyunMult: number;
   realmMult: number;
@@ -297,18 +354,21 @@ export interface DerivedStats {
   canReincarnate: boolean;
   pendingEvent: StoryEventDef | null;
   matchedEnding: EndingDef | null;
-  /** 属性 = 本世 + 永久 + 法宝 */
+  /** 属性 = 固定 + 永久 + 法宝 + 功法 + 炼体 + 资源衍生 */
   totalAttrs: AttrMap;
+  /** 仅由三资源总量衍生的属性 */
+  resourceAttrs: AttrMap;
   treasureAttrs: AttrMap;
   combatPower: number;
   cultivateClickBonus: number;
   cultivatePassiveBonus: number;
+  bodyStageName: string;
   inheritPreview: { attrRate: number; treasureSlots: number };
 }
 
 export interface TickResult {
   state: GameState;
-  gained: number;
+  gained: ResourceMap;
   cappedSeconds: number;
   offlineSeconds: number;
 }

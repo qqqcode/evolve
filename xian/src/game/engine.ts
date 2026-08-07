@@ -1,9 +1,12 @@
 import {
   ARTS,
   BIRTHS,
+  BODY_STAGES,
   BRANCH_LABELS,
   ENDINGS,
   ENEMIES,
+  FREE_POINT_TO_RESOURCE,
+  HERBS,
   MAIN_STORY,
   MAX_CHRONICLE,
   MAX_EQUIP,
@@ -11,6 +14,7 @@ import {
   MAX_OFFLINE_MS,
   MAX_STAR,
   NATURALS,
+  PILL_RECIPES,
   QIYUN_BONUS_PER,
   RANDOM_CHANCE,
   RANDOM_COOLDOWN_MS,
@@ -20,16 +24,25 @@ import {
   STORY_EVENTS,
   TREASURES,
   addAttrs,
+  artChannel,
+  bodyAttrsBonus,
+  bodyMultipliers,
   emptyEquipped,
+  emptyHerbs,
+  emptyPills,
   getArt,
   getBirth,
+  getBodyStage,
   getEnding,
   getEnemy,
+  getHerb,
   getNatural,
+  getPillRecipe,
   getRealm,
   getTreasure,
   scaleAttrs,
   zeroAttrs,
+  zeroResources,
 } from './data';
 import type {
   ActionResult,
@@ -44,10 +57,12 @@ import type {
   GameState,
   MilestoneEntry,
   MilestoneKind,
+  ResourceKey,
+  ResourceMap,
   StoryEventDef,
   TickResult,
 } from './types';
-import { ATTR_KEYS, EQUIP_SLOTS } from './types';
+import { ATTR_KEYS, EQUIP_SLOTS, RESOURCE_KEYS, RESOURCE_LABELS } from './types';
 
 function emptyOwned(): Record<string, number> {
   const owned: Record<string, number> = {};
@@ -135,6 +150,10 @@ export function createMetaState(now = Date.now()): GameState {
   return {
     lingqi: 0,
     totalLingqi: 0,
+    tishu: 0,
+    totalTishu: 0,
+    jingshen: 0,
+    totalJingshen: 0,
     qiyun: 0,
     owned: emptyOwned(),
     realmIndex: 0,
@@ -168,6 +187,11 @@ export function createMetaState(now = Date.now()): GameState {
     combatLosses: 0,
     randomEventId: null,
     lastRandomAt: 0,
+    alchemyMastery: 0,
+    herbs: emptyHerbs(),
+    pills: emptyPills(),
+    bodyStage: 0,
+    bodyProgress: 0,
   };
 }
 
@@ -218,6 +242,35 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
 
   const lingqi = Math.max(0, Number(data.lingqi ?? data.douqi) || 0);
   const totalLingqi = Math.max(lingqi, Number(data.totalLingqi ?? data.totalDouqi) || 0);
+  let tishu = Math.max(0, Number(data.tishu) || 0);
+  let totalTishu = Math.max(tishu, Number(data.totalTishu) || 0);
+  let jingshen = Math.max(0, Number(data.jingshen) || 0);
+  let totalJingshen = Math.max(jingshen, Number(data.totalJingshen) || 0);
+
+  // 旧档未分配自由点 → 折算为三资源
+  const legacyFree = Math.max(0, Math.floor(Number(data.freePoints) || 0));
+  if (legacyFree > 0) {
+    const grant = legacyFree * FREE_POINT_TO_RESOURCE;
+    tishu += grant;
+    totalTishu += grant;
+    jingshen += grant;
+    totalJingshen += grant;
+  }
+
+  const herbs = emptyHerbs();
+  if (data.herbs && typeof data.herbs === 'object') {
+    for (const h of HERBS) {
+      const n = Number((data.herbs as Record<string, unknown>)[h.id] ?? 0);
+      herbs[h.id] = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    }
+  }
+  const pills = emptyPills();
+  if (data.pills && typeof data.pills === 'object') {
+    for (const p of PILL_RECIPES) {
+      const n = Number((data.pills as Record<string, unknown>)[p.id] ?? 0);
+      pills[p.id] = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    }
+  }
 
   const phase =
     data.phase === 'playing' || data.phase === 'rebirth' || data.phase === 'ended'
@@ -229,6 +282,10 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
   return {
     lingqi,
     totalLingqi,
+    tishu,
+    totalTishu,
+    jingshen,
+    totalJingshen,
     qiyun: Math.max(0, Math.floor(Number(data.qiyun) || 0)),
     owned,
     realmIndex: clampInt(data.realmIndex, 0, REALMS.length - 1),
@@ -246,7 +303,7 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     chronicle,
     birthId: typeof data.birthId === 'string' ? data.birthId : null,
     attrs: parseAttrs(data.attrs, zeroAttrs()),
-    freePoints: Math.max(0, Math.floor(Number(data.freePoints) || 0)),
+    freePoints: 0,
     treasures,
     equipped,
     vault,
@@ -262,6 +319,11 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     combatLosses: Math.max(0, Math.floor(Number(data.combatLosses) || 0)),
     randomEventId: typeof data.randomEventId === 'string' ? data.randomEventId : null,
     lastRandomAt: Math.max(0, Number(data.lastRandomAt) || 0),
+    alchemyMastery: Math.max(0, Math.floor(Number(data.alchemyMastery) || 0)),
+    herbs,
+    pills,
+    bodyStage: clampInt(data.bodyStage, 0, BODY_STAGES.length),
+    bodyProgress: Math.max(0, Number(data.bodyProgress) || 0),
   };
 }
 
@@ -300,7 +362,9 @@ export function breakthroughCost(state: GameState): number | null {
 }
 
 export function calcQiyunGain(state: GameState): number {
-  const fromLingqi = Math.floor(Math.sqrt(state.totalLingqi / 80_000));
+  const lifetime =
+    state.totalLingqi + state.totalTishu * 0.8 + state.totalJingshen * 0.8;
+  const fromLingqi = Math.floor(Math.sqrt(lifetime / 80_000));
   const fromRealm = Math.max(0, state.peakRealmIndex - 2);
   const fromFlags = state.flags.includes('survived_tribulation') ? 2 : 0;
   const fromCombat = Math.floor(state.combatWins / 3);
@@ -377,13 +441,15 @@ export function artAttrBonus(state: GameState): AttrMap {
 }
 
 export function totalAttrs(state: GameState): AttrMap {
-  return addAttrs(
+  const base = addAttrs(
     addAttrs(addAttrs(state.attrs, state.legacyAttrs), treasureAttrBonus(state)),
     artAttrBonus(state),
   );
+  const withBody = addAttrs(base, bodyAttrsBonus(state.bodyStage));
+  return addAttrs(withBody, resourceAttrsFromTotals(state));
 }
 
-/** 战斗力：属性加权 × 法宝乘区 × 境界系数 */
+/** 战斗力：属性加权 × 法宝乘区 × 境界系数 × 炼体 */
 export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
   const a = attrs || totalAttrs(state);
   const weighted =
@@ -396,7 +462,8 @@ export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
     if (t?.combatMult) mult *= t.combatMult;
   }
   const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
-  return Math.max(1, weighted * mult * realmMult);
+  const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
+  return Math.max(1, weighted * mult * realmMult * bodyMult);
 }
 
 export function enemyPower(enemyAttrs: AttrMap, realmIndex: number): number {
@@ -536,10 +603,75 @@ function pushChronicle(state: GameState, line: string): GameState {
 }
 
 function grantLingqi(state: GameState, amount: number): GameState {
+  return grantResource(state, 'lingli', amount);
+}
+
+function getResource(state: GameState, key: ResourceKey): number {
+  if (key === 'lingli') return state.lingqi;
+  if (key === 'tishu') return state.tishu;
+  return state.jingshen;
+}
+
+function grantResource(state: GameState, key: ResourceKey, amount: number): GameState {
   if (amount === 0) return state;
-  const next = Math.max(0, state.lingqi + amount);
-  const total = amount > 0 ? state.totalLingqi + amount : state.totalLingqi;
-  return { ...state, lingqi: next, totalLingqi: total };
+  if (key === 'lingli') {
+    const next = Math.max(0, state.lingqi + amount);
+    const total = amount > 0 ? state.totalLingqi + amount : state.totalLingqi;
+    return { ...state, lingqi: next, totalLingqi: total };
+  }
+  if (key === 'tishu') {
+    const next = Math.max(0, state.tishu + amount);
+    const total = amount > 0 ? state.totalTishu + amount : state.totalTishu;
+    return { ...state, tishu: next, totalTishu: total };
+  }
+  const next = Math.max(0, state.jingshen + amount);
+  const total = amount > 0 ? state.totalJingshen + amount : state.totalJingshen;
+  return { ...state, jingshen: next, totalJingshen: total };
+}
+
+function spendResource(state: GameState, key: ResourceKey, amount: number): GameState | null {
+  if (amount <= 0) return state;
+  if (getResource(state, key) < amount) return null;
+  return grantResource(state, key, -amount);
+}
+
+function spendResources(state: GameState, costs: Partial<ResourceMap>): GameState | null {
+  let next = state;
+  for (const key of RESOURCE_KEYS) {
+    const c = costs[key] || 0;
+    if (c <= 0) continue;
+    const spent = spendResource(next, key, c);
+    if (!spent) return null;
+    next = spent;
+  }
+  return next;
+}
+
+/** 旧自由点 → 三资源（正数） */
+function grantFromFreePoints(state: GameState, points: number): GameState {
+  if (points <= 0) return state;
+  const amt = points * FREE_POINT_TO_RESOURCE;
+  let next = grantResource(state, 'lingli', amt);
+  next = grantResource(next, 'tishu', amt);
+  next = grantResource(next, 'jingshen', amt);
+  return next;
+}
+
+/** 由三资源总量衍生六维属性（递减曲线，避免爆炸） */
+export function resourceAttrsFromTotals(state: GameState): AttrMap {
+  const score = (total: number, scale: number) =>
+    Math.floor(Math.log2(1 + Math.max(0, total) / scale) * 3);
+  const L = score(state.totalLingqi, 80);
+  const T = score(state.totalTishu, 60);
+  const J = score(state.totalJingshen, 60);
+  return {
+    atk: Math.floor(T * 1.0 + L * 0.35),
+    def: Math.floor(T * 0.8 + L * 0.25),
+    spd: Math.floor(T * 0.4 + J * 0.55),
+    spirit: Math.floor(J * 0.75 + L * 0.25),
+    bone: Math.floor(T * 1.0 + L * 0.2),
+    luck: Math.floor(J * 0.55 + L * 0.4),
+  };
 }
 
 function grantTreasure(state: GameState, id: string): GameState {
@@ -559,7 +691,7 @@ function grantNatural(state: GameState, id: string): GameState {
   const n = getNatural(id);
   if (!n) return state;
   if (state.naturals.includes(id)) {
-    // 重复获得：只给灵气，不加被动
+    // 重复获得：只给灵力，不加被动
     let next = grantLingqi(state, Math.floor(n.lingqiGain * 0.4));
     return pushChronicle(next, `再次寻得「${n.name}」，炼化残力入体。`);
   }
@@ -571,7 +703,7 @@ function grantNatural(state: GameState, id: string): GameState {
   next = grantLingqi(next, n.lingqiGain);
   next = pushChronicle(
     next,
-    `获得天才地宝「${n.name}」：灵气 +${Math.floor(n.lingqiGain)}，永久被动 +${n.passiveBonus}/秒【${n.lore}】`,
+    `获得天才地宝「${n.name}」：灵力 +${Math.floor(n.lingqiGain)}，永久被动 +${n.passiveBonus}/秒【${n.lore}】`,
   );
   if (n.minRealm >= 3 || n.passiveBonus >= 3) {
     next = pushMilestone(
@@ -579,7 +711,7 @@ function grantNatural(state: GameState, id: string): GameState {
       {
         id: `nat_${id}`,
         title: `天才地宝·${n.name}`,
-        detail: `灵气 +${Math.floor(n.lingqiGain)}，被动 +${n.passiveBonus}/秒（${n.lore}）`,
+        detail: `灵力 +${Math.floor(n.lingqiGain)}，被动 +${n.passiveBonus}/秒（${n.lore}）`,
         kind: 'loot',
       },
     );
@@ -601,27 +733,57 @@ export function derive(state: GameState): DerivedStats {
   const starMult = starMultiplier(state.star);
   const branchMult = state.branchId ? BRANCH_LABELS[state.branchId].mult : 1;
   const attrs = totalAttrs(state);
-  const boneFactor = 1 + attrs.bone * 0.015;
-  const spiritFactor = 1 + attrs.spirit * 0.012;
-  const luckFactor = 1 + attrs.luck * 0.01;
+  const resourceAttrs = resourceAttrsFromTotals(state);
+  // 产出不用资源衍生属性，避免正反馈爆炸；仅用出身/继承/功法/法宝的骨神运
+  const fixedBone =
+    state.attrs.bone +
+    state.legacyAttrs.bone +
+    treasureAttrBonus(state).bone +
+    artAttrBonus(state).bone +
+    (bodyAttrsBonus(state.bodyStage).bone || 0);
+  const fixedSpirit =
+    state.attrs.spirit +
+    state.legacyAttrs.spirit +
+    treasureAttrBonus(state).spirit +
+    artAttrBonus(state).spirit;
+  const fixedLuck =
+    state.attrs.luck +
+    state.legacyAttrs.luck +
+    treasureAttrBonus(state).luck +
+    artAttrBonus(state).luck;
+  const boneFactor = 1 + fixedBone * 0.015;
+  const spiritFactor = 1 + fixedSpirit * 0.012;
+  const luckFactor = 1 + fixedLuck * 0.01;
 
-  let clickBase = 1;
-  let passiveBase = 0;
+  const clickBase: ResourceMap = { lingli: 1, tishu: 1, jingshen: 1 };
+  const passiveBase: ResourceMap = zeroResources();
   for (const art of ARTS) {
     if (!artAvailable(state, art)) continue;
     const n = state.owned[art.id] ?? 0;
     if (n <= 0) continue;
-    if (art.kind === 'click') clickBase += art.power * n;
-    else passiveBase += art.power * n;
+    const ch = artChannel(art);
+    if (art.kind === 'click') clickBase[ch] += art.power * n;
+    else passiveBase[ch] += art.power * n;
   }
 
   const cult = cultivateBonuses(state);
-  clickBase += cult.click;
-  passiveBase += cult.passive + state.naturalPassive;
+  clickBase.lingli += cult.click;
+  passiveBase.lingli += cult.passive + state.naturalPassive;
 
+  const bodyMult = bodyMultipliers(state.bodyStage).tishuMult;
+  const alchemyMult = 1 + state.alchemyMastery * 0.01;
   const scale = realmMult * starMult * branchMult * qiyunMult * boneFactor;
-  const clickPower = clickBase * scale;
-  const lingqiPerSec = passiveBase * scale * spiritFactor * luckFactor;
+
+  const clickPowers: ResourceMap = {
+    lingli: clickBase.lingli * scale,
+    tishu: clickBase.tishu * scale * bodyMult,
+    jingshen: clickBase.jingshen * scale * alchemyMult,
+  };
+  const perSec: ResourceMap = {
+    lingli: passiveBase.lingli * scale * spiritFactor * luckFactor,
+    tishu: passiveBase.tishu * scale * bodyMult * luckFactor,
+    jingshen: passiveBase.jingshen * scale * spiritFactor * alchemyMult,
+  };
 
   const nextStarCost = raiseStarCost(state);
   const breakCost = breakthroughCost(state);
@@ -634,9 +796,13 @@ export function derive(state: GameState): DerivedStats {
   const canReincarnate =
     state.phase === 'playing' && (qiyunGain > 0 && state.realmIndex >= 2 || !!state.endingId);
 
+  const stage = state.bodyStage > 0 ? BODY_STAGES[state.bodyStage - 1] : null;
+
   return {
-    clickPower,
-    lingqiPerSec,
+    clickPowers,
+    perSec,
+    clickPower: clickPowers.lingli,
+    lingqiPerSec: perSec.lingli,
     qiyunMult,
     realmMult,
     starMult,
@@ -651,10 +817,12 @@ export function derive(state: GameState): DerivedStats {
     pendingEvent: findPendingEvent(state),
     matchedEnding: matchEnding(state),
     totalAttrs: attrs,
+    resourceAttrs,
     treasureAttrs: treasureAttrBonus(state),
     combatPower: calcCombatPower(state, attrs),
     cultivateClickBonus: cult.click,
     cultivatePassiveBonus: cult.passive + state.naturalPassive,
+    bodyStageName: stage ? stage.name : '未炼体',
     inheritPreview: {
       attrRate: peakRealm.inheritAttrRate,
       treasureSlots: peakRealm.inheritTreasureSlots,
@@ -664,15 +832,27 @@ export function derive(state: GameState): DerivedStats {
 
 export function tick(state: GameState, now = Date.now()): TickResult {
   if (state.phase !== 'playing') {
-    return { state: { ...state, lastTickAt: now }, gained: 0, cappedSeconds: 0, offlineSeconds: 0 };
+    return {
+      state: { ...state, lastTickAt: now },
+      gained: zeroResources(),
+      cappedSeconds: 0,
+      offlineSeconds: 0,
+    };
   }
   const elapsedRaw = Math.max(0, now - state.lastTickAt);
   const elapsed = Math.min(elapsedRaw, MAX_OFFLINE_MS);
   const offlineSeconds = elapsedRaw / 1000;
   const cappedSeconds = elapsed / 1000;
-  const { lingqiPerSec } = derive(state);
-  const gained = lingqiPerSec * cappedSeconds;
-  let next = grantLingqi(state, gained);
+  const { perSec } = derive(state);
+  const gained: ResourceMap = {
+    lingli: perSec.lingli * cappedSeconds,
+    tishu: perSec.tishu * cappedSeconds,
+    jingshen: perSec.jingshen * cappedSeconds,
+  };
+  let next = state;
+  for (const key of RESOURCE_KEYS) {
+    next = grantResource(next, key, gained[key]);
+  }
   next = { ...next, lastTickAt: now };
   return { state: next, gained, cappedSeconds, offlineSeconds };
 }
@@ -687,18 +867,25 @@ function ensurePlaying(state: GameState): ActionResult | null {
   return null;
 }
 
-export function clickAbsorb(state: GameState, now = Date.now()): ActionResult {
+export function clickAbsorb(
+  state: GameState,
+  channel: ResourceKey = 'lingli',
+  now = Date.now(),
+): ActionResult {
   const blocked = ensurePlaying(state);
   if (blocked) return blocked;
+  if (!RESOURCE_KEYS.includes(channel)) {
+    return { ok: false, state, reason: '未知修炼通道' };
+  }
   const ticked = tick(state, now).state;
   if (findPendingEvent(ticked)) {
     return { ok: false, state: ticked, reason: '请先完成当前抉择' };
   }
-  const { clickPower } = derive(ticked);
-  let next = grantLingqi(ticked, clickPower);
+  const { clickPowers } = derive(ticked);
+  let next = grantResource(ticked, channel, clickPowers[channel]);
   const rnd = tryRandomEvent(next, 'click', now);
   if (rnd.ok) next = rnd.state;
-  return { ok: true, state: next };
+  return { ok: true, state: next, message: `吐纳·${RESOURCE_LABELS[channel]}` };
 }
 
 export function buyArt(state: GameState, artId: string, now = Date.now()): ActionResult {
@@ -714,13 +901,16 @@ export function buyArt(state: GameState, artId: string, now = Date.now()): Actio
     return { ok: false, state: ticked, reason: '尚未解锁该功法' };
   }
   const cost = artCost(ticked, artId);
-  if (cost == null || ticked.lingqi < cost) {
-    return { ok: false, state: ticked, reason: '灵气不足' };
+  const ch = artChannel(def);
+  if (cost == null || getResource(ticked, ch) < cost) {
+    return { ok: false, state: ticked, reason: `${RESOURCE_LABELS[ch]}不足` };
   }
-  const owned = { ...ticked.owned, [artId]: (ticked.owned[artId] ?? 0) + 1 };
+  const spent = spendResource(ticked, ch, cost);
+  if (!spent) return { ok: false, state: ticked, reason: `${RESOURCE_LABELS[ch]}不足` };
+  const owned = { ...spent.owned, [artId]: (spent.owned[artId] ?? 0) + 1 };
   return {
     ok: true,
-    state: { ...ticked, lingqi: ticked.lingqi - cost, owned },
+    state: { ...spent, owned },
     message: `修习「${def.name}」`,
   };
 }
@@ -738,7 +928,7 @@ export function buyTreasure(state: GameState, treasureId: string, now = Date.now
     return { ok: false, state: ticked, reason: '境界不足' };
   }
   if (ticked.lingqi < def.cost) {
-    return { ok: false, state: ticked, reason: '灵气不足' };
+    return { ok: false, state: ticked, reason: '灵力不足' };
   }
   let next = { ...ticked, lingqi: ticked.lingqi - def.cost };
   next = grantTreasure(next, treasureId);
@@ -768,17 +958,11 @@ function slotLabel(slot: EquipSlot): string {
   return slot === 'combat' ? '战斗' : slot === 'cultivate' ? '修炼' : '辅助';
 }
 
-export function allocatePoint(state: GameState, key: AttrKey): ActionResult {
-  if (state.phase !== 'playing') return { ok: false, state, reason: '当前无法分配属性' };
-  if (state.freePoints <= 0) return { ok: false, state, reason: '没有可分配属性点' };
-  if (!ATTR_KEYS.includes(key)) return { ok: false, state, reason: '未知属性' };
+export function allocatePoint(_state: GameState, _key: AttrKey): ActionResult {
   return {
-    ok: true,
-    state: {
-      ...state,
-      freePoints: state.freePoints - 1,
-      attrs: { ...state.attrs, [key]: state.attrs[key] + 1 },
-    },
+    ok: false,
+    state: _state,
+    reason: '属性由灵力/体术/精神力自动获得，无需手动分配',
   };
 }
 
@@ -791,16 +975,16 @@ export function raiseStar(state: GameState, now = Date.now()): ActionResult {
   }
   const cost = raiseStarCost(ticked);
   if (cost == null) return { ok: false, state: ticked, reason: '已满九层，可尝试破境' };
-  if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: '灵气不足' };
+  if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: '灵力不足' };
   const nextStar = ticked.star + 1;
   let next = updatePeak({
     ...ticked,
     lingqi: ticked.lingqi - cost,
     star: nextStar,
   });
-  // 每升 3 层送 1 自由点
+  // 每升 3 层赠三资源
   if (nextStar % 3 === 0) {
-    next = { ...next, freePoints: next.freePoints + 1 };
+    next = grantFromFreePoints(next, 1);
   }
   next = pushChronicle(next, `${getRealm(next.realmIndex).name}${nextStar}层。`);
   const rnd = tryRandomEvent(next, 'level', now);
@@ -819,7 +1003,7 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
   if (cost == null) {
     return { ok: false, state: ticked, reason: '无法破境（需九层且未至大道）' };
   }
-  if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: '灵气不足' };
+  if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: '灵力不足' };
 
   const nextIndex = ticked.realmIndex + 1;
   const nextRealm = getRealm(nextIndex);
@@ -828,8 +1012,8 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
     lingqi: ticked.lingqi - cost,
     realmIndex: nextIndex,
     star: 1,
-    freePoints: ticked.freePoints + 2,
   });
+  next = grantFromFreePoints(next, 2);
   next = pushChronicle(next, `破境成功：${nextRealm.name}。${nextRealm.blurb}`);
   if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
     next = pushMilestone(
@@ -893,8 +1077,11 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
     next = {
       ...next,
       combatWins: next.combatWins + 1,
-      freePoints: next.freePoints + (enemy.rewardPoints || 0),
     };
+    if (enemy.rewardPoints) next = grantFromFreePoints(next, enemy.rewardPoints);
+    // 战利品也含体术/精神力残劲
+    next = grantResource(next, 'tishu', Math.floor(enemy.rewardLingqi * 0.15));
+    next = grantResource(next, 'jingshen', Math.floor(enemy.rewardLingqi * 0.12));
     const lootBits: string[] = [];
     if (enemy.dropTreasureId && Math.random() < (enemy.dropChance || 0)) {
       next = grantTreasure(next, enemy.dropTreasureId);
@@ -927,6 +1114,16 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
           }
         }
         next = grantNatural(next, pick.id);
+        lootBits.push(pick.name);
+      }
+    }
+    // 药材掉落
+    if (Math.random() < 0.35) {
+      const pool = HERBS.filter((h) => h.minRealm <= next.realmIndex);
+      if (pool.length) {
+        const pick = pool[Math.floor(Math.random() * pool.length)]!;
+        const herbs = { ...next.herbs, [pick.id]: (next.herbs[pick.id] || 0) + 1 };
+        next = { ...next, herbs };
         lootBits.push(pick.name);
       }
     }
@@ -1115,9 +1312,15 @@ export function chooseBirth(
   }
 
   const lifeNo = state.deathReason ? state.reincarnations + 1 : Math.max(1, state.reincarnations);
+  const startTishu = birth.freePoints * FREE_POINT_TO_RESOURCE;
+  const startJingshen = birth.freePoints * FREE_POINT_TO_RESOURCE;
   const next: GameState = {
     lingqi: birth.startLingqi,
     totalLingqi: birth.startLingqi,
+    tishu: startTishu,
+    totalTishu: startTishu,
+    jingshen: startJingshen,
+    totalJingshen: startJingshen,
     qiyun: state.qiyun,
     owned: emptyOwned(),
     realmIndex: 0,
@@ -1137,10 +1340,11 @@ export function chooseBirth(
       inheritRate > 0
         ? `继承永久属性（${Math.floor(inheritRate * 100)}%），携法宝 ${bring.length}/${slots}。`
         : '初入仙途，尚无继承。好好活着。',
+      `三才开局：灵力 ${birth.startLingqi} · 体术 ${startTishu} · 精神力 ${startJingshen}（属性随三资源自动增长）。`,
     ],
     birthId,
     attrs,
-    freePoints: birth.freePoints,
+    freePoints: 0,
     treasures: [...bring],
     equipped,
     vault,
@@ -1156,6 +1360,11 @@ export function chooseBirth(
     combatLosses: 0,
     randomEventId: null,
     lastRandomAt: 0,
+    alchemyMastery: 0,
+    herbs: emptyHerbs(),
+    pills: emptyPills(),
+    bodyStage: 0,
+    bodyProgress: 0,
   };
 
   return { ok: true, state: next, message: `转生为「${birth.name}」` };
@@ -1206,11 +1415,13 @@ export function resolveEvent(
   }
 
   if (option.lingqiDelta) next = grantLingqi(next, option.lingqiDelta);
+  if (option.tishuDelta) next = grantResource(next, 'tishu', option.tishuDelta);
+  if (option.jingshenDelta) next = grantResource(next, 'jingshen', option.jingshenDelta);
   if (option.qiyunDelta) {
     next = { ...next, qiyun: Math.max(0, next.qiyun + option.qiyunDelta) };
   }
-  if (option.freePointsDelta) {
-    next = { ...next, freePoints: Math.max(0, next.freePoints + option.freePointsDelta) };
+  if (option.freePointsDelta && option.freePointsDelta > 0) {
+    next = grantFromFreePoints(next, option.freePointsDelta);
   }
   if (option.attrsDelta) {
     next = { ...next, attrs: addAttrs(next.attrs, option.attrsDelta) };
@@ -1220,6 +1431,14 @@ export function resolveEvent(
   }
   if (option.grantNaturalId) {
     next = grantNatural(next, option.grantNaturalId);
+  }
+  if (option.grantHerbId && getHerb(option.grantHerbId)) {
+    const count = Math.max(1, option.grantHerbCount || 1);
+    const herbs = {
+      ...next.herbs,
+      [option.grantHerbId]: (next.herbs[option.grantHerbId] || 0) + count,
+    };
+    next = { ...next, herbs };
   }
 
   next = pushChronicle(
@@ -1305,6 +1524,121 @@ export function resolveEvent(
   return { ok: true, state: next, message: option.label };
 }
 
+export function buyHerb(state: GameState, herbId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const def = getHerb(herbId);
+  if (!def || def.cost <= 0) return { ok: false, state, reason: '无法购买该药材' };
+  const ticked = tick(state, now).state;
+  if (ticked.realmIndex < def.minRealm) {
+    return { ok: false, state: ticked, reason: '境界不足' };
+  }
+  if (ticked.lingqi < def.cost) return { ok: false, state: ticked, reason: '灵力不足' };
+  const herbs = { ...ticked.herbs, [herbId]: (ticked.herbs[herbId] || 0) + 1 };
+  return {
+    ok: true,
+    state: { ...ticked, lingqi: ticked.lingqi - def.cost, herbs },
+    message: `购得药材「${def.name}」`,
+  };
+}
+
+export function craftPill(state: GameState, recipeId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const recipe = getPillRecipe(recipeId);
+  if (!recipe) return { ok: false, state, reason: '未知丹方' };
+  const ticked = tick(state, now).state;
+  if (ticked.realmIndex < recipe.minRealm) {
+    return { ok: false, state: ticked, reason: '境界不足，火候不够' };
+  }
+  for (const [hid, need] of Object.entries(recipe.herbs)) {
+    if ((ticked.herbs[hid] || 0) < need) {
+      return { ok: false, state: ticked, reason: `药材不足：${getHerb(hid)?.name || hid}` };
+    }
+  }
+  const spent = spendResources(ticked, recipe.costs);
+  if (!spent) return { ok: false, state: ticked, reason: '修炼资源不足' };
+
+  const herbs = { ...spent.herbs };
+  for (const [hid, need] of Object.entries(recipe.herbs)) {
+    herbs[hid] = Math.max(0, (herbs[hid] || 0) - need);
+  }
+  let next: GameState = {
+    ...spent,
+    herbs,
+    alchemyMastery: spent.alchemyMastery + (recipe.effect.mastery || 0),
+  };
+  if (recipe.effect.resources) {
+    for (const key of RESOURCE_KEYS) {
+      const amt = recipe.effect.resources[key] || 0;
+      if (amt) next = grantResource(next, key, amt);
+    }
+  }
+  if (recipe.effect.attrs) {
+    next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
+  }
+  if (recipe.effect.bodyProgress) {
+    next = { ...next, bodyProgress: next.bodyProgress + recipe.effect.bodyProgress };
+  }
+  // 丹成即食
+  const pills = { ...next.pills, [recipeId]: (next.pills[recipeId] || 0) + 1 };
+  next = { ...next, pills };
+  next = pushChronicle(next, `炼成「${recipe.name}」并服下。丹道精通 ${next.alchemyMastery}。`);
+  return { ok: true, state: next, message: `炼成「${recipe.name}」` };
+}
+
+export function temperBody(state: GameState, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  if (state.bodyStage >= BODY_STAGES.length) {
+    return { ok: false, state, reason: '肉身已至圣体雏形' };
+  }
+  const stage = getBodyStage(state.bodyStage);
+  if (!stage) return { ok: false, state, reason: '炼体数据缺失' };
+  const ticked = tick(state, now).state;
+  if (ticked.realmIndex < stage.minRealm) {
+    return { ok: false, state: ticked, reason: `需达境界方可锤炼「${stage.name}」` };
+  }
+  const spent = spendResources(ticked, stage.temperCost);
+  if (!spent) return { ok: false, state: ticked, reason: '体术或灵力不足' };
+
+  let progress = spent.bodyProgress + stage.temperGain;
+  let bodyStage = spent.bodyStage;
+  let msg = `锤炼「${stage.name}」+${stage.temperGain}`;
+  let next: GameState = { ...spent, bodyProgress: progress };
+
+  if (progress >= stage.progressNeed) {
+    bodyStage += 1;
+    progress = 0;
+    next = {
+      ...next,
+      bodyStage,
+      bodyProgress: 0,
+    };
+    next = pushChronicle(
+      next,
+      `炼体突破：踏入「${stage.name}」。${stage.blurb}`,
+    );
+    next = pushMilestone(
+      next,
+      {
+        id: `body_${stage.id}`,
+        title: `炼体·${stage.name}`,
+        detail: stage.blurb,
+        kind: 'other',
+      },
+      now,
+    );
+    msg = `突破至「${stage.name}」`;
+  } else {
+    next = pushChronicle(
+      next,
+      `炼体锤炼：${stage.name} ${Math.floor(progress)}/${stage.progressNeed}`,
+    );
+  }
+  return { ok: true, state: next, message: msg };
+}
+
 export function formatNumber(n: number): string {
   if (!Number.isFinite(n)) return '0';
   const abs = Math.abs(n);
@@ -1366,7 +1700,26 @@ export function getMeta() {
     naturals: NATURALS.map((n) => ({ id: n.id, name: n.name, minRealm: n.minRealm })),
     mainStory: MAIN_STORY.map((e) => ({ id: e.id, title: e.title, chapter: e.mainChapter })),
     attrKeys: ATTR_KEYS,
+    resourceKeys: RESOURCE_KEYS,
+    resourceLabels: RESOURCE_LABELS,
+    herbs: HERBS.map((h) => ({ id: h.id, name: h.name, cost: h.cost, minRealm: h.minRealm })),
+    pills: PILL_RECIPES.map((p) => ({ id: p.id, name: p.name, minRealm: p.minRealm })),
+    bodyStages: BODY_STAGES.map((b, i) => ({ index: i, id: b.id, name: b.name })),
   };
 }
 
-export { BIRTHS, TREASURES, ENEMIES, ATTR_KEYS, NATURALS, MAIN_STORY, EQUIP_SLOTS };
+export {
+  BIRTHS,
+  TREASURES,
+  ENEMIES,
+  ATTR_KEYS,
+  NATURALS,
+  MAIN_STORY,
+  EQUIP_SLOTS,
+  RESOURCE_KEYS,
+  RESOURCE_LABELS,
+  HERBS,
+  PILL_RECIPES,
+  BODY_STAGES,
+  artChannel,
+};
