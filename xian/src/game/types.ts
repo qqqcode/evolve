@@ -208,6 +208,18 @@ export interface EndingDef {
 /** 轮回待选阶段（死亡或主动轮回后） */
 export type LifePhase = 'playing' | 'rebirth' | 'ended';
 
+export type MilestoneKind = 'main' | 'branch' | 'combat' | 'loot' | 'destiny' | 'other';
+
+export interface MilestoneEntry {
+  id: string;
+  title: string;
+  detail: string;
+  kind: MilestoneKind;
+  /** 记录时的境界名，便于时间线对照 */
+  realmLabel?: string;
+  ts: number;
+}
+
 export interface GameState {
   /** 灵气（本世资源） */
   lingqi: number;
@@ -247,6 +259,11 @@ export interface GameState {
   naturalPassive: number;
   /** 主线进度：下一章编号（从 1 开始） */
   mainChapter: number;
+  /**
+   * 重要事件记录（不含日常吐纳流水）
+   * kind: main 主线 / branch 道途阵营 / combat 生死战 / loot 重宝 / destiny 气运 / other
+   */
+  milestones: MilestoneEntry[];
   /** 跨世永久属性（继承累积） */
   legacyAttrs: AttrMap;
   /** 本世峰值境界（用于继承结算） */

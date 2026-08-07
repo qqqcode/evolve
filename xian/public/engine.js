@@ -482,10 +482,11 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 4;
-  var STORAGE_KEY = "xian-save-v4";
+  var SAVE_VERSION = 5;
+  var STORAGE_KEY = "xian-save-v5";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
+  var MAX_MILESTONES = 40;
   var MAX_EQUIP = 3;
   var RANDOM_COOLDOWN_MS = 18e3;
   var RANDOM_CHANCE = {
@@ -2360,6 +2361,37 @@
     }
     return eq;
   }
+  function parseMilestones(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const o = item;
+      if (typeof o.title !== "string" || typeof o.detail !== "string") continue;
+      const kind = o.kind || "other";
+      out.push({
+        id: typeof o.id === "string" ? o.id : `ms_${out.length}`,
+        title: o.title,
+        detail: o.detail,
+        kind,
+        realmLabel: typeof o.realmLabel === "string" ? o.realmLabel : void 0,
+        ts: Number(o.ts) || Date.now()
+      });
+    }
+    return out.slice(-MAX_MILESTONES);
+  }
+  function pushMilestone(state, entry, now = Date.now()) {
+    const realm = getRealm(state.realmIndex);
+    const full = {
+      ...entry,
+      realmLabel: entry.realmLabel || `${realm.name}${state.star}\u5C42`,
+      ts: now
+    };
+    return {
+      ...state,
+      milestones: [...state.milestones, full].slice(-MAX_MILESTONES)
+    };
+  }
   function createMetaState(now = Date.now()) {
     return {
       lingqi: 0,
@@ -2388,6 +2420,7 @@
       naturals: [],
       naturalPassive: 0,
       mainChapter: 1,
+      milestones: [],
       legacyAttrs: zeroAttrs(),
       peakRealmIndex: 0,
       phase: "rebirth",
@@ -2416,6 +2449,7 @@
     const doneEvents = Array.isArray(data.doneEvents) ? data.doneEvents.filter((f) => typeof f === "string") : [];
     const endingsUnlocked = Array.isArray(data.endingsUnlocked) ? data.endingsUnlocked.filter((f) => typeof f === "string") : [];
     const chronicle = Array.isArray(data.chronicle) ? data.chronicle.filter((f) => typeof f === "string").slice(-MAX_CHRONICLE) : fresh.chronicle;
+    const milestones = parseMilestones(data.milestones);
     const treasures = Array.isArray(data.treasures) ? data.treasures.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
     const equipped = migrateEquipped(data.equipped, treasures);
     const vault = Array.isArray(data.vault) ? data.vault.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
@@ -2452,6 +2486,7 @@
       naturals,
       naturalPassive: Math.max(0, Number(data.naturalPassive) || 0),
       mainChapter: Math.max(1, Math.floor(Number(data.mainChapter) || 1)),
+      milestones,
       legacyAttrs: parseAttrs(data.legacyAttrs, zeroAttrs()),
       peakRealmIndex: clampInt(data.peakRealmIndex ?? data.realmIndex, 0, REALMS.length - 1),
       phase: !data.birthId && phase === "playing" ? "rebirth" : phase,
@@ -2707,10 +2742,22 @@
       naturalPassive: state.naturalPassive + n.passiveBonus
     };
     next = grantLingqi(next, n.lingqiGain);
-    return pushChronicle(
+    next = pushChronicle(
       next,
       `\u83B7\u5F97\u5929\u624D\u5730\u5B9D\u300C${n.name}\u300D\uFF1A\u7075\u6C14 +${Math.floor(n.lingqiGain)}\uFF0C\u6C38\u4E45\u88AB\u52A8 +${n.passiveBonus}/\u79D2\u3010${n.lore}\u3011`
     );
+    if (n.minRealm >= 3 || n.passiveBonus >= 3) {
+      next = pushMilestone(
+        next,
+        {
+          id: `nat_${id}`,
+          title: `\u5929\u624D\u5730\u5B9D\xB7${n.name}`,
+          detail: `\u7075\u6C14 +${Math.floor(n.lingqiGain)}\uFF0C\u88AB\u52A8 +${n.passiveBonus}/\u79D2\uFF08${n.lore}\uFF09`,
+          kind: "loot"
+        }
+      );
+    }
+    return next;
   }
   function updatePeak(state) {
     if (state.realmIndex > state.peakRealmIndex) {
@@ -2936,6 +2983,18 @@
       freePoints: ticked.freePoints + 2
     });
     next = pushChronicle(next, `\u7834\u5883\u6210\u529F\uFF1A${nextRealm.name}\u3002${nextRealm.blurb}`);
+    if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
+      next = pushMilestone(
+        next,
+        {
+          id: `break_${nextRealm.id}`,
+          title: `\u7834\u5883\xB7${nextRealm.name}`,
+          detail: nextRealm.blurb,
+          kind: "other"
+        },
+        now
+      );
+    }
     if (nextIndex >= REALMS.length - 1) {
       const ending = matchEnding(next);
       if (ending) {
@@ -2947,6 +3006,16 @@
           phase: "ended"
         };
         next = pushChronicle(next, `\u3010\u7ED3\u5C40\u3011${ending.name}\u2014\u2014${ending.title}`);
+        next = pushMilestone(
+          next,
+          {
+            id: `ending_${ending.id}`,
+            title: `\u7ED3\u5C40\xB7${ending.name}`,
+            detail: ending.title,
+            kind: "destiny"
+          },
+          now
+        );
       }
     } else {
       const rnd = tryRandomEvent(next, "level", now);
@@ -3088,6 +3157,16 @@
     const ticked = tick(state, now).state;
     let next = updatePeak(ticked);
     next = pushChronicle(next, `\u3010\u8EAB\u6B7B\u3011${reason}`);
+    next = pushMilestone(
+      next,
+      {
+        id: `death_${now}`,
+        title: "\u8EAB\u6B7B\u9053\u6D88",
+        detail: reason,
+        kind: "combat"
+      },
+      now
+    );
     const gain = Math.max(1, calcQiyunGain(next));
     let endingsUnlocked = [...next.endingsUnlocked];
     if (next.peakRealmIndex < 2 && !endingsUnlocked.includes("fallen_wild")) {
@@ -3177,6 +3256,7 @@
       naturals: [],
       naturalPassive: 0,
       mainChapter: 1,
+      milestones: [],
       legacyAttrs,
       peakRealmIndex: 0,
       phase: "playing",
@@ -3239,6 +3319,40 @@
       next,
       `\u3010${pending.title}\u3011\u4F60\u9009\u62E9\u4E86\u300C${option.label}\u300D\u3002${option.blurb}${pending.lore ? `\uFF08${pending.lore}\uFF09` : ""}`
     );
+    if (pending.mainChapter) {
+      next = pushMilestone(
+        next,
+        {
+          id: `main_${pending.mainChapter}`,
+          title: pending.title.replace(/^【主线】/, ""),
+          detail: `\u9009\u62E9\u300C${option.label}\u300D\u3002${option.blurb}`,
+          kind: "main"
+        },
+        now
+      );
+    } else if (option.set?.branchId || option.set?.factionId || option.set?.destinyId) {
+      next = pushMilestone(
+        next,
+        {
+          id: `path_${eventId}_${optionId}`,
+          title: pending.title,
+          detail: `\u9009\u62E9\u300C${option.label}\u300D\u3002${option.blurb}`,
+          kind: option.set?.destinyId ? "destiny" : "branch"
+        },
+        now
+      );
+    } else if (!pending.repeatable && !RANDOM_EVENTS.some((e) => e.id === eventId)) {
+      next = pushMilestone(
+        next,
+        {
+          id: `story_${eventId}`,
+          title: pending.title,
+          detail: `\u9009\u62E9\u300C${option.label}\u300D\u3002${option.blurb}`,
+          kind: "other"
+        },
+        now
+      );
+    }
     if (option.combatEnemyId) {
       const combat = startCombat(next, option.combatEnemyId, now);
       next = combat.state;
@@ -3259,6 +3373,16 @@
         phase: "ended"
       };
       next = pushChronicle(next, `\u3010\u7ED3\u5C40\u3011${ending.name}\u2014\u2014${ending.title}`);
+      next = pushMilestone(
+        next,
+        {
+          id: `ending_${ending.id}`,
+          title: `\u7ED3\u5C40\xB7${ending.name}`,
+          detail: ending.title,
+          kind: "destiny"
+        },
+        now
+      );
     }
     return { ok: true, state: next, message: option.label };
   }
@@ -3326,18 +3450,23 @@
   }
 
   // xian/src/game/browser.ts
+  var LEGACY_SAVE_KEYS = ["xian-save-v4", "xian-save-v3", "xian-save-v2", "xian-save-v1"];
   function saveToStorage(state) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      localStorage.removeItem("xian-save-v3");
-      localStorage.removeItem("xian-save-v2");
-      localStorage.removeItem("xian-save-v1");
+      for (const key of LEGACY_SAVE_KEYS) localStorage.removeItem(key);
     } catch {
     }
   }
   function loadFromStorage(now = Date.now()) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("xian-save-v3") || localStorage.getItem("xian-save-v2") || localStorage.getItem("xian-save-v1");
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        for (const key of LEGACY_SAVE_KEYS) {
+          raw = localStorage.getItem(key);
+          if (raw) break;
+        }
+      }
       if (!raw) return createNewState(now);
       return loadState(JSON.parse(raw), now);
     } catch {
@@ -3347,9 +3476,7 @@
   function clearStorage() {
     try {
       localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem("xian-save-v3");
-      localStorage.removeItem("xian-save-v2");
-      localStorage.removeItem("xian-save-v1");
+      for (const key of LEGACY_SAVE_KEYS) localStorage.removeItem(key);
     } catch {
     }
   }

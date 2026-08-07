@@ -7,6 +7,7 @@ import {
   MAIN_STORY,
   MAX_CHRONICLE,
   MAX_EQUIP,
+  MAX_MILESTONES,
   MAX_OFFLINE_MS,
   MAX_STAR,
   NATURALS,
@@ -41,6 +42,8 @@ import type {
   EquipSlot,
   EquippedMap,
   GameState,
+  MilestoneEntry,
+  MilestoneKind,
   StoryEventDef,
   TickResult,
 } from './types';
@@ -90,6 +93,43 @@ function migrateEquipped(raw: unknown, treasures: string[]): EquippedMap {
   return eq;
 }
 
+function parseMilestones(raw: unknown): MilestoneEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MilestoneEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o.title !== 'string' || typeof o.detail !== 'string') continue;
+    const kind = (o.kind as MilestoneKind) || 'other';
+    out.push({
+      id: typeof o.id === 'string' ? o.id : `ms_${out.length}`,
+      title: o.title,
+      detail: o.detail,
+      kind,
+      realmLabel: typeof o.realmLabel === 'string' ? o.realmLabel : undefined,
+      ts: Number(o.ts) || Date.now(),
+    });
+  }
+  return out.slice(-MAX_MILESTONES);
+}
+
+function pushMilestone(
+  state: GameState,
+  entry: Omit<MilestoneEntry, 'ts' | 'realmLabel'> & { realmLabel?: string },
+  now = Date.now(),
+): GameState {
+  const realm = getRealm(state.realmIndex);
+  const full: MilestoneEntry = {
+    ...entry,
+    realmLabel: entry.realmLabel || `${realm.name}${state.star}层`,
+    ts: now,
+  };
+  return {
+    ...state,
+    milestones: [...state.milestones, full].slice(-MAX_MILESTONES),
+  };
+}
+
 /** 跨世保留的空壳（未选出身） */
 export function createMetaState(now = Date.now()): GameState {
   return {
@@ -119,6 +159,7 @@ export function createMetaState(now = Date.now()): GameState {
     naturals: [],
     naturalPassive: 0,
     mainChapter: 1,
+    milestones: [],
     legacyAttrs: zeroAttrs(),
     peakRealmIndex: 0,
     phase: 'rebirth',
@@ -159,6 +200,7 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
   const chronicle = Array.isArray(data.chronicle)
     ? data.chronicle.filter((f): f is string => typeof f === 'string').slice(-MAX_CHRONICLE)
     : fresh.chronicle;
+  const milestones = parseMilestones(data.milestones);
   const treasures = Array.isArray(data.treasures)
     ? data.treasures.filter((f): f is string => typeof f === 'string' && !!getTreasure(f))
     : [];
@@ -211,6 +253,7 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     naturals,
     naturalPassive: Math.max(0, Number(data.naturalPassive) || 0),
     mainChapter: Math.max(1, Math.floor(Number(data.mainChapter) || 1)),
+    milestones,
     legacyAttrs: parseAttrs(data.legacyAttrs, zeroAttrs()),
     peakRealmIndex: clampInt(data.peakRealmIndex ?? data.realmIndex, 0, REALMS.length - 1),
     phase: !data.birthId && phase === 'playing' ? 'rebirth' : phase,
@@ -526,10 +569,22 @@ function grantNatural(state: GameState, id: string): GameState {
     naturalPassive: state.naturalPassive + n.passiveBonus,
   };
   next = grantLingqi(next, n.lingqiGain);
-  return pushChronicle(
+  next = pushChronicle(
     next,
     `获得天才地宝「${n.name}」：灵气 +${Math.floor(n.lingqiGain)}，永久被动 +${n.passiveBonus}/秒【${n.lore}】`,
   );
+  if (n.minRealm >= 3 || n.passiveBonus >= 3) {
+    next = pushMilestone(
+      next,
+      {
+        id: `nat_${id}`,
+        title: `天才地宝·${n.name}`,
+        detail: `灵气 +${Math.floor(n.lingqiGain)}，被动 +${n.passiveBonus}/秒（${n.lore}）`,
+        kind: 'loot',
+      },
+    );
+  }
+  return next;
 }
 
 function updatePeak(state: GameState): GameState {
@@ -776,6 +831,18 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
     freePoints: ticked.freePoints + 2,
   });
   next = pushChronicle(next, `破境成功：${nextRealm.name}。${nextRealm.blurb}`);
+  if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
+    next = pushMilestone(
+      next,
+      {
+        id: `break_${nextRealm.id}`,
+        title: `破境·${nextRealm.name}`,
+        detail: nextRealm.blurb,
+        kind: 'other',
+      },
+      now,
+    );
+  }
 
   if (nextIndex >= REALMS.length - 1) {
     const ending = matchEnding(next);
@@ -790,6 +857,16 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
         phase: 'ended',
       };
       next = pushChronicle(next, `【结局】${ending.name}——${ending.title}`);
+      next = pushMilestone(
+        next,
+        {
+          id: `ending_${ending.id}`,
+          title: `结局·${ending.name}`,
+          detail: ending.title,
+          kind: 'destiny',
+        },
+        now,
+      );
     }
   } else {
     const rnd = tryRandomEvent(next, 'level', now);
@@ -945,6 +1022,16 @@ export function die(state: GameState, reason: string, now = Date.now()): ActionR
   const ticked = tick(state, now).state;
   let next = updatePeak(ticked);
   next = pushChronicle(next, `【身死】${reason}`);
+  next = pushMilestone(
+    next,
+    {
+      id: `death_${now}`,
+      title: '身死道消',
+      detail: reason,
+      kind: 'combat',
+    },
+    now,
+  );
   // 进入轮回准备：结算气运，但不立刻清零——由 chooseBirth 继承
   const gain = Math.max(1, calcQiyunGain(next));
   let endingsUnlocked = [...next.endingsUnlocked];
@@ -1060,6 +1147,7 @@ export function chooseBirth(
     naturals: [],
     naturalPassive: 0,
     mainChapter: 1,
+    milestones: [],
     legacyAttrs,
     peakRealmIndex: 0,
     phase: 'playing',
@@ -1139,6 +1227,42 @@ export function resolveEvent(
     `【${pending.title}】你选择了「${option.label}」。${option.blurb}${pending.lore ? `（${pending.lore}）` : ''}`,
   );
 
+  // 重要事件：主线、道途/阵营/气运抉择、非重复剧情
+  if (pending.mainChapter) {
+    next = pushMilestone(
+      next,
+      {
+        id: `main_${pending.mainChapter}`,
+        title: pending.title.replace(/^【主线】/, ''),
+        detail: `选择「${option.label}」。${option.blurb}`,
+        kind: 'main',
+      },
+      now,
+    );
+  } else if (option.set?.branchId || option.set?.factionId || option.set?.destinyId) {
+    next = pushMilestone(
+      next,
+      {
+        id: `path_${eventId}_${optionId}`,
+        title: pending.title,
+        detail: `选择「${option.label}」。${option.blurb}`,
+        kind: option.set?.destinyId ? 'destiny' : 'branch',
+      },
+      now,
+    );
+  } else if (!pending.repeatable && !RANDOM_EVENTS.some((e) => e.id === eventId)) {
+    next = pushMilestone(
+      next,
+      {
+        id: `story_${eventId}`,
+        title: pending.title,
+        detail: `选择「${option.label}」。${option.blurb}`,
+        kind: 'other',
+      },
+      now,
+    );
+  }
+
   if (option.combatEnemyId) {
     const combat = startCombat(next, option.combatEnemyId, now);
     next = combat.state;
@@ -1166,6 +1290,16 @@ export function resolveEvent(
       phase: 'ended',
     };
     next = pushChronicle(next, `【结局】${ending.name}——${ending.title}`);
+    next = pushMilestone(
+      next,
+      {
+        id: `ending_${ending.id}`,
+        title: `结局·${ending.name}`,
+        detail: ending.title,
+        kind: 'destiny',
+      },
+      now,
+    );
   }
 
   return { ok: true, state: next, message: option.label };

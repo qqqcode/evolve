@@ -73,6 +73,8 @@
     endingName: document.getElementById('endingName'),
     endingTitle: document.getElementById('endingTitle'),
     endingBody: document.getElementById('endingBody'),
+    mainTimeline: document.getElementById('mainTimeline'),
+    milestoneList: document.getElementById('milestoneList'),
   };
 
   function showToast(msg) {
@@ -429,6 +431,88 @@
       });
   }
 
+  function renderMainTimeline() {
+    if (!els.mainTimeline) return;
+    const chapters = X.MAIN_STORY || [];
+    const done = new Set(state.doneEvents || []);
+    const current = state.mainChapter || 1;
+    els.mainTimeline.innerHTML = '';
+    if (!chapters.length) {
+      const empty = document.createElement('li');
+      empty.className = 'empty-hint';
+      empty.textContent = '暂无主线。';
+      els.mainTimeline.appendChild(empty);
+      return;
+    }
+    chapters.forEach((ch) => {
+      const li = document.createElement('li');
+      const chNum = ch.mainChapter || ch.chapter || 0;
+      let status = 'locked';
+      let statusText = '未启';
+      if (done.has(ch.id) || chNum < current) {
+        status = 'done';
+        statusText = '已完';
+      } else if (chNum === current) {
+        status = 'current';
+        statusText = '进行中';
+      }
+      li.className = status;
+      const title = String(ch.title || '').replace(/^【主线】/, '');
+      li.innerHTML =
+        '<span class="tl-ch">第' +
+        chNum +
+        '章</span>' +
+        '<span class="tl-title">' +
+        title +
+        '</span>' +
+        '<span class="tl-status">' +
+        statusText +
+        '</span>';
+      els.mainTimeline.appendChild(li);
+    });
+  }
+
+  function renderMilestones() {
+    if (!els.milestoneList) return;
+    const list = state.milestones || [];
+    els.milestoneList.innerHTML = '';
+    if (!list.length) {
+      const empty = document.createElement('li');
+      empty.className = 'empty-hint';
+      empty.textContent = '尚无重要事件。道途抉择、关键突破、稀有奇遇与身死轮回会记入此处。';
+      els.milestoneList.appendChild(empty);
+      return;
+    }
+    const kindLabel = {
+      main: '主线',
+      branch: '道途',
+      destiny: '气运',
+      combat: '生死',
+      loot: '奇遇',
+      other: '大事',
+    };
+    list
+      .slice()
+      .reverse()
+      .forEach((m) => {
+        const li = document.createElement('li');
+        const kind = m.kind || 'other';
+        li.className = 'kind-' + kind;
+        const when = m.realmLabel ? m.realmLabel + ' · ' : '';
+        li.innerHTML =
+          '<span class="ms-title">[' +
+          (kindLabel[kind] || '大事') +
+          '] ' +
+          (m.title || '') +
+          '</span>' +
+          '<span class="ms-meta">' +
+          when +
+          (m.detail || '') +
+          '</span>';
+        els.milestoneList.appendChild(li);
+      });
+  }
+
   function renderEndings() {
     els.endingList.innerHTML = '';
     X.ENDINGS.forEach((ending) => {
@@ -624,6 +708,8 @@
 
     softUpdateShops(stats);
     if (!soft || !treasuresBuilt) buildTreasures();
+    renderMainTimeline();
+    renderMilestones();
     if (!soft) {
       renderChronicle();
       renderEndings();
