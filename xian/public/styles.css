@@ -1057,6 +1057,60 @@ body {
   color: var(--paper);
 }
 
+.event-power {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: -0.3rem 0 0.85rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  background: rgba(7, 11, 18, 0.5);
+}
+
+.event-power .ep-row {
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.event-power .ep-row b {
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.event-power .ep-row .ep-enemy {
+  color: var(--cinnabar);
+}
+
+.event-power .ep-row i {
+  font-style: normal;
+  opacity: 0.6;
+  margin: 0 0.15rem;
+}
+
+.event-power .ep-odds {
+  font-style: normal;
+  margin-left: 0.3rem;
+  padding: 0 0.3rem;
+  border: 1px solid transparent;
+  font-size: 0.68rem;
+}
+
+.event-power .ep-win {
+  color: var(--jade);
+  border-color: rgba(109, 179, 159, 0.5);
+}
+
+.event-power .ep-even {
+  color: var(--gold-soft);
+  border-color: rgba(212, 180, 90, 0.4);
+}
+
+.event-power .ep-lose {
+  color: #c47a7a;
+  border-color: rgba(196, 122, 122, 0.5);
+}
+
 .modal-options {
   display: flex;
   flex-direction: column;

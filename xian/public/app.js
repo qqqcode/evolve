@@ -91,6 +91,7 @@
     eventLore: document.getElementById('eventLore'),
     eventTitle: document.getElementById('eventTitle'),
     eventBody: document.getElementById('eventBody'),
+    eventPower: document.getElementById('eventPower'),
     eventOptions: document.getElementById('eventOptions'),
     endingModal: document.getElementById('endingModal'),
     endingName: document.getElementById('endingName'),
@@ -1062,6 +1063,43 @@
         eventModalOpen = false;
       }
       return;
+    }
+    // 对战事件：顶部标注我方/敌方战力，便于比较
+    if (els.eventPower) {
+      const enemyIds = [];
+      ev.options.forEach((o) => {
+        if (o.combatEnemyId && !enemyIds.includes(o.combatEnemyId)) {
+          enemyIds.push(o.combatEnemyId);
+        }
+      });
+      if (enemyIds.length) {
+        const my = Math.floor(X.calcCombatPower(state));
+        const rows = enemyIds.map((eid) => {
+          const enemy = X.getEnemy(eid);
+          if (!enemy) return '';
+          const ep = X.enemyPower(enemy.attrs, state.realmIndex);
+          const ratio = my / Math.max(1, ep);
+          const odds = ratio >= 1.25 ? '占优' : ratio <= 0.8 ? '凶险' : '均势';
+          return (
+            '<span class="ep-row"><b>我方</b> ' +
+            X.formatNumber(my) +
+            ' <i>vs</i> <b class="ep-enemy">' +
+            enemy.name +
+            '</b> ' +
+            X.formatNumber(ep) +
+            ' <em class="ep-odds ep-' +
+            (ratio >= 1.25 ? 'win' : ratio <= 0.8 ? 'lose' : 'even') +
+            '">' +
+            odds +
+            '</em></span>'
+          );
+        });
+        els.eventPower.innerHTML = rows.filter(Boolean).join('');
+        els.eventPower.hidden = false;
+      } else {
+        els.eventPower.hidden = true;
+        els.eventPower.innerHTML = '';
+      }
     }
     if (eventModalOpen && els.eventTitle.textContent === ev.title) return;
     eventModalOpen = true;
