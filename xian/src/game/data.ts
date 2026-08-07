@@ -47,8 +47,8 @@ export {
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 8;
-export const STORAGE_KEY = 'xian-save-v8';
+export const SAVE_VERSION = 9;
+export const STORAGE_KEY = 'xian-save-v9';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_MILESTONES = 40;

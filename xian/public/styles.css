@@ -383,15 +383,31 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(200px, 0.9fr) minmax(240px, 1.15fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(180px, 0.75fr) minmax(220px, 1fr) minmax(420px, 1.6fr);
   gap: 0.85rem;
   flex: 1;
   align-items: start;
 }
 
+.right-workspace {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.equipment-market-panel,
+.arts-panel,
 .realm-panel,
-.shop-panel,
 .core-panel {
+  background: linear-gradient(180deg, rgba(15, 22, 36, 0.82), rgba(7, 11, 18, 0.65));
+  border: 1px solid rgba(201, 162, 39, 0.16);
+  padding: 0.85rem 0.9rem 1rem;
+  min-width: 0;
+}
+
+.shop-panel {
   background: linear-gradient(180deg, rgba(15, 22, 36, 0.82), rgba(7, 11, 18, 0.65));
   border: 1px solid rgba(201, 162, 39, 0.16);
   padding: 0.85rem 0.9rem 1rem;
@@ -407,6 +423,7 @@ body {
 
 .realm-panel .pane-title:first-child,
 .shop-panel .pane-title:first-child,
+.equipment-market-panel .pane-title:first-child,
 .chronicle .pane-title {
   margin-top: 0;
 }
@@ -1217,12 +1234,87 @@ body {
   color: var(--jade);
 }
 
+.treasure-row .tier-mortal {
+  color: #9ab0c4;
+}
+.treasure-row .tier-spirit {
+  color: #6ec4a8;
+}
+.treasure-row .tier-immortal {
+  color: #e8c35a;
+}
+
+.treasure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.treasure-actions .mini-btn {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  padding: 0.18rem 0.4rem;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: rgba(12, 18, 28, 0.7);
+  color: var(--gold-soft);
+  cursor: pointer;
+}
+
+.treasure-actions .mini-btn:hover:not(:disabled) {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.treasure-actions .mini-btn:disabled,
+.treasure-actions .mini-btn.is-locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.treasure-bonus {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: #b8c8d8;
+}
+
+.treasure-cons {
+  color: #c47a7a;
+}
+
+.equip-slot {
+  position: relative;
+}
+
+.equip-slot .slot-bonus {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.58rem;
+  line-height: 1.35;
+  color: #9eb4c8;
+  letter-spacing: 0.02em;
+}
+
+.equip-bonus-hint {
+  margin-top: 0.35rem;
+  opacity: 0.75;
+}
+
+.market-block .shop-list {
+  max-height: 11rem;
+}
+
 .birth-card {
   width: min(94vw, 520px);
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
   .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .right-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -1235,6 +1327,10 @@ body {
   }
 
   .shop-list {
+    max-height: none;
+  }
+
+  .market-block .shop-list {
     max-height: none;
   }
 

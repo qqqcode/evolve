@@ -100,6 +100,12 @@ export interface TreasureDef {
   /** 获得价格（灵力）；0 表示仅剧情/掉落 */
   cost: number;
   minRealm: number;
+  /** 凡品 / 灵品 / 仙品；仙品无负面且不可洗练 */
+  tier: TreasureTier;
+  /** 正面效果简述（展示用） */
+  pros: string[];
+  /** 负面效果；仙品应省略；洗练后忽略 */
+  cons?: TreasureCons;
   attrs: Partial<AttrMap>;
   /** 装备槽：战斗 / 修炼 / 辅助，互不干扰 */
   slot: EquipSlot;
@@ -131,9 +137,43 @@ export interface TreasureDef {
   cultivateClick?: number;
   /** 修炼槽：被动每秒加成（默认加在灵力通道） */
   cultivatePassive?: number;
+  /** 炼器最大等级（体术强化） */
+  maxTemper: number;
+  /** 炼器基础体术消耗 */
+  temperBaseCost: number;
+  /** 洗练体术消耗；仙品为 0 */
+  refineCost: number;
+  /** 售卖灵力（未装备时可卖） */
+  sellLingli: number;
   mark: string;
   /** 可跨世存入宝库 */
   vaultable: boolean;
+}
+
+/** 法宝品阶 */
+export type TreasureTier = 'mortal' | 'spirit' | 'immortal';
+
+export const TREASURE_TIER_LABELS: Record<TreasureTier, string> = {
+  mortal: '凡品',
+  spirit: '灵品',
+  immortal: '仙品',
+};
+
+/** 法宝负面（正向越多通常负面越重；仙品/洗练后不生效） */
+export interface TreasureCons {
+  attrs?: Partial<AttrMap>;
+  triadBias?: Partial<ResourceMap>;
+  combatMult?: number;
+  cultivateClick?: number;
+  cultivatePassive?: number;
+  /** 展示用负面简述 */
+  labels?: string[];
+}
+
+/** 本世法宝炼器/洗练状态 */
+export interface TreasureForgeState {
+  level: number;
+  refined: boolean;
 }
 
 /** 装备槽位 */
@@ -316,6 +356,8 @@ export interface GameState {
   freePoints: number;
   /** 本世持有法宝 id */
   treasures: string[];
+  /** 法宝炼器等级与洗练状态（本世） */
+  treasureForge: Record<string, TreasureForgeState>;
   /** 分槽装备：战斗 / 修炼 / 辅助 */
   equipped: EquippedMap;
   /** 跨世宝库 */

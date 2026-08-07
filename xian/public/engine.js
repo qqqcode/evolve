@@ -214,6 +214,11 @@
     bone: "\u6839\u9AA8",
     luck: "\u6C14\u673A"
   };
+  var TREASURE_TIER_LABELS = {
+    mortal: "\u51E1\u54C1",
+    spirit: "\u7075\u54C1",
+    immortal: "\u4ED9\u54C1"
+  };
   var EQUIP_SLOTS = ["combat", "cultivate", "assist"];
   var EQUIP_SLOT_LABELS = {
     combat: "\u6218\u6597",
@@ -247,7 +252,7 @@
     return ids;
   }
   var TREASURES = [
-    // —— 战斗 ——
+    // —— 战斗 · 凡品 ——
     {
       id: "bamboo_cloud_sword",
       name: "\u9752\u7AF9\u8702\u4E91\u5251\u6B8B\u950B",
@@ -255,13 +260,122 @@
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 2500,
       minRealm: 1,
+      tier: "mortal",
+      pros: ["\u653B\u4F10+4", "\u8EAB\u6CD5+2", "\u6218\u529B\xD71.08", "\u5148\u624B"],
+      cons: {
+        attrs: { def: -2, bone: -1 },
+        labels: ["\u62A4\u4F53-2", "\u6839\u9AA8-1", "\u5251\u610F\u4F24\u5DF1"]
+      },
       slot: "combat",
       attrs: { atk: 4, spd: 2 },
       combatMult: 1.08,
       combatEdges: { firstStrikeChance: 0.18, firstStrikeBonus: 0.12 },
+      maxTemper: 5,
+      temperBaseCost: 80,
+      refineCost: 400,
+      sellLingli: 1200,
       mark: "\u7AF9",
       vaultable: true
     },
+    {
+      id: "face_slap_fan",
+      name: "\u6253\u8138\u6247",
+      description: "\u6218\u6597\u69FD\u3002\u4E13\u6CBB\u5404\u79CD\u4E0D\u670D\u3002",
+      lore: "\u8BF8\u5929\u6897",
+      cost: 3e3,
+      minRealm: 1,
+      tier: "mortal",
+      pros: ["\u653B\u4F10+3", "\u6C14\u673A+2", "\u66B4\u51FB/\u5148\u624B"],
+      cons: {
+        attrs: { spirit: -2 },
+        combatMult: 0.97,
+        labels: ["\u795E\u8BC6-2", "\u6218\u529B\xD70.97", "\u62DB\u4EBA\u8BB0\u6068"]
+      },
+      slot: "combat",
+      attrs: { atk: 3, luck: 2 },
+      combatMult: 1.07,
+      combatEdges: { critChance: 0.2, critMult: 1.35, firstStrikeChance: 0.12, firstStrikeBonus: 0.08 },
+      maxTemper: 5,
+      temperBaseCost: 90,
+      refineCost: 450,
+      sellLingli: 1400,
+      mark: "\u6247",
+      vaultable: true
+    },
+    {
+      id: "rusty_spear",
+      name: "\u9508\u8680\u730E\u5996\u77DB",
+      description: "\u6218\u6597\u69FD\u3002\u5916\u95E8\u5F1F\u5B50\u5165\u95E8\u6807\u914D\uFF0C\u624E\u5F97\u51C6\u4F46\u6C89\u3002",
+      lore: "\u51E1\u4EBA",
+      cost: 600,
+      minRealm: 0,
+      tier: "mortal",
+      pros: ["\u653B\u4F10+2", "\u6218\u529B\xD71.04"],
+      cons: {
+        attrs: { spd: -1 },
+        labels: ["\u8EAB\u6CD5-1"]
+      },
+      slot: "combat",
+      attrs: { atk: 2 },
+      combatMult: 1.04,
+      maxTemper: 4,
+      temperBaseCost: 40,
+      refineCost: 200,
+      sellLingli: 280,
+      mark: "\u77DB",
+      vaultable: false
+    },
+    {
+      id: "blood_dagger",
+      name: "\u996E\u8840\u77ED\u5315",
+      description: "\u6218\u6597\u69FD\u3002\u89C1\u8840\u5219\u5FEB\uFF0C\u4EA6\u6613\u53CD\u566C\u3002",
+      lore: "\u9B54\u9053",
+      cost: 4500,
+      minRealm: 1,
+      tier: "mortal",
+      pros: ["\u653B\u4F10+5", "\u8EAB\u6CD5+3", "\u66B4\u51FB", "\u6218\u529B\xD71.09"],
+      cons: {
+        attrs: { def: -3, luck: -2 },
+        triadBias: { jingshen: -0.03 },
+        labels: ["\u62A4\u4F53-3", "\u6C14\u673A-2", "\u6291\u7CBE\u795E\u4EA7\u51FA"]
+      },
+      slot: "combat",
+      attrs: { atk: 5, spd: 3 },
+      combatMult: 1.09,
+      combatEdges: { critChance: 0.18, critMult: 1.4 },
+      maxTemper: 5,
+      temperBaseCost: 100,
+      refineCost: 520,
+      sellLingli: 2e3,
+      mark: "\u5315",
+      vaultable: true
+    },
+    {
+      id: "thunder_ring",
+      name: "\u88C2\u7A7A\u96F7\u73AF",
+      description: "\u6218\u6597\u69FD\u3002\u4E00\u63B7\u60CA\u96F7\uFF0C\u8033\u9E23\u4E09\u65E5\u3002",
+      lore: "\u6597\u7834",
+      cost: 12e3,
+      minRealm: 2,
+      tier: "mortal",
+      pros: ["\u653B\u4F10+6", "\u795E\u8BC6+2", "\u5148\u624B", "\u6218\u529B\xD71.1"],
+      cons: {
+        attrs: { bone: -2, spirit: -1 },
+        cultivatePassive: -1,
+        labels: ["\u6839\u9AA8-2", "\u795E\u8BC6-1", "\u88AB\u52A8\u4FEE\u70BC-1"]
+      },
+      slot: "combat",
+      attrs: { atk: 6, spirit: 2 },
+      combatMult: 1.1,
+      combatEdges: { firstStrikeChance: 0.22, firstStrikeBonus: 0.14 },
+      maxTemper: 6,
+      temperBaseCost: 160,
+      refineCost: 800,
+      sellLingli: 5500,
+      mark: "\u96F7",
+      vaultable: true
+    },
+    // —— 战斗 · 灵品 ——
     {
       id: "flame_tome",
       name: "\u711A\u8BC0\u6B8B\u9875",
@@ -269,10 +383,21 @@
       lore: "\u6597\u7834\u82CD\u7A79",
       cost: 6e3,
       minRealm: 2,
+      tier: "spirit",
+      pros: ["\u653B\u4F10+6", "\u6839\u9AA8+1", "\u66B4\u51FB", "\u6218\u529B\xD71.1"],
+      cons: {
+        attrs: { luck: -2, def: -1 },
+        triadBias: { tishu: -0.02, lingli: 0.02 },
+        labels: ["\u6C14\u673A-2", "\u62A4\u4F53-1", "\u504F\u7075\u6291\u4F53"]
+      },
       slot: "combat",
       attrs: { atk: 6, bone: 1 },
       combatMult: 1.1,
       combatEdges: { critChance: 0.16, critMult: 1.45 },
+      maxTemper: 7,
+      temperBaseCost: 200,
+      refineCost: 1200,
+      sellLingli: 2800,
       mark: "\u711A",
       vaultable: true
     },
@@ -283,25 +408,23 @@
       lore: "\u6597\u7834\u82CD\u7A79",
       cost: 0,
       minRealm: 3,
+      tier: "spirit",
+      pros: ["\u653B\u4F10+8", "\u795E\u8BC6+2", "\u9AD8\u66B4\u51FB", "\u6218\u529B\xD71.14"],
+      cons: {
+        attrs: { bone: -3, def: -2 },
+        combatMult: 0.96,
+        triadBias: { jingshen: -0.04 },
+        labels: ["\u6839\u9AA8-3", "\u62A4\u4F53-2", "\u6218\u529B\xD70.96", "\u6291\u7CBE\u795E"]
+      },
       slot: "combat",
       attrs: { atk: 8, spirit: 2 },
       combatMult: 1.14,
       combatEdges: { critChance: 0.22, critMult: 1.55 },
+      maxTemper: 8,
+      temperBaseCost: 280,
+      refineCost: 2e3,
+      sellLingli: 8e3,
       mark: "\u83B2",
-      vaultable: true
-    },
-    {
-      id: "face_slap_fan",
-      name: "\u6253\u8138\u6247",
-      description: "\u6218\u6597\u69FD\u3002\u4E13\u6CBB\u5404\u79CD\u4E0D\u670D\u3002",
-      lore: "\u8BF8\u5929\u6897",
-      cost: 3e3,
-      minRealm: 1,
-      slot: "combat",
-      attrs: { atk: 3, luck: 2 },
-      combatMult: 1.07,
-      combatEdges: { critChance: 0.2, critMult: 1.35, firstStrikeChance: 0.12, firstStrikeBonus: 0.08 },
-      mark: "\u6247",
       vaultable: true
     },
     {
@@ -311,58 +434,228 @@
       lore: "\u8BF8\u5929\u5251\u4FEE",
       cost: 8e4,
       minRealm: 5,
+      tier: "spirit",
+      pros: ["\u653B\u4F10+12", "\u8EAB\u6CD5+4", "\u66B4\u51FB/\u5148\u624B", "\u6218\u529B\xD71.16"],
+      cons: {
+        attrs: { luck: -4, spirit: -2, def: -3 },
+        cultivateClick: -2,
+        labels: ["\u6C14\u673A-4", "\u795E\u8BC6-2", "\u62A4\u4F53-3", "\u70B9\u51FB\u4FEE\u70BC-2"]
+      },
       slot: "combat",
       attrs: { atk: 12, spd: 4 },
       combatMult: 1.16,
       combatEdges: { critChance: 0.25, critMult: 1.65, firstStrikeChance: 0.2, firstStrikeBonus: 0.15 },
+      maxTemper: 8,
+      temperBaseCost: 600,
+      refineCost: 5e3,
+      sellLingli: 35e3,
       mark: "\u5203",
       vaultable: true
     },
-    // —— 修炼 ——
+    {
+      id: "shadow_bow",
+      name: "\u8FFD\u5F71\u795E\u5F13",
+      description: "\u6218\u6597\u69FD\u3002\u4E00\u7BAD\u8FFD\u9B42\uFF0C\u5374\u6613\u6F0F\u9632\u3002",
+      lore: "\u8BF8\u5929",
+      cost: 25e3,
+      minRealm: 3,
+      tier: "spirit",
+      pros: ["\u653B\u4F10+7", "\u8EAB\u6CD5+5", "\u5148\u624B/\u95EA\u907F", "\u6218\u529B\xD71.12"],
+      cons: {
+        attrs: { def: -4, bone: -2 },
+        triadBias: { lingli: -0.03 },
+        labels: ["\u62A4\u4F53-4", "\u6839\u9AA8-2", "\u6291\u7075\u529B\u4EA7\u51FA"]
+      },
+      slot: "combat",
+      attrs: { atk: 7, spd: 5 },
+      combatMult: 1.12,
+      combatEdges: { firstStrikeChance: 0.2, firstStrikeBonus: 0.12, dodgeChance: 0.12 },
+      maxTemper: 7,
+      temperBaseCost: 320,
+      refineCost: 2400,
+      sellLingli: 11e3,
+      mark: "\u5F13",
+      vaultable: true
+    },
+    {
+      id: "demon_blade",
+      name: "\u9B54\u715E\u5200\u80DA",
+      description: "\u6218\u6597\u69FD\u3002\u5200\u9E23\u5982\u54ED\uFF0C\u8D8A\u6740\u8D8A\u5F3A\u3002",
+      lore: "\u4ED9\u9006",
+      cost: 45e3,
+      minRealm: 4,
+      tier: "spirit",
+      pros: ["\u653B\u4F10+10", "\u6C14\u673A+3", "\u66B4\u51FB", "\u6218\u529B\xD71.15", "\u6218\u529B\u7279\u6548"],
+      cons: {
+        attrs: { spirit: -5, luck: -3, def: -2 },
+        combatMult: 0.94,
+        triadBias: { jingshen: -0.05, tishu: 0.02 },
+        labels: ["\u795E\u8BC6-5", "\u6C14\u673A-3", "\u62A4\u4F53-2", "\u6218\u529B\xD70.94", "\u6291\u795E\u52A9\u4F53"]
+      },
+      slot: "combat",
+      attrs: { atk: 10, luck: 3 },
+      combatMult: 1.15,
+      combatEdges: { critChance: 0.28, critMult: 1.7 },
+      maxTemper: 8,
+      temperBaseCost: 450,
+      refineCost: 3600,
+      sellLingli: 2e4,
+      mark: "\u715E",
+      vaultable: true
+    },
+    // —— 战斗 · 仙品 ——
+    {
+      id: "immortal_sword_intent",
+      name: "\u4E00\u7F15\u5251\u610F",
+      description: "\u6218\u6597\u69FD\u3002\u4ED9\u54C1\u3002\u65E0\u7455\u5251\u610F\uFF0C\u65E0\u8D1F\u9762\u3002",
+      lore: "\u5927\u9053",
+      cost: 0,
+      minRealm: 8,
+      tier: "immortal",
+      pros: ["\u653B\u4F10+18", "\u8EAB\u6CD5+8", "\u795E\u8BC6+4", "\u6781\u9AD8\u66B4\u51FB/\u5148\u624B", "\u6218\u529B\xD71.22"],
+      slot: "combat",
+      attrs: { atk: 18, spd: 8, spirit: 4 },
+      combatMult: 1.22,
+      combatEdges: {
+        critChance: 0.3,
+        critMult: 1.8,
+        firstStrikeChance: 0.25,
+        firstStrikeBonus: 0.2
+      },
+      maxTemper: 9,
+      temperBaseCost: 2e3,
+      refineCost: 0,
+      sellLingli: 2e5,
+      mark: "\u610F",
+      vaultable: true
+    },
+    // —— 修炼 · 凡品 ——
     {
       id: "small_bottle",
       name: "\u7EFF\u6DB2\u5C0F\u74F6",
-      description: "\u4FEE\u70BC\u69FD\u3002\u6EF4\u8349\u6728\u75AF\u957F\uFF1B\u7565\u5FAE\u8C03\u548C\u4E09\u624D\uFF0C\u4E0D\u81F3\u4E8E\u504F\u79D1\u592A\u72E0\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u6EF4\u8349\u6728\u75AF\u957F\uFF1B\u7565\u5FAE\u8C03\u548C\u4E09\u624D\u3002",
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 0,
       minRealm: 0,
+      tier: "mortal",
+      pros: ["\u6C14\u673A+3", "\u6839\u9AA8+2", "\u795E\u8BC6+1", "\u70B9\u51FB+2", "\u88AB\u52A8+1.5", "\u8C03\u548C"],
+      cons: {
+        attrs: { atk: -2 },
+        triadBias: { tishu: -0.02 },
+        labels: ["\u653B\u4F10-2", "\u6291\u4F53\u672F\u4EA7\u51FA", "\u836F\u763E"]
+      },
       slot: "cultivate",
       attrs: { luck: 3, bone: 2, spirit: 1 },
       cultivateClick: 2,
       cultivatePassive: 1.5,
       triadDamp: 0.12,
+      maxTemper: 6,
+      temperBaseCost: 60,
+      refineCost: 350,
+      sellLingli: 800,
       mark: "\u74F6",
       vaultable: true
     },
     {
       id: "spirit_gather_jade",
       name: "\u805A\u7075\u7389\u7B80",
-      description: "\u4FEE\u70BC\u69FD\u3002\u7389\u7B80\u8D34\u8EAB\u805A\u7075\uFF1B\u504F\u52A9\u7075\u529B\uFF0C\u7A0D\u6291\u4F53\u672F\u4E92\u6270\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u7389\u7B80\u8D34\u8EAB\u805A\u7075\uFF1B\u504F\u52A9\u7075\u529B\u3002",
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 1800,
       minRealm: 0,
+      tier: "mortal",
+      pros: ["\u795E\u8BC6+2", "\u70B9\u51FB+1", "\u88AB\u52A8+2.5", "\u8C03\u548C", "\u504F\u7075"],
+      cons: {
+        attrs: { bone: -1 },
+        triadBias: { tishu: -0.03 },
+        labels: ["\u6839\u9AA8-1", "\u6291\u4F53\u66F4\u751A"]
+      },
       slot: "cultivate",
       attrs: { spirit: 2 },
       cultivateClick: 1,
       cultivatePassive: 2.5,
       triadDamp: 0.08,
       triadBias: { lingli: 0.04, tishu: -0.02 },
+      maxTemper: 5,
+      temperBaseCost: 50,
+      refineCost: 280,
+      sellLingli: 900,
       mark: "\u7389",
       vaultable: true
     },
     {
+      id: "meditation_mat",
+      name: "\u7834\u84B2\u56E2",
+      description: "\u4FEE\u70BC\u69FD\u3002\u5750\u4E45\u4E86\u817F\u9EBB\uFF0C\u4F46\u5FC3\u9759\u3002",
+      lore: "\u8BF8\u5929",
+      cost: 350,
+      minRealm: 0,
+      tier: "mortal",
+      pros: ["\u795E\u8BC6+1", "\u88AB\u52A8+1"],
+      cons: {
+        attrs: { spd: -1 },
+        labels: ["\u8EAB\u6CD5-1"]
+      },
+      slot: "cultivate",
+      attrs: { spirit: 1 },
+      cultivatePassive: 1,
+      maxTemper: 4,
+      temperBaseCost: 30,
+      refineCost: 150,
+      sellLingli: 160,
+      mark: "\u56E2",
+      vaultable: false
+    },
+    {
+      id: "qi_pill_furnace",
+      name: "\u805A\u6C14\u5C0F\u7089",
+      description: "\u4FEE\u70BC\u69FD\u3002\u7089\u706B\u65FA\u5219\u7075\u6C14\u6D8C\uFF0C\u4EA6\u8017\u795E\u3002",
+      lore: "\u51E1\u4EBA",
+      cost: 5500,
+      minRealm: 1,
+      tier: "mortal",
+      pros: ["\u70B9\u51FB+3", "\u88AB\u52A8+3", "\u795E\u8BC6+2"],
+      cons: {
+        attrs: { luck: -2 },
+        triadBias: { jingshen: -0.04 },
+        labels: ["\u6C14\u673A-2", "\u6291\u7CBE\u795E\u4EA7\u51FA"]
+      },
+      slot: "cultivate",
+      attrs: { spirit: 2 },
+      cultivateClick: 3,
+      cultivatePassive: 3,
+      maxTemper: 5,
+      temperBaseCost: 110,
+      refineCost: 600,
+      sellLingli: 2400,
+      mark: "\u7089",
+      vaultable: true
+    },
+    // —— 修炼 · 灵品 ——
+    {
       id: "desolate_bone",
       name: "\u8352\u53E4\u6B8B\u9AA8",
-      description: "\u4FEE\u70BC\u69FD\u3002\u6839\u9AA8\u53D1\u5149\uFF1B\u504F\u52A9\u4F53\u672F\uFF0C\u8C03\u548C\u7CBE\u795E\u8FC7\u65FA\u7684\u538B\u5236\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u6839\u9AA8\u53D1\u5149\uFF1B\u504F\u52A9\u4F53\u672F\u3002",
       lore: "\u906E\u5929",
       cost: 12e3,
       minRealm: 2,
+      tier: "spirit",
+      pros: ["\u6839\u9AA8+5", "\u62A4\u4F53+2", "\u70B9\u51FB+3", "\u88AB\u52A8+4", "\u8C03\u548C", "\u504F\u4F53"],
+      cons: {
+        attrs: { spirit: -3, luck: -1 },
+        cultivateClick: -1,
+        labels: ["\u795E\u8BC6-3", "\u6C14\u673A-1", "\u70B9\u51FB-1", "\u9AA8\u5BD2\u4FB5\u795E"]
+      },
       slot: "cultivate",
       attrs: { bone: 5, def: 2 },
       cultivateClick: 3,
       cultivatePassive: 4,
       triadDamp: 0.1,
       triadBias: { tishu: 0.06, jingshen: -0.02 },
+      maxTemper: 7,
+      temperBaseCost: 220,
+      refineCost: 1500,
+      sellLingli: 5500,
       mark: "\u8352",
       vaultable: true
     },
@@ -373,31 +666,123 @@
       lore: "\u4ED9\u9006",
       cost: 2e4,
       minRealm: 3,
+      tier: "spirit",
+      pros: ["\u795E\u8BC6+4", "\u70B9\u51FB+2", "\u88AB\u52A8+6", "\u5F3A\u8C03\u548C"],
+      cons: {
+        attrs: { atk: -3, spd: -2 },
+        triadBias: { lingli: -0.02 },
+        labels: ["\u653B\u4F10-3", "\u8EAB\u6CD5-2", "\u6291\u7075\u529B"]
+      },
       slot: "cultivate",
       attrs: { spirit: 4 },
       cultivateClick: 2,
       cultivatePassive: 6,
       triadDamp: 0.28,
+      maxTemper: 7,
+      temperBaseCost: 300,
+      refineCost: 2200,
+      sellLingli: 9e3,
       mark: "\u8F66",
       vaultable: true
     },
     {
+      id: "nine_turn_manual",
+      name: "\u4E5D\u8F6C\u6B8B\u8BC0",
+      description: "\u4FEE\u70BC\u69FD\u3002\u8F6C\u5F97\u8D8A\u5FEB\u8D8A\u997F\uFF0C\u4E5F\u8D8A\u5BB9\u6613\u8D70\u706B\u3002",
+      lore: "\u906E\u5929",
+      cost: 35e3,
+      minRealm: 4,
+      tier: "spirit",
+      pros: ["\u6839\u9AA8+4", "\u795E\u8BC6+3", "\u70B9\u51FB+5", "\u88AB\u52A8+8", "\u8C03\u548C"],
+      cons: {
+        attrs: { luck: -4, def: -2 },
+        combatMult: 0.95,
+        triadBias: { jingshen: -0.03, tishu: -0.02 },
+        labels: ["\u6C14\u673A-4", "\u62A4\u4F53-2", "\u6218\u529B\xD70.95", "\u53CC\u6291"]
+      },
+      slot: "cultivate",
+      attrs: { bone: 4, spirit: 3 },
+      cultivateClick: 5,
+      cultivatePassive: 8,
+      triadDamp: 0.15,
+      maxTemper: 8,
+      temperBaseCost: 400,
+      refineCost: 3e3,
+      sellLingli: 15e3,
+      mark: "\u8F6C",
+      vaultable: true
+    },
+    {
+      id: "void_lotus_seat",
+      name: "\u865A\u7A7A\u83B2\u53F0",
+      description: "\u4FEE\u70BC\u69FD\u3002\u5750\u4E0A\u7A7A\u7075\uFF0C\u7AD9\u8D77\u811A\u8F6F\u3002",
+      lore: "\u906E\u5929",
+      cost: 6e4,
+      minRealm: 5,
+      tier: "spirit",
+      pros: ["\u795E\u8BC6+6", "\u6C14\u673A+3", "\u88AB\u52A8+10", "\u5F3A\u8C03\u548C", "\u504F\u795E"],
+      cons: {
+        attrs: { bone: -4, atk: -2 },
+        cultivateClick: -2,
+        labels: ["\u6839\u9AA8-4", "\u653B\u4F10-2", "\u70B9\u51FB-2"]
+      },
+      slot: "cultivate",
+      attrs: { spirit: 6, luck: 3 },
+      cultivatePassive: 10,
+      triadDamp: 0.22,
+      triadBias: { jingshen: 0.05, tishu: -0.03 },
+      maxTemper: 8,
+      temperBaseCost: 520,
+      refineCost: 4e3,
+      sellLingli: 26e3,
+      mark: "\u53F0",
+      vaultable: true
+    },
+    // —— 修炼 · 仙品 ——
+    {
       id: "dao_seed",
       name: "\u9053\u79CD\u4E00\u679A",
-      description: "\u4FEE\u70BC\u69FD\u3002\u5927\u9053\u5C06\u6210\uFF1B\u8FD1\u4E4E\u62B9\u5E73\u4E09\u624D\u504F\u79D1\uFF0C\u4EA6\u7565\u63D0\u4E09\u9014\u3002",
+      description: "\u4FEE\u70BC\u69FD\u3002\u4ED9\u54C1\u3002\u5927\u9053\u5C06\u6210\uFF0C\u8FD1\u4E4E\u62B9\u5E73\u4E09\u624D\u504F\u79D1\u3002",
       lore: "\u5927\u9053",
       cost: 0,
       minRealm: 10,
+      tier: "immortal",
+      pros: ["\u795E\u8BC6+8", "\u6839\u9AA8+8", "\u6C14\u673A+5", "\u70B9\u51FB+20", "\u88AB\u52A8+40", "\u6781\u8C03\u548C"],
       slot: "cultivate",
       attrs: { spirit: 8, bone: 8, luck: 5 },
       cultivateClick: 20,
       cultivatePassive: 40,
       triadDamp: 0.55,
       triadBias: { lingli: 0.03, tishu: 0.03, jingshen: 0.03 },
+      maxTemper: 9,
+      temperBaseCost: 3e3,
+      refineCost: 0,
+      sellLingli: 5e5,
       mark: "\u79CD",
       vaultable: true
     },
-    // —— 辅助 ——
+    {
+      id: "immortal_breath_bead",
+      name: "\u4ED9\u606F\u73E0",
+      description: "\u4FEE\u70BC\u69FD\u3002\u4ED9\u54C1\u3002\u4E00\u5438\u4E00\u547C\uFF0C\u4E09\u624D\u81EA\u8861\u3002",
+      lore: "\u4ED9\u9006",
+      cost: 2e6,
+      minRealm: 7,
+      tier: "immortal",
+      pros: ["\u5168\u5C5E\u6027+", "\u70B9\u51FB+12", "\u88AB\u52A8+25", "\u6781\u8C03\u548C"],
+      slot: "cultivate",
+      attrs: { atk: 3, def: 3, spd: 3, spirit: 6, bone: 6, luck: 4 },
+      cultivateClick: 12,
+      cultivatePassive: 25,
+      triadDamp: 0.5,
+      maxTemper: 9,
+      temperBaseCost: 2500,
+      refineCost: 0,
+      sellLingli: 4e5,
+      mark: "\u606F",
+      vaultable: true
+    },
+    // —— 辅助 · 凡品 ——
     {
       id: "storage_pouch",
       name: "\u4E0B\u54C1\u50A8\u7269\u888B",
@@ -405,39 +790,118 @@
       lore: "\u8BF8\u5929\u901A\u7528",
       cost: 400,
       minRealm: 0,
+      tier: "mortal",
+      pros: ["\u6C14\u673A+2", "\u5FAE\u8C03\u548C"],
+      cons: {
+        attrs: { atk: -1 },
+        labels: ["\u653B\u4F10-1"]
+      },
       slot: "assist",
       attrs: { luck: 2 },
       triadDamp: 0.05,
+      maxTemper: 3,
+      temperBaseCost: 25,
+      refineCost: 120,
+      sellLingli: 180,
       mark: "\u888B",
       vaultable: false
     },
     {
       id: "spirit_boat",
       name: "\u7834\u65E7\u7075\u821F",
-      description: "\u8F85\u52A9\u69FD\u3002\u9003\u547D\u4E00\u6D41\uFF1B\u504F\u8EAB\u6CD5\uFF0C\u7565\u52A9\u4F53\u672F\u4EA7\u51FA\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u9003\u547D\u4E00\u6D41\uFF1B\u504F\u8EAB\u6CD5\u3002",
       lore: "\u51E1\u4EBA\u4FEE\u4ED9",
       cost: 8e3,
       minRealm: 2,
+      tier: "mortal",
+      pros: ["\u8EAB\u6CD5+6", "\u62A4\u4F53+1", "\u95EA\u907F", "\u504F\u4F53"],
+      cons: {
+        attrs: { spirit: -2 },
+        triadBias: { lingli: -0.03 },
+        labels: ["\u795E\u8BC6-2", "\u6291\u7075\u529B"]
+      },
       slot: "assist",
       attrs: { spd: 6, def: 1 },
       combatEdges: { dodgeChance: 0.22 },
       triadBias: { tishu: 0.04, lingli: -0.02 },
+      maxTemper: 5,
+      temperBaseCost: 140,
+      refineCost: 700,
+      sellLingli: 3600,
       mark: "\u821F",
       vaultable: true
     },
     {
+      id: "lucky_coin",
+      name: "\u534A\u771F\u534A\u5047\u6C14\u8FD0\u94B1",
+      description: "\u8F85\u52A9\u69FD\u3002\u6709\u65F6\u771F\u6709\u7528\uFF0C\u6709\u65F6\u7EAF\u5FC3\u7406\u5B89\u6170\u3002",
+      lore: "\u8BF8\u5929\u6897",
+      cost: 2200,
+      minRealm: 0,
+      tier: "mortal",
+      pros: ["\u6C14\u673A+4", "\u95EA\u907F\u5FAE\u5F31"],
+      cons: {
+        attrs: { bone: -2 },
+        labels: ["\u6839\u9AA8-2", "\u8D4C\u5F92\u6C14\u8D28"]
+      },
+      slot: "assist",
+      attrs: { luck: 4 },
+      combatEdges: { dodgeChance: 0.06 },
+      maxTemper: 4,
+      temperBaseCost: 70,
+      refineCost: 360,
+      sellLingli: 1e3,
+      mark: "\u94B1",
+      vaultable: true
+    },
+    {
+      id: "ward_talisman",
+      name: "\u62A4\u8EAB\u7B26\u7B93",
+      description: "\u8F85\u52A9\u69FD\u3002\u6321\u4E00\u5200\u7684\u4EFD\u3002",
+      lore: "\u51E1\u4EBA",
+      cost: 1500,
+      minRealm: 0,
+      tier: "mortal",
+      pros: ["\u62A4\u4F53+3", "\u514D\u6B7B\u5FAE\u5F31"],
+      cons: {
+        attrs: { spd: -1 },
+        labels: ["\u8EAB\u6CD5-1"]
+      },
+      slot: "assist",
+      attrs: { def: 3 },
+      combatEdges: { plotArmorChance: 0.08 },
+      maxTemper: 4,
+      temperBaseCost: 55,
+      refineCost: 300,
+      sellLingli: 700,
+      mark: "\u7B26",
+      vaultable: false
+    },
+    // —— 辅助 · 灵品 ——
+    {
       id: "soul_lamp",
       name: "\u9B42\u706F\u4E00\u76CF",
-      description: "\u8F85\u52A9\u69FD\u3002\u7167\u89C1\u5FC3\u9B54\uFF1B\u504F\u795E\u8BC6\uFF0C\u52A9\u7CBE\u795E\u3001\u6291\u4F53\u672F\u8FC7\u70ED\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u7167\u89C1\u5FC3\u9B54\uFF1B\u504F\u795E\u8BC6\u3002",
       lore: "\u4ED9\u9006",
       cost: 0,
       minRealm: 4,
+      tier: "spirit",
+      pros: ["\u795E\u8BC6+6", "\u6C14\u673A+2", "\u6218\u529B\xD71.03", "\u95EA\u907F/\u514D\u6B7B", "\u8C03\u548C", "\u504F\u795E"],
+      cons: {
+        attrs: { bone: -3, atk: -2 },
+        triadBias: { tishu: -0.04 },
+        labels: ["\u6839\u9AA8-3", "\u653B\u4F10-2", "\u6291\u4F53\u66F4\u751A", "\u706F\u5F71\u566C\u795E"]
+      },
       slot: "assist",
       attrs: { spirit: 6, luck: 2 },
       combatMult: 1.03,
       combatEdges: { dodgeChance: 0.1, plotArmorChance: 0.12 },
       triadDamp: 0.1,
       triadBias: { jingshen: 0.05, tishu: -0.03 },
+      maxTemper: 7,
+      temperBaseCost: 260,
+      refineCost: 1800,
+      sellLingli: 12e3,
       mark: "\u706F",
       vaultable: true
     },
@@ -448,26 +912,48 @@
       lore: "\u5143\u6897",
       cost: 0,
       minRealm: 0,
+      tier: "spirit",
+      pros: ["\u62A4\u4F53+5", "\u6C14\u673A+6", "\u6218\u529B\xD71.06", "\u5F3A\u514D\u6B7B", "\u6781\u8C03\u548C"],
+      cons: {
+        attrs: { atk: -4, spirit: -2 },
+        cultivatePassive: -2,
+        labels: ["\u653B\u4F10-4", "\u795E\u8BC6-2", "\u88AB\u52A8-2", "\u4E3B\u89D2\u5149\u73AF\u53CD\u566C"]
+      },
       slot: "assist",
       attrs: { def: 5, luck: 6 },
       combatMult: 1.06,
       combatEdges: { plotArmorChance: 0.35, dodgeChance: 0.08 },
       triadDamp: 0.35,
+      maxTemper: 6,
+      temperBaseCost: 180,
+      refineCost: 2500,
+      sellLingli: 1e4,
       mark: "\u7532",
       vaultable: true
     },
     {
       id: "cauldron_lid",
       name: "\u9752\u94DC\u9F0E\u76D6",
-      description: "\u8F85\u52A9\u69FD\u3002\u76D6\u4E0A\u80FD\u7838\u4EBA\uFF1B\u4E39\u9053\u8C03\u548C\uFF0C\u7565\u52A9\u7CBE\u795E\u4E0E\u7075\u529B\u3002",
+      description: "\u8F85\u52A9\u69FD\u3002\u76D6\u4E0A\u80FD\u7838\u4EBA\uFF1B\u4E39\u9053\u8C03\u548C\u3002",
       lore: "\u906E\u5929",
       cost: 4e4,
       minRealm: 4,
+      tier: "spirit",
+      pros: ["\u62A4\u4F53+6", "\u795E\u8BC6+3", "\u6C14\u673A+1", "\u514D\u6B7B", "\u8C03\u548C", "\u504F\u795E\u7075"],
+      cons: {
+        attrs: { spd: -4 },
+        combatMult: 0.97,
+        labels: ["\u8EAB\u6CD5-4", "\u6218\u529B\xD70.97", "\u7B28\u91CD"]
+      },
       slot: "assist",
       attrs: { def: 6, spirit: 3, luck: 1 },
       combatEdges: { plotArmorChance: 0.15 },
       triadDamp: 0.15,
       triadBias: { jingshen: 0.03, lingli: 0.03, tishu: -0.02 },
+      maxTemper: 7,
+      temperBaseCost: 380,
+      refineCost: 2800,
+      sellLingli: 18e3,
       mark: "\u9F0E",
       vaultable: true
     },
@@ -478,12 +964,96 @@
       lore: "\u906E\u5929/\u8BF8\u5929",
       cost: 5e5,
       minRealm: 6,
+      tier: "spirit",
+      pros: ["\u795E\u8BC6+8", "\u6839\u9AA8+3", "\u6C14\u673A+3", "\u6218\u529B\xD71.05", "\u5148\u624B/\u514D\u6B7B", "\u6781\u8C03\u548C"],
+      cons: {
+        attrs: { atk: -3, spd: -3, luck: -2 },
+        cultivateClick: -3,
+        triadBias: { tishu: -0.03 },
+        labels: ["\u653B\u4F10-3", "\u8EAB\u6CD5-3", "\u6C14\u673A-2", "\u70B9\u51FB-3", "\u6291\u4F53"]
+      },
       slot: "assist",
       attrs: { spirit: 8, bone: 3, luck: 3 },
       combatMult: 1.05,
       combatEdges: { firstStrikeChance: 0.15, firstStrikeBonus: 0.1, plotArmorChance: 0.1 },
       triadDamp: 0.4,
+      maxTemper: 8,
+      temperBaseCost: 800,
+      refineCost: 6e3,
+      sellLingli: 18e4,
       mark: "\u7891",
+      vaultable: true
+    },
+    {
+      id: "mirror_of_heart",
+      name: "\u7167\u5FC3\u53E4\u955C",
+      description: "\u8F85\u52A9\u69FD\u3002\u7167\u7834\u5E7B\u8C61\uFF0C\u4E5F\u7167\u89C1\u81EA\u5DF1\u7684\u4E11\u3002",
+      lore: "\u4ED9\u9006",
+      cost: 28e3,
+      minRealm: 3,
+      tier: "spirit",
+      pros: ["\u795E\u8BC6+5", "\u6C14\u673A+2", "\u95EA\u907F", "\u8C03\u548C"],
+      cons: {
+        attrs: { luck: -3 },
+        triadBias: { lingli: -0.02 },
+        labels: ["\u6C14\u673A-3", "\u6291\u7075", "\u5FC3\u9B54\u53CD\u89C6"]
+      },
+      slot: "assist",
+      attrs: { spirit: 5, luck: 2 },
+      combatEdges: { dodgeChance: 0.15 },
+      triadDamp: 0.18,
+      maxTemper: 6,
+      temperBaseCost: 240,
+      refineCost: 1600,
+      sellLingli: 12e3,
+      mark: "\u955C",
+      vaultable: true
+    },
+    {
+      id: "beast_taming_flute",
+      name: "\u9A6D\u517D\u9AA8\u7B1B",
+      description: "\u8F85\u52A9\u69FD\u3002\u5524\u517D\u62A4\u4F53\uFF0C\u7B1B\u58F0\u6270\u795E\u3002",
+      lore: "\u51E1\u4EBA",
+      cost: 15e3,
+      minRealm: 2,
+      tier: "spirit",
+      pros: ["\u62A4\u4F53+4", "\u6839\u9AA8+2", "\u514D\u6B7B", "\u504F\u4F53"],
+      cons: {
+        attrs: { spirit: -3 },
+        cultivatePassive: -1.5,
+        labels: ["\u795E\u8BC6-3", "\u88AB\u52A8-1.5"]
+      },
+      slot: "assist",
+      attrs: { def: 4, bone: 2 },
+      combatEdges: { plotArmorChance: 0.14 },
+      triadBias: { tishu: 0.04, jingshen: -0.02 },
+      maxTemper: 6,
+      temperBaseCost: 200,
+      refineCost: 1300,
+      sellLingli: 6500,
+      mark: "\u7B1B",
+      vaultable: true
+    },
+    // —— 辅助 · 仙品 ——
+    {
+      id: "immortal_jade_seal",
+      name: "\u4ED9\u7389\u5370",
+      description: "\u8F85\u52A9\u69FD\u3002\u4ED9\u54C1\u3002\u5370\u843D\u5219\u5B89\uFF0C\u65E0\u7455\u65E0\u57A2\u3002",
+      lore: "\u5927\u9053",
+      cost: 0,
+      minRealm: 9,
+      tier: "immortal",
+      pros: ["\u62A4\u4F53+10", "\u795E\u8BC6+6", "\u6C14\u673A+6", "\u6218\u529B\xD71.1", "\u5F3A\u514D\u6B7B/\u95EA\u907F", "\u6781\u8C03\u548C"],
+      slot: "assist",
+      attrs: { def: 10, spirit: 6, luck: 6 },
+      combatMult: 1.1,
+      combatEdges: { plotArmorChance: 0.4, dodgeChance: 0.2 },
+      triadDamp: 0.45,
+      maxTemper: 9,
+      temperBaseCost: 2200,
+      refineCost: 0,
+      sellLingli: 3e5,
+      mark: "\u5370",
       vaultable: true
     }
   ];
@@ -750,8 +1320,8 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 8;
-  var STORAGE_KEY = "xian-save-v8";
+  var SAVE_VERSION = 9;
+  var STORAGE_KEY = "xian-save-v9";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_MILESTONES = 40;
@@ -2816,6 +3386,7 @@
       attrs: zeroAttrs(),
       freePoints: 0,
       treasures: [],
+      treasureForge: {},
       equipped: emptyEquipped(),
       vault: [],
       naturals: [],
@@ -2864,6 +3435,20 @@
     );
     const vault = Array.isArray(data.vault) ? data.vault.filter((f) => typeof f === "string" && !!getTreasure(f)) : [];
     const naturals = Array.isArray(data.naturals) ? data.naturals.filter((f) => typeof f === "string" && !!getNatural(f)) : [];
+    const treasureForge = {};
+    const rawForge = data.treasureForge;
+    if (rawForge && typeof rawForge === "object") {
+      for (const [id, v] of Object.entries(rawForge)) {
+        if (!getTreasure(id)) continue;
+        if (!v || typeof v !== "object") continue;
+        const o = v;
+        const def = getTreasure(id);
+        treasureForge[id] = {
+          level: clampInt(o.level, 0, def.maxTemper),
+          refined: !!o.refined
+        };
+      }
+    }
     const lastTickAt = Number(data.lastTickAt);
     const safeLast = Number.isFinite(lastTickAt) && lastTickAt > 0 ? Math.min(lastTickAt, now) : now;
     const lingqi = Math.max(0, Number(data.lingqi ?? data.douqi) || 0);
@@ -2921,6 +3506,7 @@
       attrs: parseAttrs(data.attrs, zeroAttrs()),
       freePoints: 0,
       treasures,
+      treasureForge,
       equipped,
       vault,
       naturals,
@@ -2995,11 +3581,104 @@
     if (!need) return true;
     return ATTR_KEYS.every((k) => total[k] >= (need[k] || 0));
   }
+  function getTreasureForge(state, id) {
+    return state.treasureForge[id] || { level: 0, refined: false };
+  }
+  function temperScale(level) {
+    return 1 + Math.max(0, level) * 0.1;
+  }
+  function temperCost(def, level) {
+    return Math.floor(def.temperBaseCost * Math.pow(1.45, Math.max(0, level)));
+  }
+  function sellValue(state, id) {
+    const def = getTreasure(id);
+    if (!def) return 0;
+    const forge = getTreasureForge(state, id);
+    return Math.floor(def.sellLingli * (1 + forge.level * 0.12) * (forge.refined ? 1.15 : 1));
+  }
+  function treasureConsActive(def, forge) {
+    return def.tier !== "immortal" && !forge.refined && !!def.cons;
+  }
+  function effectiveTreasureEffects(state, id) {
+    const def = getTreasure(id);
+    if (!def) return null;
+    const forge = getTreasureForge(state, id);
+    const scale = temperScale(forge.level);
+    const consActive = treasureConsActive(def, forge);
+    const cons = consActive ? def.cons : void 0;
+    const attrs = zeroAttrs();
+    for (const k of ATTR_KEYS) {
+      const base = def.attrs[k] || 0;
+      const boosted = base > 0 ? base * scale : base;
+      const pen = cons?.attrs?.[k] || 0;
+      attrs[k] = Math.floor(boosted + pen);
+    }
+    let combatMult = 1;
+    if (def.combatMult) {
+      combatMult = 1 + (def.combatMult - 1) * scale;
+    }
+    if (cons?.combatMult) combatMult *= cons.combatMult;
+    let cultivateClick = (def.cultivateClick || 0) * scale;
+    let cultivatePassive = (def.cultivatePassive || 0) * scale;
+    if (cons?.cultivateClick) cultivateClick += cons.cultivateClick;
+    if (cons?.cultivatePassive) cultivatePassive += cons.cultivatePassive;
+    cultivateClick = Math.max(0, cultivateClick);
+    cultivatePassive = Math.max(0, cultivatePassive);
+    let triadDamp = (def.triadDamp || 0) * (1 + forge.level * 0.04);
+    const triadBias = zeroResources();
+    if (def.triadBias) {
+      for (const key of RESOURCE_KEYS) {
+        triadBias[key] += (def.triadBias[key] || 0) * scale;
+      }
+    }
+    if (cons?.triadBias) {
+      for (const key of RESOURCE_KEYS) {
+        triadBias[key] += cons.triadBias[key] || 0;
+      }
+    }
+    return {
+      attrs,
+      combatMult,
+      cultivateClick,
+      cultivatePassive,
+      triadDamp,
+      triadBias,
+      combatEdges: def.combatEdges,
+      consActive,
+      level: forge.level,
+      refined: forge.refined || def.tier === "immortal"
+    };
+  }
+  function describeTreasureBonus(state, id) {
+    const def = getTreasure(id);
+    const eff = effectiveTreasureEffects(state, id);
+    if (!def || !eff) return "";
+    const parts = [];
+    parts.push(TREASURE_TIER_LABELS[def.tier]);
+    if (eff.level > 0) parts.push(`\u70BC\u5668+${eff.level}`);
+    if (eff.refined && def.tier !== "immortal") parts.push("\u5DF2\u6D17\u7EC3");
+    for (const k of ATTR_KEYS) {
+      if (eff.attrs[k]) parts.push(`${ATTR_LABELS[k]}${eff.attrs[k] > 0 ? "+" : ""}${eff.attrs[k]}`);
+    }
+    if (eff.combatMult !== 1) parts.push(`\u6218\u529B\xD7${eff.combatMult.toFixed(2)}`);
+    if (eff.cultivateClick) parts.push(`\u70B9\u51FB+${eff.cultivateClick.toFixed(1)}`);
+    if (eff.cultivatePassive) parts.push(`\u88AB\u52A8+${eff.cultivatePassive.toFixed(1)}`);
+    if (eff.triadDamp) parts.push(`\u8C03\u548C${Math.floor(eff.triadDamp * 100)}%`);
+    if (def.pros?.length) parts.push("\u6B63\uFF1A" + def.pros.slice(0, 3).join("\u3001"));
+    if (eff.consActive && def.cons?.labels?.length) {
+      parts.push("\u8D1F\uFF1A" + def.cons.labels.join("\u3001"));
+    } else if (def.tier === "immortal") {
+      parts.push("\u4ED9\u54C1\u65E0\u8D1F\u9762");
+    } else if (eff.refined) {
+      parts.push("\u8D1F\u9762\u5DF2\u6D17");
+    }
+    return parts.join(" \xB7 ");
+  }
   function treasureAttrBonus(state) {
     let sum = zeroAttrs();
     for (const id of listEquippedIds(state.equipped)) {
-      const t = getTreasure(id);
-      if (t) sum = addAttrs(sum, t.attrs);
+      const eff = effectiveTreasureEffects(state, id);
+      if (eff) sum = addAttrs(sum, eff.attrs);
     }
     return sum;
   }
@@ -3007,10 +3686,10 @@
     let click = 0;
     let passive = 0;
     for (const id of listEquippedIds(state.equipped)) {
-      const t = getTreasure(id);
-      if (!t) continue;
-      click += t.cultivateClick || 0;
-      passive += t.cultivatePassive || 0;
+      const eff = effectiveTreasureEffects(state, id);
+      if (!eff) continue;
+      click += eff.cultivateClick;
+      passive += eff.cultivatePassive;
     }
     return { click, passive };
   }
@@ -3047,8 +3726,8 @@
     const weighted = a.atk * 1.2 + a.def * 1 + a.spd * 0.9 + a.spirit * 1.1 + a.bone * 0.8 + a.luck * 0.6;
     let mult = 1;
     for (const id of listEquippedIds(state.equipped)) {
-      const t = getTreasure(id);
-      if (t?.combatMult) mult *= t.combatMult;
+      const eff = effectiveTreasureEffects(state, id);
+      if (eff && eff.combatMult !== 1) mult *= eff.combatMult;
     }
     const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
     const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
@@ -3261,13 +3940,11 @@
     let damp = 0;
     const bias = zeroResources();
     for (const id of listEquippedIds(state.equipped)) {
-      const t = getTreasure(id);
-      if (!t) continue;
-      damp += t.triadDamp || 0;
-      if (t.triadBias) {
-        for (const key of RESOURCE_KEYS) {
-          bias[key] += t.triadBias[key] || 0;
-        }
+      const eff = effectiveTreasureEffects(state, id);
+      if (!eff) continue;
+      damp += eff.triadDamp;
+      for (const key of RESOURCE_KEYS) {
+        bias[key] += eff.triadBias[key] || 0;
       }
     }
     return { damp: Math.min(0.85, damp), bias };
@@ -3297,7 +3974,9 @@
     if (state.treasures.includes(id)) return state;
     const t = getTreasure(id);
     const treasures = [...state.treasures, id];
-    let next = syncEquipCapacity({ ...state, treasures });
+    const treasureForge = { ...state.treasureForge };
+    if (!treasureForge[id]) treasureForge[id] = { level: 0, refined: false };
+    let next = syncEquipCapacity({ ...state, treasures, treasureForge });
     const equipped = {
       combat: [...next.equipped.combat],
       cultivate: [...next.equipped.cultivate],
@@ -3307,9 +3986,10 @@
       const emptyIdx = equipped[t.slot].findIndex((x) => !x);
       if (emptyIdx >= 0) equipped[t.slot][emptyIdx] = id;
     }
+    const tier = TREASURE_TIER_LABELS[t.tier];
     return pushChronicle(
       { ...next, equipped },
-      `\u83B7\u5F97\u6CD5\u5B9D\u300C${t.name}\u300D\u3014${t.slot === "combat" ? "\u6218\u6597" : t.slot === "cultivate" ? "\u4FEE\u70BC" : "\u8F85\u52A9"}\u3015\u3010${t.lore}\u3011`
+      `\u83B7\u5F97${tier}\u6CD5\u5B9D\u300C${t.name}\u300D\u3014${EQUIP_SLOT_LABELS[t.slot]}\u3015\u3010${t.lore}\u3011`
     );
   }
   function grantNatural(state, id) {
@@ -3562,8 +4242,96 @@
       message: `\u5DF2\u88C5\u5907\u81F3\u3014${slotLabel(slot)}\u3015\u69FD${target + 1}`
     };
   }
+  function temperTreasure(state, treasureId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const def = getTreasure(treasureId);
+    if (!def || !state.treasures.includes(treasureId)) {
+      return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
+    }
+    const ticked = tick(state, now).state;
+    const forge = getTreasureForge(ticked, treasureId);
+    if (forge.level >= def.maxTemper) {
+      return { ok: false, state: ticked, reason: "\u5DF2\u8FBE\u70BC\u5668\u4E0A\u9650" };
+    }
+    const cost = temperCost(def, forge.level);
+    if (ticked.tishu < cost) {
+      return { ok: false, state: ticked, reason: "\u4F53\u672F\u4E0D\u8DB3" };
+    }
+    const treasureForge = {
+      ...ticked.treasureForge,
+      [treasureId]: { ...forge, level: forge.level + 1 }
+    };
+    let next = {
+      ...ticked,
+      tishu: ticked.tishu - cost,
+      treasureForge
+    };
+    next = pushChronicle(
+      next,
+      `\u70BC\u5668\u300C${def.name}\u300D\u81F3 +${forge.level + 1}\uFF0C\u8017\u4F53\u672F ${cost}\u3002\u6B63\u9762\u6548\u679C\u589E\u5F3A\u3002`
+    );
+    return { ok: true, state: next, message: `\u70BC\u5668\u6210\u529F +${forge.level + 1}` };
+  }
+  function refineTreasure(state, treasureId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const def = getTreasure(treasureId);
+    if (!def || !state.treasures.includes(treasureId)) {
+      return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
+    }
+    if (def.tier === "immortal" || !def.cons) {
+      return { ok: false, state, reason: "\u4ED9\u54C1/\u65E0\u8D1F\u9762\uFF0C\u65E0\u9700\u6D17\u7EC3" };
+    }
+    const ticked = tick(state, now).state;
+    const forge = getTreasureForge(ticked, treasureId);
+    if (forge.refined) {
+      return { ok: false, state: ticked, reason: "\u5DF2\u6D17\u7EC3\u8FC7" };
+    }
+    const cost = def.refineCost;
+    if (cost <= 0) return { ok: false, state: ticked, reason: "\u65E0\u6CD5\u6D17\u7EC3" };
+    if (ticked.tishu < cost) {
+      return { ok: false, state: ticked, reason: "\u4F53\u672F\u4E0D\u8DB3" };
+    }
+    const treasureForge = {
+      ...ticked.treasureForge,
+      [treasureId]: { ...forge, refined: true }
+    };
+    let next = {
+      ...ticked,
+      tishu: ticked.tishu - cost,
+      treasureForge
+    };
+    next = pushChronicle(next, `\u6D17\u7EC3\u300C${def.name}\u300D\uFF0C\u8017\u4F53\u672F ${cost}\uFF0C\u8D1F\u9762\u5C3D\u53BB\u3002`);
+    return { ok: true, state: next, message: `\u6D17\u7EC3\u6210\u529F` };
+  }
+  function sellTreasure(state, treasureId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const def = getTreasure(treasureId);
+    if (!def || !state.treasures.includes(treasureId)) {
+      return { ok: false, state, reason: "\u672A\u6301\u6709\u8BE5\u6CD5\u5B9D" };
+    }
+    const ticked = tick(state, now).state;
+    if (listEquippedIds(ticked.equipped).includes(treasureId)) {
+      return { ok: false, state: ticked, reason: "\u8BF7\u5148\u5378\u4E0B\u518D\u51FA\u552E" };
+    }
+    const gain = sellValue(ticked, treasureId);
+    const treasures = ticked.treasures.filter((id) => id !== treasureId);
+    const treasureForge = { ...ticked.treasureForge };
+    delete treasureForge[treasureId];
+    let next = {
+      ...ticked,
+      treasures,
+      treasureForge,
+      lingqi: ticked.lingqi + gain,
+      totalLingqi: ticked.totalLingqi + gain
+    };
+    next = pushChronicle(next, `\u552E\u51FA\u300C${def.name}\u300D\uFF0C\u5F97\u7075\u529B ${Math.floor(gain)}\u3002`);
+    return { ok: true, state: next, message: `\u552E\u51FA\u5F97\u7075\u529B ${formatNumber(gain)}` };
+  }
   function slotLabel(slot) {
-    return slot === "combat" ? "\u6218\u6597" : slot === "cultivate" ? "\u4FEE\u70BC" : "\u8F85\u52A9";
+    return EQUIP_SLOT_LABELS[slot];
   }
   function allocatePoint(_state, _key) {
     return {
@@ -3947,6 +4715,7 @@
       attrs,
       freePoints: 0,
       treasures: [...bring],
+      treasureForge: Object.fromEntries(bring.map((id) => [id, { level: 0, refined: false }])),
       equipped,
       vault,
       naturals: [],
@@ -4280,6 +5049,7 @@
 
   // xian/src/game/browser.ts
   var LEGACY_SAVE_KEYS = [
+    "xian-save-v8",
     "xian-save-v7",
     "xian-save-v6",
     "xian-save-v5",
@@ -4343,6 +5113,7 @@
     STORAGE_KEY,
     STORY_EVENTS,
     TREASURES,
+    TREASURE_TIER_LABELS,
     RANDOM_EVENTS,
     artChannel,
     getEnding,
@@ -4371,24 +5142,32 @@
     craftPill,
     createNewState,
     derive,
+    describeTreasureBonus,
     die,
+    effectiveTreasureEffects,
     findPendingEvent,
     formatNumber,
     gatherCombatEdges,
     getMeta,
+    getTreasureForge,
     listCombatEnemies,
     loadState,
     loadFromStorage,
     matchEnding,
     raiseStar,
     raiseStarCost,
+    refineTreasure,
     resolveEvent,
     resourceAttrsFromTotals,
     saveToStorage,
     clearStorage,
+    sellTreasure,
+    sellValue,
     startCombat,
     syncEquipCapacity,
     temperBody,
+    temperCost,
+    temperTreasure,
     tick,
     toggleEquip,
     totalAttrs,

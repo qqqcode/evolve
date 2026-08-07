@@ -64,8 +64,19 @@ import type {
   ResourceMap,
   StoryEventDef,
   TickResult,
+  TreasureCons,
+  TreasureDef,
+  TreasureForgeState,
 } from './types';
-import { ATTR_KEYS, EQUIP_SLOTS, RESOURCE_KEYS, RESOURCE_LABELS } from './types';
+import {
+  ATTR_KEYS,
+  ATTR_LABELS,
+  EQUIP_SLOTS,
+  EQUIP_SLOT_LABELS,
+  RESOURCE_KEYS,
+  RESOURCE_LABELS,
+  TREASURE_TIER_LABELS,
+} from './types';
 
 function emptyOwned(): Record<string, number> {
   const owned: Record<string, number> = {};
@@ -209,6 +220,7 @@ export function createMetaState(now = Date.now()): GameState {
     attrs: zeroAttrs(),
     freePoints: 0,
     treasures: [],
+    treasureForge: {},
     equipped: emptyEquipped(),
     vault: [],
     naturals: [],
@@ -275,6 +287,21 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
   const naturals = Array.isArray(data.naturals)
     ? data.naturals.filter((f): f is string => typeof f === 'string' && !!getNatural(f))
     : [];
+
+  const treasureForge: Record<string, TreasureForgeState> = {};
+  const rawForge = (data as { treasureForge?: unknown }).treasureForge;
+  if (rawForge && typeof rawForge === 'object') {
+    for (const [id, v] of Object.entries(rawForge as Record<string, unknown>)) {
+      if (!getTreasure(id)) continue;
+      if (!v || typeof v !== 'object') continue;
+      const o = v as Record<string, unknown>;
+      const def = getTreasure(id)!;
+      treasureForge[id] = {
+        level: clampInt(o.level, 0, def.maxTemper),
+        refined: !!o.refined,
+      };
+    }
+  }
 
   const lastTickAt = Number(data.lastTickAt);
   const safeLast =
@@ -345,6 +372,7 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     attrs: parseAttrs(data.attrs, zeroAttrs()),
     freePoints: 0,
     treasures,
+    treasureForge,
     equipped,
     vault,
     naturals,
@@ -432,12 +460,138 @@ function hasMinAttrs(total: AttrMap, need?: Partial<AttrMap>): boolean {
   return ATTR_KEYS.every((k) => total[k] >= (need[k] || 0));
 }
 
-/** 法宝提供的属性（已装备） */
+/** 法宝炼器状态 */
+export function getTreasureForge(state: GameState, id: string): TreasureForgeState {
+  return state.treasureForge[id] || { level: 0, refined: false };
+}
+
+/** 炼器放大正面：每级 +10% */
+export function temperScale(level: number): number {
+  return 1 + Math.max(0, level) * 0.1;
+}
+
+export function temperCost(def: TreasureDef, level: number): number {
+  return Math.floor(def.temperBaseCost * Math.pow(1.45, Math.max(0, level)));
+}
+
+export function sellValue(state: GameState, id: string): number {
+  const def = getTreasure(id);
+  if (!def) return 0;
+  const forge = getTreasureForge(state, id);
+  return Math.floor(def.sellLingli * (1 + forge.level * 0.12) * (forge.refined ? 1.15 : 1));
+}
+
+/** 是否应施加负面：非仙品且未洗练 */
+export function treasureConsActive(def: TreasureDef, forge: TreasureForgeState): boolean {
+  return def.tier !== 'immortal' && !forge.refined && !!def.cons;
+}
+
+export interface EffectiveTreasureEffects {
+  attrs: AttrMap;
+  combatMult: number;
+  cultivateClick: number;
+  cultivatePassive: number;
+  triadDamp: number;
+  triadBias: ResourceMap;
+  combatEdges: TreasureDef['combatEdges'];
+  consActive: boolean;
+  level: number;
+  refined: boolean;
+}
+
+/** 单件法宝有效效果（炼器放大正面；负面按状态） */
+export function effectiveTreasureEffects(
+  state: GameState,
+  id: string,
+): EffectiveTreasureEffects | null {
+  const def = getTreasure(id);
+  if (!def) return null;
+  const forge = getTreasureForge(state, id);
+  const scale = temperScale(forge.level);
+  const consActive = treasureConsActive(def, forge);
+  const cons: TreasureCons | undefined = consActive ? def.cons : undefined;
+
+  const attrs = zeroAttrs();
+  for (const k of ATTR_KEYS) {
+    const base = def.attrs[k] || 0;
+    const boosted = base > 0 ? base * scale : base;
+    const pen = cons?.attrs?.[k] || 0;
+    attrs[k] = Math.floor(boosted + pen);
+  }
+
+  let combatMult = 1;
+  if (def.combatMult) {
+    combatMult = 1 + (def.combatMult - 1) * scale;
+  }
+  if (cons?.combatMult) combatMult *= cons.combatMult;
+
+  let cultivateClick = (def.cultivateClick || 0) * scale;
+  let cultivatePassive = (def.cultivatePassive || 0) * scale;
+  if (cons?.cultivateClick) cultivateClick += cons.cultivateClick;
+  if (cons?.cultivatePassive) cultivatePassive += cons.cultivatePassive;
+  cultivateClick = Math.max(0, cultivateClick);
+  cultivatePassive = Math.max(0, cultivatePassive);
+
+  let triadDamp = (def.triadDamp || 0) * (1 + forge.level * 0.04);
+  const triadBias = zeroResources();
+  if (def.triadBias) {
+    for (const key of RESOURCE_KEYS) {
+      triadBias[key] += (def.triadBias[key] || 0) * scale;
+    }
+  }
+  if (cons?.triadBias) {
+    for (const key of RESOURCE_KEYS) {
+      triadBias[key] += cons.triadBias[key] || 0;
+    }
+  }
+
+  return {
+    attrs,
+    combatMult,
+    cultivateClick,
+    cultivatePassive,
+    triadDamp,
+    triadBias,
+    combatEdges: def.combatEdges,
+    consActive,
+    level: forge.level,
+    refined: forge.refined || def.tier === 'immortal',
+  };
+}
+
+/** 悬停/列表展示用：装备后的属性加成文案 */
+export function describeTreasureBonus(state: GameState, id: string): string {
+  const def = getTreasure(id);
+  const eff = effectiveTreasureEffects(state, id);
+  if (!def || !eff) return '';
+  const parts: string[] = [];
+  parts.push(TREASURE_TIER_LABELS[def.tier]);
+  if (eff.level > 0) parts.push(`炼器+${eff.level}`);
+  if (eff.refined && def.tier !== 'immortal') parts.push('已洗练');
+  for (const k of ATTR_KEYS) {
+    if (eff.attrs[k]) parts.push(`${ATTR_LABELS[k]}${eff.attrs[k] > 0 ? '+' : ''}${eff.attrs[k]}`);
+  }
+  if (eff.combatMult !== 1) parts.push(`战力×${eff.combatMult.toFixed(2)}`);
+  if (eff.cultivateClick) parts.push(`点击+${eff.cultivateClick.toFixed(1)}`);
+  if (eff.cultivatePassive) parts.push(`被动+${eff.cultivatePassive.toFixed(1)}`);
+  if (eff.triadDamp) parts.push(`调和${Math.floor(eff.triadDamp * 100)}%`);
+  if (def.pros?.length) parts.push('正：' + def.pros.slice(0, 3).join('、'));
+  if (eff.consActive && def.cons?.labels?.length) {
+    parts.push('负：' + def.cons.labels.join('、'));
+  } else if (def.tier === 'immortal') {
+    parts.push('仙品无负面');
+  } else if (eff.refined) {
+    parts.push('负面已洗');
+  }
+  return parts.join(' · ');
+}
+
+/** 法宝提供的属性（已装备，含炼器/负面） */
 export function treasureAttrBonus(state: GameState): AttrMap {
   let sum = zeroAttrs();
   for (const id of listEquippedIds(state.equipped)) {
-    const t = getTreasure(id);
-    if (t) sum = addAttrs(sum, t.attrs);
+    const eff = effectiveTreasureEffects(state, id);
+    if (eff) sum = addAttrs(sum, eff.attrs);
   }
   return sum;
 }
@@ -446,10 +600,10 @@ export function cultivateBonuses(state: GameState): { click: number; passive: nu
   let click = 0;
   let passive = 0;
   for (const id of listEquippedIds(state.equipped)) {
-    const t = getTreasure(id);
-    if (!t) continue;
-    click += t.cultivateClick || 0;
-    passive += t.cultivatePassive || 0;
+    const eff = effectiveTreasureEffects(state, id);
+    if (!eff) continue;
+    click += eff.cultivateClick;
+    passive += eff.cultivatePassive;
   }
   return { click, passive };
 }
@@ -493,8 +647,8 @@ export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
     a.atk * 1.2 + a.def * 1.0 + a.spd * 0.9 + a.spirit * 1.1 + a.bone * 0.8 + a.luck * 0.6;
   let mult = 1;
   for (const id of listEquippedIds(state.equipped)) {
-    const t = getTreasure(id);
-    if (t?.combatMult) mult *= t.combatMult;
+    const eff = effectiveTreasureEffects(state, id);
+    if (eff && eff.combatMult !== 1) mult *= eff.combatMult;
   }
   const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
   const bodyMult = bodyMultipliers(state.bodyStage).combatMult;
@@ -771,13 +925,11 @@ export function treasureTriadSupport(state: GameState): {
   let damp = 0;
   const bias = zeroResources();
   for (const id of listEquippedIds(state.equipped)) {
-    const t = getTreasure(id);
-    if (!t) continue;
-    damp += t.triadDamp || 0;
-    if (t.triadBias) {
-      for (const key of RESOURCE_KEYS) {
-        bias[key] += t.triadBias[key] || 0;
-      }
+    const eff = effectiveTreasureEffects(state, id);
+    if (!eff) continue;
+    damp += eff.triadDamp;
+    for (const key of RESOURCE_KEYS) {
+      bias[key] += eff.triadBias[key] || 0;
     }
   }
   return { damp: Math.min(0.85, damp), bias };
@@ -822,7 +974,9 @@ function grantTreasure(state: GameState, id: string): GameState {
   if (state.treasures.includes(id)) return state;
   const t = getTreasure(id)!;
   const treasures = [...state.treasures, id];
-  let next = syncEquipCapacity({ ...state, treasures });
+  const treasureForge = { ...state.treasureForge };
+  if (!treasureForge[id]) treasureForge[id] = { level: 0, refined: false };
+  let next = syncEquipCapacity({ ...state, treasures, treasureForge });
   const equipped = {
     combat: [...next.equipped.combat],
     cultivate: [...next.equipped.cultivate],
@@ -832,9 +986,10 @@ function grantTreasure(state: GameState, id: string): GameState {
     const emptyIdx = equipped[t.slot].findIndex((x) => !x);
     if (emptyIdx >= 0) equipped[t.slot][emptyIdx] = id;
   }
+  const tier = TREASURE_TIER_LABELS[t.tier];
   return pushChronicle(
     { ...next, equipped },
-    `获得法宝「${t.name}」〔${t.slot === 'combat' ? '战斗' : t.slot === 'cultivate' ? '修炼' : '辅助'}〕【${t.lore}】`,
+    `获得${tier}法宝「${t.name}」〔${EQUIP_SLOT_LABELS[t.slot]}〕【${t.lore}】`,
   );
 }
 
@@ -1130,8 +1285,102 @@ export function toggleEquip(state: GameState, treasureId: string, slotIndex?: nu
   };
 }
 
+/** 体术炼器：强化正面效果 */
+export function temperTreasure(state: GameState, treasureId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const def = getTreasure(treasureId);
+  if (!def || !state.treasures.includes(treasureId)) {
+    return { ok: false, state, reason: '未持有该法宝' };
+  }
+  const ticked = tick(state, now).state;
+  const forge = getTreasureForge(ticked, treasureId);
+  if (forge.level >= def.maxTemper) {
+    return { ok: false, state: ticked, reason: '已达炼器上限' };
+  }
+  const cost = temperCost(def, forge.level);
+  if (ticked.tishu < cost) {
+    return { ok: false, state: ticked, reason: '体术不足' };
+  }
+  const treasureForge = {
+    ...ticked.treasureForge,
+    [treasureId]: { ...forge, level: forge.level + 1 },
+  };
+  let next: GameState = {
+    ...ticked,
+    tishu: ticked.tishu - cost,
+    treasureForge,
+  };
+  next = pushChronicle(
+    next,
+    `炼器「${def.name}」至 +${forge.level + 1}，耗体术 ${cost}。正面效果增强。`,
+  );
+  return { ok: true, state: next, message: `炼器成功 +${forge.level + 1}` };
+}
+
+/** 洗练：耗体术清除负面（仙品无需） */
+export function refineTreasure(state: GameState, treasureId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const def = getTreasure(treasureId);
+  if (!def || !state.treasures.includes(treasureId)) {
+    return { ok: false, state, reason: '未持有该法宝' };
+  }
+  if (def.tier === 'immortal' || !def.cons) {
+    return { ok: false, state, reason: '仙品/无负面，无需洗练' };
+  }
+  const ticked = tick(state, now).state;
+  const forge = getTreasureForge(ticked, treasureId);
+  if (forge.refined) {
+    return { ok: false, state: ticked, reason: '已洗练过' };
+  }
+  const cost = def.refineCost;
+  if (cost <= 0) return { ok: false, state: ticked, reason: '无法洗练' };
+  if (ticked.tishu < cost) {
+    return { ok: false, state: ticked, reason: '体术不足' };
+  }
+  const treasureForge = {
+    ...ticked.treasureForge,
+    [treasureId]: { ...forge, refined: true },
+  };
+  let next: GameState = {
+    ...ticked,
+    tishu: ticked.tishu - cost,
+    treasureForge,
+  };
+  next = pushChronicle(next, `洗练「${def.name}」，耗体术 ${cost}，负面尽去。`);
+  return { ok: true, state: next, message: `洗练成功` };
+}
+
+/** 售卖未装备法宝，换灵力 */
+export function sellTreasure(state: GameState, treasureId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const def = getTreasure(treasureId);
+  if (!def || !state.treasures.includes(treasureId)) {
+    return { ok: false, state, reason: '未持有该法宝' };
+  }
+  const ticked = tick(state, now).state;
+  if (listEquippedIds(ticked.equipped).includes(treasureId)) {
+    return { ok: false, state: ticked, reason: '请先卸下再出售' };
+  }
+  const gain = sellValue(ticked, treasureId);
+  const treasures = ticked.treasures.filter((id) => id !== treasureId);
+  const treasureForge = { ...ticked.treasureForge };
+  delete treasureForge[treasureId];
+  let next: GameState = {
+    ...ticked,
+    treasures,
+    treasureForge,
+    lingqi: ticked.lingqi + gain,
+    totalLingqi: ticked.totalLingqi + gain,
+  };
+  next = pushChronicle(next, `售出「${def.name}」，得灵力 ${Math.floor(gain)}。`);
+  return { ok: true, state: next, message: `售出得灵力 ${formatNumber(gain)}` };
+}
+
 function slotLabel(slot: EquipSlot): string {
-  return slot === 'combat' ? '战斗' : slot === 'cultivate' ? '修炼' : '辅助';
+  return EQUIP_SLOT_LABELS[slot];
 }
 
 export function allocatePoint(_state: GameState, _key: AttrKey): ActionResult {
@@ -1568,6 +1817,7 @@ export function chooseBirth(
     attrs,
     freePoints: 0,
     treasures: [...bring],
+    treasureForge: Object.fromEntries(bring.map((id) => [id, { level: 0, refined: false }])),
     equipped,
     vault,
     naturals: [],

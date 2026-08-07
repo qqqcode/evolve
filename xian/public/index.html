@@ -135,72 +135,76 @@
           </section>
         </section>
 
-        <aside class="shop-panel">
-          <section class="equip-bar" aria-label="装备与地宝">
-            <h2 class="pane-title equip-title">
-              装备栏 <span class="inline-hint" id="equipHint">随境界扩充</span>
-            </h2>
-            <div id="equipSlots" class="equip-slots"></div>
-            <p class="realm-hint" id="naturalHint"></p>
+        <aside class="right-workspace">
+          <section class="equipment-market-panel" aria-label="装备与坊市">
+            <section class="equip-bar" aria-label="装备栏">
+              <h2 class="pane-title equip-title">
+                装备栏 <span class="inline-hint" id="equipHint">随境界扩充</span>
+              </h2>
+              <div id="equipSlots" class="equip-slots"></div>
+              <p class="realm-hint" id="naturalHint"></p>
+              <p class="realm-hint equip-bonus-hint">悬停装备可查看属性加成 · 体术可炼器/洗练</p>
+            </section>
+
+            <section class="market-block" aria-label="坊市">
+              <h2 class="pane-title">持有法宝</h2>
+              <div id="ownedTreasures" class="shop-list"></div>
+              <h2 class="pane-title">坊市法宝</h2>
+              <div id="shopTreasures" class="shop-list"></div>
+              <h2 class="pane-title">跨世宝库</h2>
+              <p class="realm-hint" id="vaultHint"></p>
+              <div id="vaultList" class="shop-list"></div>
+            </section>
           </section>
 
-          <div class="shop-tabs" role="tablist">
-            <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
-            <button type="button" class="tab" data-tab="alchemy" role="tab">炼丹</button>
-            <button type="button" class="tab" data-tab="body" role="tab">炼体</button>
-            <button type="button" class="tab" data-tab="treasures" role="tab">坊市</button>
-            <button type="button" class="tab" data-tab="cycle" role="tab">轮回</button>
-          </div>
-
-          <div id="tabArts" class="tab-pane active">
-            <h2 class="pane-title">灵力 · 吐纳 / 运转</h2>
-            <div id="shopLingli" class="shop-list"></div>
-            <h2 class="pane-title">体术 · 锤炼 / 运功</h2>
-            <div id="shopTishu" class="shop-list"></div>
-            <h2 class="pane-title">精神 · 凝神 / 神转</h2>
-            <div id="shopJingshen" class="shop-list"></div>
-          </div>
-
-          <div id="tabAlchemy" class="tab-pane">
-            <h2 class="pane-title">丹方 <span class="inline-hint" id="alchemyHint"></span></h2>
-            <div id="pillList" class="shop-list"></div>
-            <h2 class="pane-title">药材</h2>
-            <div id="herbOwned" class="shop-list"></div>
-            <h2 class="pane-title">购药</h2>
-            <div id="herbShop" class="shop-list"></div>
-          </div>
-
-          <div id="tabBody" class="tab-pane">
-            <div class="cycle-card">
-              <h2 class="pane-title">炼体进度</h2>
-              <p id="bodyStatus" class="cycle-status"></p>
-              <button type="button" id="btnTemper" class="action-btn primary">锤炼肉身</button>
+          <section class="arts-panel shop-panel" aria-label="功法与杂务">
+            <div class="shop-tabs" role="tablist">
+              <button type="button" class="tab active" data-tab="arts" role="tab">功法</button>
+              <button type="button" class="tab" data-tab="alchemy" role="tab">炼丹</button>
+              <button type="button" class="tab" data-tab="body" role="tab">炼体</button>
+              <button type="button" class="tab" data-tab="cycle" role="tab">轮回</button>
             </div>
-            <h2 class="pane-title">体修阶位</h2>
-            <ul id="bodyStageList" class="ending-list"></ul>
-          </div>
 
-          <div id="tabTreasures" class="tab-pane">
-            <h2 class="pane-title">持有法宝</h2>
-            <div id="ownedTreasures" class="shop-list"></div>
-            <h2 class="pane-title">坊市法宝</h2>
-            <div id="shopTreasures" class="shop-list"></div>
-            <h2 class="pane-title">跨世宝库</h2>
-            <p class="realm-hint" id="vaultHint"></p>
-            <div id="vaultList" class="shop-list"></div>
-          </div>
+            <div id="tabArts" class="tab-pane active">
+              <h2 class="pane-title">灵力 · 吐纳 / 运转</h2>
+              <div id="shopLingli" class="shop-list"></div>
+              <h2 class="pane-title">体术 · 锤炼 / 运功</h2>
+              <div id="shopTishu" class="shop-list"></div>
+              <h2 class="pane-title">精神 · 凝神 / 神转</h2>
+              <div id="shopJingshen" class="shop-list"></div>
+            </div>
 
-          <div id="tabCycle" class="tab-pane">
-            <div class="cycle-card">
-              <h2 class="pane-title">轮回转世</h2>
-              <p id="reincarnateStatus" class="cycle-status"></p>
-              <button type="button" id="btnReincarnate" class="action-btn primary">主动轮回</button>
+            <div id="tabAlchemy" class="tab-pane">
+              <h2 class="pane-title">丹方 <span class="inline-hint" id="alchemyHint"></span></h2>
+              <div id="pillList" class="shop-list"></div>
+              <h2 class="pane-title">药材</h2>
+              <div id="herbOwned" class="shop-list"></div>
+              <h2 class="pane-title">购药</h2>
+              <div id="herbShop" class="shop-list"></div>
             </div>
-            <div class="cycle-card">
-              <h2 class="pane-title">已收集结局</h2>
-              <ul id="endingList" class="ending-list"></ul>
+
+            <div id="tabBody" class="tab-pane">
+              <div class="cycle-card">
+                <h2 class="pane-title">炼体进度</h2>
+                <p id="bodyStatus" class="cycle-status"></p>
+                <button type="button" id="btnTemper" class="action-btn primary">锤炼肉身</button>
+              </div>
+              <h2 class="pane-title">体修阶位</h2>
+              <ul id="bodyStageList" class="ending-list"></ul>
             </div>
-          </div>
+
+            <div id="tabCycle" class="tab-pane">
+              <div class="cycle-card">
+                <h2 class="pane-title">轮回转世</h2>
+                <p id="reincarnateStatus" class="cycle-status"></p>
+                <button type="button" id="btnReincarnate" class="action-btn primary">主动轮回</button>
+              </div>
+              <div class="cycle-card">
+                <h2 class="pane-title">已收集结局</h2>
+                <ul id="endingList" class="ending-list"></ul>
+              </div>
+            </div>
+          </section>
         </aside>
       </div>
 
