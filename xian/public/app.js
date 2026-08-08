@@ -745,6 +745,8 @@
   }
 
   function renderCombat(force) {
+    const myPower = Math.floor(X.calcCombatPower(state));
+    const powerBucket = Math.floor(Math.log10(Math.max(10, myPower)) * 20);
     const list =
       state.phase !== 'playing' || state.endingId ? [] : X.listCombatEnemies(state);
     const sig =
@@ -752,7 +754,13 @@
       ':' +
       state.realmIndex +
       ':' +
-      list.map((e) => e.id).join(',');
+      state.star +
+      ':' +
+      state.combatWins +
+      ':' +
+      powerBucket +
+      ':' +
+      list.map((e) => e.id + ':' + e.rewardLingqi).join(',');
     if (!force && sig === lastCombatSig && els.combatList.childElementCount) return;
     lastCombatSig = sig;
     els.combatList.innerHTML = '';
@@ -771,18 +779,24 @@
       btn.dataset.enemyId = enemy.id;
       const ePower = X.enemyPower
         ? X.enemyPower(enemy.attrs, state.realmIndex)
-        : X.calcCombatPower
-          ? Math.floor(X.calcCombatPower(state) * 0.8)
-          : '?';
-      const myPower = Math.floor(X.calcCombatPower(state));
+        : Math.floor(myPower * (enemy.powerRatio || 1));
       const ratio = typeof ePower === 'number' ? myPower / Math.max(1, ePower) : 1;
+      const diff =
+        (X.COMBAT_DIFFICULTY_LABELS && enemy.difficulty
+          ? X.COMBAT_DIFFICULTY_LABELS[enemy.difficulty]
+          : null) ||
+        (ratio >= 1.25 ? '弱敌' : ratio <= 0.75 ? '强敌' : '均势');
       let odds = '均势';
       if (ratio >= 1.25) odds = '占优';
       else if (ratio <= 0.8) odds = '凶险';
       btn.innerHTML =
         '<strong>' +
         enemy.name +
-        '</strong><span>敌战力 ' +
+        ' <em class="combat-diff combat-diff-' +
+        (enemy.difficulty || 'fair') +
+        '">' +
+        diff +
+        '</em></strong><span>敌战力 ' +
         (typeof ePower === 'number' ? X.formatNumber(ePower) : ePower) +
         ' · 我 ' +
         X.formatNumber(myPower) +

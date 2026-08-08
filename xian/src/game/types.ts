@@ -231,6 +231,27 @@ export interface EnemyDef {
   lore: string;
 }
 
+/** 随机对战难度档：相对玩家战力 */
+export type CombatDifficulty = 'prey' | 'fair' | 'threat' | 'deadly';
+
+export const COMBAT_DIFFICULTY_LABELS: Record<CombatDifficulty, string> = {
+  prey: '弱敌',
+  fair: '均势',
+  threat: '强敌',
+  deadly: '绝境',
+};
+
+/**
+ * 动态对战遭遇：模板敌人按玩家战力/修为缩放后的实例
+ * id 形如 `templateId__difficulty`
+ */
+export interface CombatEncounter extends EnemyDef {
+  templateId: string;
+  difficulty: CombatDifficulty;
+  /** 目标敌我战力比（敌/我） */
+  powerRatio: number;
+}
+
 export interface ChoiceOption {
   id: string;
   label: string;

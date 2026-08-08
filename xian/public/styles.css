@@ -1261,6 +1261,30 @@ body {
   color: var(--gold-soft);
 }
 
+.combat-row .combat-diff {
+  margin-left: 0.35rem;
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.combat-row .combat-diff-prey {
+  color: var(--jade);
+}
+
+.combat-row .combat-diff-fair {
+  color: var(--gold-soft);
+}
+
+.combat-row .combat-diff-threat {
+  color: #d4895a;
+}
+
+.combat-row .combat-diff-deadly {
+  color: var(--cinnabar);
+}
+
 .combat-row span {
   font-size: 0.68rem;
   color: var(--muted);

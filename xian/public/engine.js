@@ -245,6 +245,12 @@
     cultivate: "\u4FEE\u70BC",
     assist: "\u8F85\u52A9"
   };
+  var COMBAT_DIFFICULTY_LABELS = {
+    prey: "\u5F31\u654C",
+    fair: "\u5747\u52BF",
+    threat: "\u5F3A\u654C",
+    deadly: "\u7EDD\u5883"
+  };
 
   // xian/src/game/loot.ts
   function slotCapacity(realmIndex) {
@@ -3328,6 +3334,13 @@
   }
 
   // xian/src/game/engine.ts
+  var COMBAT_TIER_RATIOS = {
+    prey: 0.55,
+    fair: 0.98,
+    threat: 1.4,
+    deadly: 1.9
+  };
+  var COMBAT_DIFFICULTIES = ["prey", "fair", "threat", "deadly"];
   function emptyOwned() {
     const owned = {};
     for (const a of ARTS) owned[a.id] = 0;
@@ -3875,6 +3888,144 @@
   function enemyPower(enemyAttrs, realmIndex) {
     const weighted = enemyAttrs.atk * 1.2 + enemyAttrs.def * 1 + enemyAttrs.spd * 0.9 + enemyAttrs.spirit * 1.1 + enemyAttrs.bone * 0.8 + enemyAttrs.luck * 0.6;
     return Math.max(1, weighted * (1 + realmIndex * 0.05));
+  }
+  function combatRewardMultiplier(playerPower, ePower) {
+    const ratio = ePower / Math.max(1, playerPower);
+    const raw = Math.pow(Math.max(0.2, ratio), 1.2);
+    return Math.min(3.6, Math.max(0.22, raw));
+  }
+  function combatBaselineReward(state, playerPower) {
+    const realmGrow = 90 * Math.pow(2.55, state.realmIndex) * (0.85 + state.star * 0.04);
+    const powerGrow = playerPower * 0.42;
+    return Math.max(40, Math.floor(realmGrow + powerGrow));
+  }
+  function scaleEnemyAttrsToPower(baseAttrs, realmIndex, targetPower) {
+    const cur = enemyPower(baseAttrs, realmIndex);
+    let factor = targetPower / Math.max(1, cur);
+    const out = { ...zeroAttrs() };
+    for (const k of ATTR_KEYS) {
+      out[k] = Math.max(1, Math.round((baseAttrs[k] || 1) * factor));
+    }
+    const mid = enemyPower(out, realmIndex);
+    if (mid > 0 && Math.abs(mid - targetPower) / targetPower > 0.06) {
+      factor = targetPower / mid;
+      for (const k of ATTR_KEYS) {
+        out[k] = Math.max(1, Math.round(out[k] * factor));
+      }
+    }
+    return out;
+  }
+  function combatPoolSeed(state) {
+    const power = calcCombatPower(state);
+    const bucket = Math.floor(Math.log10(Math.max(10, power)) * 20);
+    return (state.realmIndex * 1000003 ^ state.star * 10007 ^ state.combatWins * 97 ^ state.combatLosses * 13 ^ state.mainChapter * 31 ^ bucket * 17) >>> 0;
+  }
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = a + 1831565813 >>> 0;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function shuffleWith(arr, rng) {
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = out[i];
+      out[i] = out[j];
+      out[j] = tmp;
+    }
+    return out;
+  }
+  function hashStr(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function encounterJitter(state, templateId, difficulty) {
+    const rng = mulberry32((combatPoolSeed(state) ^ hashStr(`${templateId}:${difficulty}`)) >>> 0);
+    return 0.94 + rng() * 0.12;
+  }
+  function parseCombatEncounterId(id) {
+    const idx = id.lastIndexOf("__");
+    if (idx <= 0) return null;
+    const templateId = id.slice(0, idx);
+    const difficulty = id.slice(idx + 2);
+    if (!COMBAT_DIFFICULTIES.includes(difficulty)) return null;
+    if (!getEnemy(templateId)) return null;
+    return { templateId, difficulty };
+  }
+  function makeCombatEncounterId(templateId, difficulty) {
+    return `${templateId}__${difficulty}`;
+  }
+  function difficultyDropMult(d) {
+    if (d === "prey") return 0.55;
+    if (d === "fair") return 1;
+    if (d === "threat") return 1.35;
+    return 1.7;
+  }
+  function buildCombatEncounter(state, template, difficulty, playerPower = calcCombatPower(state)) {
+    const ratio = COMBAT_TIER_RATIOS[difficulty] * encounterJitter(state, template.id, difficulty);
+    const targetPower = Math.max(3, playerPower * ratio);
+    const attrs = scaleEnemyAttrsToPower(template.attrs, state.realmIndex, targetPower);
+    const ePower = enemyPower(attrs, state.realmIndex);
+    const baseline = combatBaselineReward(state, playerPower);
+    const gapMult = combatRewardMultiplier(playerPower, ePower);
+    const flavor = 0.9 + Math.min(0.2, Math.max(0, Math.log10(Math.max(10, template.rewardLingqi)) / 50));
+    const tierBias = 0.88 + COMBAT_TIER_RATIOS[difficulty] * 0.22;
+    const rewardLingqi = Math.max(
+      10,
+      Math.floor(baseline * gapMult * flavor * tierBias)
+    );
+    const rewardPoints = template.rewardPoints ? Math.max(
+      1,
+      Math.round(template.rewardPoints * (0.6 + COMBAT_TIER_RATIOS[difficulty] * 0.5))
+    ) : void 0;
+    const dropChance = template.dropChance ? Math.min(0.85, template.dropChance * difficultyDropMult(difficulty)) : void 0;
+    return {
+      id: makeCombatEncounterId(template.id, difficulty),
+      templateId: template.id,
+      name: template.name,
+      blurb: template.blurb,
+      lore: template.lore,
+      minRealm: template.minRealm,
+      maxRealm: template.maxRealm,
+      attrs,
+      rewardLingqi,
+      rewardPoints,
+      dropTreasureId: template.dropTreasureId,
+      dropChance,
+      difficulty,
+      powerRatio: ePower / Math.max(1, playerPower)
+    };
+  }
+  function resolveCombatEncounter(state, encounterId) {
+    const parsed = parseCombatEncounterId(encounterId);
+    if (parsed) {
+      const template = getEnemy(parsed.templateId);
+      if (!template) return null;
+      return buildCombatEncounter(state, template, parsed.difficulty);
+    }
+    const enemy = getEnemy(encounterId);
+    if (!enemy) return null;
+    const playerPower = calcCombatPower(state);
+    const ePower = enemyPower(enemy.attrs, state.realmIndex);
+    const baseline = combatBaselineReward(state, playerPower);
+    const gapMult = combatRewardMultiplier(playerPower, ePower);
+    const flavor = 0.9 + Math.min(0.2, Math.max(0, Math.log10(Math.max(10, enemy.rewardLingqi)) / 50));
+    return {
+      ...enemy,
+      templateId: enemy.id,
+      difficulty: "fair",
+      powerRatio: ePower / Math.max(1, playerPower),
+      rewardLingqi: Math.max(10, Math.floor(baseline * gapMult * flavor))
+    };
   }
   function matchEnding(state) {
     const attrs = totalAttrs(state);
@@ -4655,14 +4806,15 @@
   function startCombat(state, enemyId, now = Date.now()) {
     const blocked = ensurePlaying(state);
     if (blocked) return blocked;
-    const enemy = getEnemy(enemyId);
-    if (!enemy) return { ok: false, state, reason: "\u672A\u77E5\u5BF9\u624B" };
     const ticked = syncEquipCapacity(tick(state, now).state);
+    const enemy = resolveCombatEncounter(ticked, enemyId);
+    if (!enemy) return { ok: false, state, reason: "\u672A\u77E5\u5BF9\u624B" };
     const basePower = calcCombatPower(ticked);
     const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
     const luck = totalAttrs(ticked).luck;
     const edges = gatherCombatEdges(ticked);
     const edgeEvents = [];
+    const diffLabel = COMBAT_DIFFICULTY_LABELS[enemy.difficulty] || "";
     let pPower = basePower;
     if (Math.random() < edges.firstStrikeChance) {
       pPower *= 1 + edges.firstStrikeBonus;
@@ -4694,7 +4846,8 @@
         next2 = grantTreasure(next2, enemy.dropTreasureId);
         lootBits.push(getTreasure(enemy.dropTreasureId)?.name || enemy.dropTreasureId);
       }
-      if (Math.random() < 0.22) {
+      const extraTreasureChance = 0.12 + COMBAT_TIER_RATIOS[enemy.difficulty] * 0.12;
+      if (Math.random() < extraTreasureChance) {
         const pool = TREASURES.filter(
           (t) => t.minRealm <= next2.realmIndex && !next2.treasures.includes(t.id)
         );
@@ -4704,7 +4857,8 @@
           lootBits.push(pick.name);
         }
       }
-      if (Math.random() < 0.28) {
+      const naturalChance = 0.16 + COMBAT_TIER_RATIOS[enemy.difficulty] * 0.12;
+      if (Math.random() < naturalChance) {
         const pool = NATURALS.filter((n) => n.minRealm <= next2.realmIndex);
         if (pool.length) {
           let total = 0;
@@ -4722,7 +4876,8 @@
           lootBits.push(pick.name);
         }
       }
-      if (Math.random() < 0.35) {
+      const herbChance = 0.22 + COMBAT_TIER_RATIOS[enemy.difficulty] * 0.12;
+      if (Math.random() < herbChance) {
         const pool = HERBS.filter((h) => h.minRealm <= next2.realmIndex);
         if (pool.length) {
           const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -4735,7 +4890,7 @@
       const edgeTxt2 = edgeEvents.length ? ` \xB7 ${edgeEvents.join("\u3001")}` : "";
       next2 = pushChronicle(
         next2,
-        `\u5BF9\u6218\u80DC\u5229\uFF1A\u51FB\u8D25\u300C${enemy.name}\u300D\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${edgeTxt2}${loot ? " \xB7 \u7F34\u83B7 " + loot : ""}\u3010${enemy.lore}\u3011`
+        `\u5BF9\u6218\u80DC\u5229\uFF1A\u51FB\u8D25\u300C${enemy.name}\u300D[${diffLabel}]\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)} \xB7 \u8D4F ${Math.floor(enemy.rewardLingqi)}\uFF09${edgeTxt2}${loot ? " \xB7 \u7F34\u83B7 " + loot : ""}\u3010${enemy.lore}\u3011`
       );
       return {
         ok: true,
@@ -4743,7 +4898,7 @@
         won: true,
         playerPower: pPower,
         enemyPower: ePower,
-        message: `\u6218\u80DC ${enemy.name}`,
+        message: `\u6218\u80DC ${enemy.name}\uFF08${diffLabel}\uFF09`,
         loot,
         edgeEvents
       };
@@ -4791,7 +4946,7 @@
       const edgeTxt2 = edgeEvents.length ? ` \xB7 ${edgeEvents.join("\u3001")}` : "";
       next = pushChronicle(
         next,
-        `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u5883\u754C\u53D7\u632B\uFF08\u73B0 ${getRealm(next.realmIndex).name}${next.star}\u5C42\uFF09${edgeTxt2}`
+        `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D[${diffLabel}]\uFF0C\u5883\u754C\u53D7\u632B\uFF08\u73B0 ${getRealm(next.realmIndex).name}${next.star}\u5C42\uFF09${edgeTxt2}`
       );
       return {
         ok: true,
@@ -4808,7 +4963,7 @@
     const edgeTxt = edgeEvents.length ? ` \xB7 ${edgeEvents.join("\u3001")}` : "";
     next = pushChronicle(
       next,
-      `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D\uFF0C\u8F7B\u4F24\u9003\u56DE\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${edgeTxt}`
+      `\u5BF9\u6218\u5931\u8D25\uFF1A\u4E0D\u654C\u300C${enemy.name}\u300D[${diffLabel}]\uFF0C\u8F7B\u4F24\u9003\u56DE\uFF08${Math.floor(pPower)} vs ${Math.floor(ePower)}\uFF09${edgeTxt}`
     );
     return {
       ok: true,
@@ -4831,9 +4986,38 @@
     return state;
   }
   function listCombatEnemies(state) {
-    return ENEMIES.filter(
-      (e) => state.realmIndex >= e.minRealm && state.realmIndex <= e.maxRealm + 1
+    const playerPower = calcCombatPower(state);
+    const rng = mulberry32(combatPoolSeed(state));
+    let templates = ENEMIES.filter(
+      (e) => state.realmIndex >= Math.max(0, e.minRealm - 1) && state.realmIndex <= e.maxRealm + 2
     );
+    if (templates.length < 3) {
+      templates = ENEMIES.filter(
+        (e) => Math.abs(e.minRealm - state.realmIndex) <= 4 || Math.abs(e.maxRealm - state.realmIndex) <= 4
+      );
+    }
+    if (!templates.length) templates = ENEMIES.slice();
+    const shuffled = shuffleWith(templates, rng);
+    const tiers = ["prey", "fair", "threat"];
+    if (state.realmIndex >= 2 || playerPower >= 80 || state.combatWins >= 3) {
+      tiers.push("deadly");
+    }
+    const used = /* @__PURE__ */ new Set();
+    const out = [];
+    for (let i = 0; i < tiers.length; i++) {
+      let pick;
+      for (let probe = 0; probe < shuffled.length; probe++) {
+        const cand = shuffled[(i + probe) % shuffled.length];
+        if (!used.has(cand.id)) {
+          pick = cand;
+          break;
+        }
+      }
+      if (!pick) pick = shuffled[i % shuffled.length];
+      used.add(pick.id);
+      out.push(buildCombatEncounter(state, pick, tiers[i], playerPower));
+    }
+    return out;
   }
   function die(state, reason, now = Date.now()) {
     const ticked = tick(state, now).state;
@@ -5285,6 +5469,7 @@
     ATTR_LABELS,
     BIRTHS,
     BODY_STAGES,
+    COMBAT_DIFFICULTY_LABELS,
     FORGE_REALMS,
     BRANCH_LABELS,
     ENDINGS,
@@ -5329,11 +5514,14 @@
     buyArt,
     buyHerb,
     buyTreasure,
+    buildCombatEncounter,
     calcCombatPower,
     calcQiyunGain,
     calcTriadMods,
     chooseBirth,
     clickAbsorb,
+    combatBaselineReward,
+    combatRewardMultiplier,
     craftPill,
     createNewState,
     derive,
@@ -5348,10 +5536,13 @@
     listCombatEnemies,
     loadState,
     loadFromStorage,
+    makeCombatEncounterId,
     matchEnding,
+    parseCombatEncounterId,
     raiseStar,
     raiseStarCost,
     refineTreasure,
+    resolveCombatEncounter,
     resolveEvent,
     resourceAttrsFromTotals,
     resourceCaps,

@@ -57,9 +57,12 @@ import type {
   ArtDef,
   AttrKey,
   AttrMap,
+  CombatDifficulty,
+  CombatEncounter,
   CombatResult,
   DerivedStats,
   EndingDef,
+  EnemyDef,
   EquipSlot,
   EquippedMap,
   GameState,
@@ -77,12 +80,23 @@ import type {
 import {
   ATTR_KEYS,
   ATTR_LABELS,
+  COMBAT_DIFFICULTY_LABELS,
   EQUIP_SLOTS,
   EQUIP_SLOT_LABELS,
   RESOURCE_KEYS,
   RESOURCE_LABELS,
   TREASURE_TIER_LABELS,
 } from './types';
+
+/** 各难度相对玩家战力的目标倍率 */
+const COMBAT_TIER_RATIOS: Record<CombatDifficulty, number> = {
+  prey: 0.55,
+  fair: 0.98,
+  threat: 1.4,
+  deadly: 1.9,
+};
+
+const COMBAT_DIFFICULTIES: CombatDifficulty[] = ['prey', 'fair', 'threat', 'deadly'];
 
 function emptyOwned(): Record<string, number> {
   const owned: Record<string, number> = {};
@@ -759,6 +773,197 @@ export function enemyPower(enemyAttrs: AttrMap, realmIndex: number): number {
     enemyAttrs.bone * 0.8 +
     enemyAttrs.luck * 0.6;
   return Math.max(1, weighted * (1 + realmIndex * 0.05));
+}
+
+/** 敌强奖多、敌弱奖少：按敌我战力比缩放 */
+export function combatRewardMultiplier(playerPower: number, ePower: number): number {
+  const ratio = ePower / Math.max(1, playerPower);
+  const raw = Math.pow(Math.max(0.2, ratio), 1.2);
+  return Math.min(3.6, Math.max(0.22, raw));
+}
+
+/** 随修为与战力抬升的对战基础赏金 */
+export function combatBaselineReward(state: GameState, playerPower: number): number {
+  const realmGrow = 90 * Math.pow(2.55, state.realmIndex) * (0.85 + state.star * 0.04);
+  const powerGrow = playerPower * 0.42;
+  return Math.max(40, Math.floor(realmGrow + powerGrow));
+}
+
+function scaleEnemyAttrsToPower(
+  baseAttrs: AttrMap,
+  realmIndex: number,
+  targetPower: number,
+): AttrMap {
+  const cur = enemyPower(baseAttrs, realmIndex);
+  let factor = targetPower / Math.max(1, cur);
+  const out: AttrMap = { ...zeroAttrs() };
+  for (const k of ATTR_KEYS) {
+    out[k] = Math.max(1, Math.round((baseAttrs[k] || 1) * factor));
+  }
+  const mid = enemyPower(out, realmIndex);
+  if (mid > 0 && Math.abs(mid - targetPower) / targetPower > 0.06) {
+    factor = targetPower / mid;
+    for (const k of ATTR_KEYS) {
+      out[k] = Math.max(1, Math.round(out[k] * factor));
+    }
+  }
+  return out;
+}
+
+function combatPoolSeed(state: GameState): number {
+  const power = calcCombatPower(state);
+  const bucket = Math.floor(Math.log10(Math.max(10, power)) * 20);
+  return (
+    ((state.realmIndex * 1_000_003) ^
+      (state.star * 10_007) ^
+      (state.combatWins * 97) ^
+      (state.combatLosses * 13) ^
+      (state.mainChapter * 31) ^
+      (bucket * 17)) >>>
+    0
+  );
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWith<T>(arr: T[], rng: () => number): T[] {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = out[i]!;
+    out[i] = out[j]!;
+    out[j] = tmp;
+  }
+  return out;
+}
+
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** 同一遭遇在列表与开战时使用相同抖动，保证战力/赏金一致 */
+function encounterJitter(
+  state: GameState,
+  templateId: string,
+  difficulty: CombatDifficulty,
+): number {
+  const rng = mulberry32((combatPoolSeed(state) ^ hashStr(`${templateId}:${difficulty}`)) >>> 0);
+  return 0.94 + rng() * 0.12;
+}
+
+export function parseCombatEncounterId(
+  id: string,
+): { templateId: string; difficulty: CombatDifficulty } | null {
+  const idx = id.lastIndexOf('__');
+  if (idx <= 0) return null;
+  const templateId = id.slice(0, idx);
+  const difficulty = id.slice(idx + 2) as CombatDifficulty;
+  if (!COMBAT_DIFFICULTIES.includes(difficulty)) return null;
+  if (!getEnemy(templateId)) return null;
+  return { templateId, difficulty };
+}
+
+export function makeCombatEncounterId(templateId: string, difficulty: CombatDifficulty): string {
+  return `${templateId}__${difficulty}`;
+}
+
+function difficultyDropMult(d: CombatDifficulty): number {
+  if (d === 'prey') return 0.55;
+  if (d === 'fair') return 1;
+  if (d === 'threat') return 1.35;
+  return 1.7;
+}
+
+/** 由模板 + 难度生成相对玩家战力的动态遭遇 */
+export function buildCombatEncounter(
+  state: GameState,
+  template: EnemyDef,
+  difficulty: CombatDifficulty,
+  playerPower = calcCombatPower(state),
+): CombatEncounter {
+  const ratio = COMBAT_TIER_RATIOS[difficulty] * encounterJitter(state, template.id, difficulty);
+  const targetPower = Math.max(3, playerPower * ratio);
+  const attrs = scaleEnemyAttrsToPower(template.attrs, state.realmIndex, targetPower);
+  const ePower = enemyPower(attrs, state.realmIndex);
+  // 赏金以战力差距为主：敌强奖厚、敌弱奖薄；模板仅 ±10% 风味
+  const baseline = combatBaselineReward(state, playerPower);
+  const gapMult = combatRewardMultiplier(playerPower, ePower);
+  const flavor =
+    0.9 +
+    Math.min(0.2, Math.max(0, Math.log10(Math.max(10, template.rewardLingqi)) / 50));
+  const tierBias = 0.88 + COMBAT_TIER_RATIOS[difficulty] * 0.22;
+  const rewardLingqi = Math.max(
+    10,
+    Math.floor(baseline * gapMult * flavor * tierBias),
+  );
+  const rewardPoints = template.rewardPoints
+    ? Math.max(
+        1,
+        Math.round(template.rewardPoints * (0.6 + COMBAT_TIER_RATIOS[difficulty] * 0.5)),
+      )
+    : undefined;
+  const dropChance = template.dropChance
+    ? Math.min(0.85, template.dropChance * difficultyDropMult(difficulty))
+    : undefined;
+  return {
+    id: makeCombatEncounterId(template.id, difficulty),
+    templateId: template.id,
+    name: template.name,
+    blurb: template.blurb,
+    lore: template.lore,
+    minRealm: template.minRealm,
+    maxRealm: template.maxRealm,
+    attrs,
+    rewardLingqi,
+    rewardPoints,
+    dropTreasureId: template.dropTreasureId,
+    dropChance,
+    difficulty,
+    powerRatio: ePower / Math.max(1, playerPower),
+  };
+}
+
+/** 解析动态遭遇 id；无后缀时按静态敌人并依战力差调赏 */
+export function resolveCombatEncounter(
+  state: GameState,
+  encounterId: string,
+): CombatEncounter | null {
+  const parsed = parseCombatEncounterId(encounterId);
+  if (parsed) {
+    const template = getEnemy(parsed.templateId);
+    if (!template) return null;
+    return buildCombatEncounter(state, template, parsed.difficulty);
+  }
+  const enemy = getEnemy(encounterId);
+  if (!enemy) return null;
+  const playerPower = calcCombatPower(state);
+  const ePower = enemyPower(enemy.attrs, state.realmIndex);
+  const baseline = combatBaselineReward(state, playerPower);
+  const gapMult = combatRewardMultiplier(playerPower, ePower);
+  const flavor =
+    0.9 +
+    Math.min(0.2, Math.max(0, Math.log10(Math.max(10, enemy.rewardLingqi)) / 50));
+  return {
+    ...enemy,
+    templateId: enemy.id,
+    difficulty: 'fair',
+    powerRatio: ePower / Math.max(1, playerPower),
+    rewardLingqi: Math.max(10, Math.floor(baseline * gapMult * flavor)),
+  };
 }
 
 export function matchEnding(state: GameState): EndingDef | null {
@@ -1671,14 +1876,15 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
 export function startCombat(state: GameState, enemyId: string, now = Date.now()): CombatResult {
   const blocked = ensurePlaying(state);
   if (blocked) return blocked;
-  const enemy = getEnemy(enemyId);
-  if (!enemy) return { ok: false, state, reason: '未知对手' };
   const ticked = syncEquipCapacity(tick(state, now).state);
+  const enemy = resolveCombatEncounter(ticked, enemyId);
+  if (!enemy) return { ok: false, state, reason: '未知对手' };
   const basePower = calcCombatPower(ticked);
   const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
   const luck = totalAttrs(ticked).luck;
   const edges = gatherCombatEdges(ticked);
   const edgeEvents: string[] = [];
+  const diffLabel = COMBAT_DIFFICULTY_LABELS[enemy.difficulty] || '';
 
   let pPower = basePower;
   if (Math.random() < edges.firstStrikeChance) {
@@ -1714,8 +1920,10 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
       next = grantTreasure(next, enemy.dropTreasureId);
       lootBits.push(getTreasure(enemy.dropTreasureId)?.name || enemy.dropTreasureId);
     }
-    // 额外随机法宝
-    if (Math.random() < 0.22) {
+    // 额外随机法宝：强敌更容易爆
+    const extraTreasureChance =
+      0.12 + COMBAT_TIER_RATIOS[enemy.difficulty] * 0.12;
+    if (Math.random() < extraTreasureChance) {
       const pool = TREASURES.filter(
         (t) => t.minRealm <= next.realmIndex && !next.treasures.includes(t.id),
       );
@@ -1726,7 +1934,8 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
       }
     }
     // 天才地宝
-    if (Math.random() < 0.28) {
+    const naturalChance = 0.16 + COMBAT_TIER_RATIOS[enemy.difficulty] * 0.12;
+    if (Math.random() < naturalChance) {
       const pool = NATURALS.filter((n) => n.minRealm <= next.realmIndex);
       if (pool.length) {
         let total = 0;
@@ -1745,7 +1954,8 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
       }
     }
     // 药材掉落
-    if (Math.random() < 0.35) {
+    const herbChance = 0.22 + COMBAT_TIER_RATIOS[enemy.difficulty] * 0.12;
+    if (Math.random() < herbChance) {
       const pool = HERBS.filter((h) => h.minRealm <= next.realmIndex);
       if (pool.length) {
         const pick = pool[Math.floor(Math.random() * pool.length)]!;
@@ -1758,7 +1968,7 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
     const edgeTxt = edgeEvents.length ? ` · ${edgeEvents.join('、')}` : '';
     next = pushChronicle(
       next,
-      `对战胜利：击败「${enemy.name}」（${Math.floor(pPower)} vs ${Math.floor(ePower)}）${edgeTxt}${loot ? ' · 缴获 ' + loot : ''}【${enemy.lore}】`,
+      `对战胜利：击败「${enemy.name}」[${diffLabel}]（${Math.floor(pPower)} vs ${Math.floor(ePower)} · 赏 ${Math.floor(enemy.rewardLingqi)}）${edgeTxt}${loot ? ' · 缴获 ' + loot : ''}【${enemy.lore}】`,
     );
     return {
       ok: true,
@@ -1766,7 +1976,7 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
       won: true,
       playerPower: pPower,
       enemyPower: ePower,
-      message: `战胜 ${enemy.name}`,
+      message: `战胜 ${enemy.name}（${diffLabel}）`,
       loot,
       edgeEvents,
     };
@@ -1817,7 +2027,7 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
     const edgeTxt = edgeEvents.length ? ` · ${edgeEvents.join('、')}` : '';
     next = pushChronicle(
       next,
-      `对战失败：不敌「${enemy.name}」，境界受挫（现 ${getRealm(next.realmIndex).name}${next.star}层）${edgeTxt}`,
+      `对战失败：不敌「${enemy.name}」[${diffLabel}]，境界受挫（现 ${getRealm(next.realmIndex).name}${next.star}层）${edgeTxt}`,
     );
     return {
       ok: true,
@@ -1835,7 +2045,7 @@ export function startCombat(state: GameState, enemyId: string, now = Date.now())
   const edgeTxt = edgeEvents.length ? ` · ${edgeEvents.join('、')}` : '';
   next = pushChronicle(
     next,
-    `对战失败：不敌「${enemy.name}」，轻伤逃回（${Math.floor(pPower)} vs ${Math.floor(ePower)}）${edgeTxt}`,
+    `对战失败：不敌「${enemy.name}」[${diffLabel}]，轻伤逃回（${Math.floor(pPower)} vs ${Math.floor(ePower)}）${edgeTxt}`,
   );
   return {
     ok: true,
@@ -1860,11 +2070,48 @@ function demoteRank(state: GameState): GameState {
   return state;
 }
 
-/** 可选对手：当前境界附近 */
-export function listCombatEnemies(state: GameState) {
-  return ENEMIES.filter(
-    (e) => state.realmIndex >= e.minRealm && state.realmIndex <= e.maxRealm + 1,
+/**
+ * 可选对手：随修为/战力动态缩放，并按战力档位给不同赏金
+ * 列表在境界、星层、战绩与战力量级变化时刷新人选
+ */
+export function listCombatEnemies(state: GameState): CombatEncounter[] {
+  const playerPower = calcCombatPower(state);
+  const rng = mulberry32(combatPoolSeed(state));
+
+  let templates = ENEMIES.filter(
+    (e) =>
+      state.realmIndex >= Math.max(0, e.minRealm - 1) &&
+      state.realmIndex <= e.maxRealm + 2,
   );
+  if (templates.length < 3) {
+    templates = ENEMIES.filter(
+      (e) => Math.abs(e.minRealm - state.realmIndex) <= 4 || Math.abs(e.maxRealm - state.realmIndex) <= 4,
+    );
+  }
+  if (!templates.length) templates = ENEMIES.slice();
+
+  const shuffled = shuffleWith(templates, rng);
+  const tiers: CombatDifficulty[] = ['prey', 'fair', 'threat'];
+  if (state.realmIndex >= 2 || playerPower >= 80 || state.combatWins >= 3) {
+    tiers.push('deadly');
+  }
+
+  const used = new Set<string>();
+  const out: CombatEncounter[] = [];
+  for (let i = 0; i < tiers.length; i++) {
+    let pick: EnemyDef | undefined;
+    for (let probe = 0; probe < shuffled.length; probe++) {
+      const cand = shuffled[(i + probe) % shuffled.length]!;
+      if (!used.has(cand.id)) {
+        pick = cand;
+        break;
+      }
+    }
+    if (!pick) pick = shuffled[i % shuffled.length]!;
+    used.add(pick.id);
+    out.push(buildCombatEncounter(state, pick, tiers[i]!, playerPower));
+  }
+  return out;
 }
 
 export function die(state: GameState, reason: string, now = Date.now()): ActionResult {
