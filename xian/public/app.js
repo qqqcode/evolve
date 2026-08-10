@@ -30,9 +30,6 @@
     lingliDps: document.getElementById('lingliDps'),
     tishuDps: document.getElementById('tishuDps'),
     jingshenDps: document.getElementById('jingshenDps'),
-    lingliCap: document.getElementById('lingliCap'),
-    tishuCap: document.getElementById('tishuCap'),
-    jingshenCap: document.getElementById('jingshenCap'),
     lingliTriad: document.getElementById('lingliTriad'),
     tishuTriad: document.getElementById('tishuTriad'),
     jingshenTriad: document.getElementById('jingshenTriad'),
@@ -1388,15 +1385,16 @@
     if (els.jingshenDps) els.jingshenDps.textContent = X.formatNumber(per.jingshen || 0);
 
     const caps = stats.caps || null;
-    const paintCap = (el, capEl, cur, cap) => {
-      if (!capEl) return;
-      capEl.textContent = X.formatNumber(Math.floor(cap || 0));
-      const block = el && el.closest ? el.closest('.res') : null;
+    const paintCap = (el, cur, cap) => {
+      if (!el) return;
+      const c = Math.floor(cap || 0);
+      el.textContent = X.formatNumber(cur) + ' / ' + X.formatNumber(c);
+      const block = el.closest ? el.closest('.res') : null;
       if (block) block.classList.toggle('at-cap', !!cap && cur >= cap - 1e-6);
     };
-    paintCap(els.lingqiVal, els.lingliCap, state.lingqi, caps ? caps.lingli : 0);
-    paintCap(els.tishuVal, els.tishuCap, state.tishu || 0, caps ? caps.tishu : 0);
-    paintCap(els.jingshenVal, els.jingshenCap, state.jingshen || 0, caps ? caps.jingshen : 0);
+    paintCap(els.lingqiVal, state.lingqi, caps ? caps.lingli : 0);
+    paintCap(els.tishuVal, state.tishu || 0, caps ? caps.tishu : 0);
+    paintCap(els.jingshenVal, state.jingshen || 0, caps ? caps.jingshen : 0);
 
     const mods = stats.triadMods || { lingli: 0, tishu: 0, jingshen: 0 };
     const shares = stats.resourceShares || { lingli: 1 / 3, tishu: 1 / 3, jingshen: 1 / 3 };
