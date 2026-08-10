@@ -1692,13 +1692,13 @@
     {
       id: "meridian_open",
       name: "\u6D17\u7ECF\u4F10\u8109",
-      description: "\u758F\u901A\u7ECF\u8109\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
+      description: "\u758F\u901A\u7ECF\u8109\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u5C0F\u5E45\u63D0\u5347\u3002\u524D\u671F\u9700\u53CD\u590D\u4FEE\u4E60\u3002",
       kind: "cap",
-      baseCost: 140,
-      costMult: 1.15,
-      power: 120,
+      baseCost: 16,
+      costMult: 1.14,
+      power: 72,
       minRealm: 0,
-      attrs: { bone: 0.2 },
+      attrs: { bone: 0.15 },
       mark: "\u8109"
     },
     {
@@ -1830,11 +1830,11 @@
     {
       id: "qi_sea_vast",
       name: "\u6C14\u6D77\u65E0\u91CF",
-      description: "\u6C14\u6D77\u65E0\u6DAF\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      description: "\u6C14\u6D77\u65E0\u6DAF\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u660E\u663E\u63D0\u5347\u3002",
       kind: "cap",
-      baseCost: 3e4,
-      costMult: 1.16,
-      power: 3e4,
+      baseCost: 12e3,
+      costMult: 1.17,
+      power: 5500,
       minRealm: 4,
       attrs: { spirit: 0.3 },
       mark: "\u6D77"
@@ -1842,11 +1842,11 @@
     {
       id: "void_dantian",
       name: "\u865A\u7A7A\u4E39\u7530",
-      description: "\u4E39\u7530\u5316\u865A\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u66B4\u6DA8\u3002",
+      description: "\u4E39\u7530\u5316\u865A\uFF0C\u7075\u529B\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
       kind: "cap",
-      baseCost: 2e6,
-      costMult: 1.17,
-      power: 9e5,
+      baseCost: 6e5,
+      costMult: 1.18,
+      power: 18e4,
       minRealm: 7,
       mark: "\u7530"
     },
@@ -1865,14 +1865,27 @@
       mark: "\u62F3"
     },
     {
+      id: "sinew_loose",
+      name: "\u8212\u7B4B\u6D3B\u7EDC",
+      description: "\u7B4B\u7EDC\u8212\u5C55\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u5C0F\u5E45\u63D0\u5347\u3002\u524D\u671F\u9700\u53CD\u590D\u4FEE\u4E60\u3002",
+      kind: "cap",
+      channel: "tishu",
+      baseCost: 16,
+      costMult: 1.14,
+      power: 60,
+      minRealm: 0,
+      attrs: { bone: 0.15 },
+      mark: "\u7EDC"
+    },
+    {
       id: "bone_forge",
       name: "\u953B\u9AA8\u5343\u9524",
       description: "\u953B\u9AA8\u5982\u9F0E\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
       kind: "cap",
       channel: "tishu",
-      baseCost: 1600,
-      costMult: 1.15,
-      power: 900,
+      baseCost: 380,
+      costMult: 1.17,
+      power: 220,
       minRealm: 1,
       attrs: { atk: 0.2, bone: 0.2 },
       mark: "\u953B"
@@ -1893,12 +1906,12 @@
     {
       id: "marrow_wash",
       name: "\u6D17\u9AD3\u6613\u7B4B",
-      description: "\u6D17\u9AD3\u6362\u8840\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      description: "\u6D17\u9AD3\u6362\u8840\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
       kind: "cap",
       channel: "tishu",
-      baseCost: 4500,
-      costMult: 1.15,
-      power: 3e3,
+      baseCost: 2200,
+      costMult: 1.17,
+      power: 750,
       minRealm: 2,
       attrs: { bone: 0.3 },
       mark: "\u9AD3"
@@ -1906,12 +1919,12 @@
     {
       id: "saint_vessel",
       name: "\u5723\u8EAF\u9F0E\u7089",
-      description: "\u8EAF\u82E5\u9F0E\u7089\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      description: "\u8EAF\u82E5\u9F0E\u7089\uFF0C\u4F53\u672F\u5BB9\u5668\u4E0A\u9650\u660E\u663E\u63D0\u5347\u3002",
       kind: "cap",
       channel: "tishu",
-      baseCost: 6e4,
-      costMult: 1.16,
-      power: 5e4,
+      baseCost: 28e3,
+      costMult: 1.17,
+      power: 8e3,
       minRealm: 4,
       attrs: { bone: 0.5 },
       mark: "\u7089"
@@ -1931,14 +1944,27 @@
       mark: "\u5FF5"
     },
     {
+      id: "mind_widen",
+      name: "\u51DD\u795E\u6269\u8BC6",
+      description: "\u62D3\u5F00\u795E\u8BC6\uFF0C\u7CBE\u795E\u529B\u5BB9\u5668\u4E0A\u9650\u5C0F\u5E45\u63D0\u5347\u3002\u524D\u671F\u9700\u53CD\u590D\u4FEE\u4E60\u3002",
+      kind: "cap",
+      channel: "jingshen",
+      baseCost: 16,
+      costMult: 1.14,
+      power: 60,
+      minRealm: 0,
+      attrs: { spirit: 0.15 },
+      mark: "\u8BC6"
+    },
+    {
       id: "soul_sea",
       name: "\u8BC6\u6D77\u5F00\u7586",
       description: "\u62D3\u5E7F\u8BC6\u6D77\uFF0C\u7CBE\u795E\u529B\u5BB9\u5668\u4E0A\u9650\u63D0\u5347\u3002",
       kind: "cap",
       channel: "jingshen",
-      baseCost: 1600,
-      costMult: 1.15,
-      power: 900,
+      baseCost: 380,
+      costMult: 1.17,
+      power: 220,
       minRealm: 1,
       attrs: { spirit: 0.3 },
       mark: "\u6D77"
@@ -1972,12 +1998,12 @@
     {
       id: "spirit_court",
       name: "\u795E\u5EAD\u7389\u5B87",
-      description: "\u795E\u5EAD\u5E7F\u53A6\uFF0C\u7CBE\u795E\u529B\u5BB9\u5668\u4E0A\u9650\u5927\u6DA8\u3002",
+      description: "\u795E\u5EAD\u5E7F\u53A6\uFF0C\u7CBE\u795E\u529B\u5BB9\u5668\u4E0A\u9650\u660E\u663E\u63D0\u5347\u3002",
       kind: "cap",
       channel: "jingshen",
-      baseCost: 6e4,
-      costMult: 1.16,
-      power: 5e4,
+      baseCost: 28e3,
+      costMult: 1.17,
+      power: 8e3,
       minRealm: 4,
       attrs: { spirit: 0.5 },
       mark: "\u5EAD"
@@ -4193,17 +4219,17 @@
   }
   function resourceCaps(state) {
     const realm = getRealm(state.realmIndex);
-    const starMult = 1 + (state.star - 1) * 0.25;
-    const base = realm.starCostBase * 40 * starMult;
+    const starMult = 1 + (state.star - 1) * 0.1;
+    const base = realm.starCostBase * 7 * starMult;
     const caps = {
       lingli: base,
-      tishu: base * 0.8,
-      jingshen: base * 0.8
+      tishu: base * 0.75,
+      jingshen: base * 0.75
     };
     const forgeIdx = currentForgeRealmIndex(state);
     if (forgeIdx > 0) {
-      caps.tishu *= 1 + forgeIdx * 0.22;
-      caps.lingli *= 1 + forgeIdx * 0.08;
+      caps.tishu *= 1 + forgeIdx * 0.12;
+      caps.lingli *= 1 + forgeIdx * 0.04;
     }
     for (const art of ARTS) {
       if (art.kind !== "cap") continue;

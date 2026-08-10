@@ -1103,22 +1103,23 @@ function pushChronicle(state: GameState, line: string): GameState {
 
 /**
  * 三资源容器上限：
- * 基础随境界（突破大涨）与层级；炼器境扩体术/灵力；
- * 「洗经伐脉 / 洗髓易筋」等扩容功法按级加上限。
+ * 基础故意偏紧，升层只小幅抬高；炼器略扩体术/灵力；
+ * 主要靠「洗经伐脉」等扩容功法反复点击抬上限。
  */
 export function resourceCaps(state: GameState): ResourceMap {
   const realm = getRealm(state.realmIndex);
-  const starMult = 1 + (state.star - 1) * 0.25;
-  const base = realm.starCostBase * 40 * starMult;
+  // 层级对容器加成弱于产出倍率，逼玩家点扩容
+  const starMult = 1 + (state.star - 1) * 0.1;
+  const base = realm.starCostBase * 7 * starMult;
   const caps: ResourceMap = {
     lingli: base,
-    tishu: base * 0.8,
-    jingshen: base * 0.8,
+    tishu: base * 0.75,
+    jingshen: base * 0.75,
   };
   const forgeIdx = currentForgeRealmIndex(state);
   if (forgeIdx > 0) {
-    caps.tishu *= 1 + forgeIdx * 0.22;
-    caps.lingli *= 1 + forgeIdx * 0.08;
+    caps.tishu *= 1 + forgeIdx * 0.12;
+    caps.lingli *= 1 + forgeIdx * 0.04;
   }
   for (const art of ARTS) {
     if (art.kind !== 'cap') continue;
