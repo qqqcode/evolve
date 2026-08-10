@@ -416,8 +416,10 @@ export interface GameState {
   alchemyMastery: number;
   /** 持有药材（背包） */
   herbs: Record<string, number>;
-  /** 持有丹药（背包；炼成入库，服下/战前/破境时消耗） */
+  /** 持有丹药（背包；炼成入库，服下/战前/升层破境时消耗） */
   pills: Record<string, number>;
+  /** 服下永久战力丹累计的固定战力 */
+  pillCombatBonus: number;
   /**
    * 旧炼体阶数；已废弃，炼器境界改由累计体术决定
    * @deprecated
@@ -459,6 +461,13 @@ export interface DerivedStats {
   breakCost: number | null;
   canRaiseStar: boolean;
   canBreakthrough: boolean;
+  /** 升层所需丹药；满九层则为 null */
+  raiseStarPill: {
+    pillId: string;
+    pillName: string;
+    count: number;
+    owned: number;
+  } | null;
   /** 破境所需丹药；无需则为 null */
   breakthroughPill: {
     pillId: string;
