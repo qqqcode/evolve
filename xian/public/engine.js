@@ -76,7 +76,7 @@
     {
       id: "herb_spirit_grass",
       name: "\u767E\u5E74\u7075\u8349",
-      description: "\u6700\u57FA\u7840\u7684\u836F\u5F15\uFF0C\u51E1\u4EBA\u836F\u56ED\u5E38\u89C1\u3002",
+      description: "\u6700\u57FA\u7840\u7684\u7075\u836F\uFF0C\u574A\u5E02\u968F\u5904\u53EF\u89C1\u3002",
       cost: 40,
       minRealm: 0,
       mark: "\u8349"
@@ -118,58 +118,117 @@
     {
       id: "pill_qi",
       name: "\u805A\u6C14\u4E39",
-      description: "\u70BC\u5316\u7075\u529B\uFF0C\u7A33\u56FA\u6C14\u6D77\u3002",
+      description: "\u70BC\u5316\u7075\u529B\uFF1B\u70BC\u6C14\u7834\u5883\u5FC5\u5907\u3002\u4EA6\u53EF\u6218\u524D\u5C0F\u8865\u3002",
       minRealm: 0,
       herbs: { herb_spirit_grass: 2 },
       costs: { jingshen: 8, lingli: 20 },
-      effect: { resources: { lingli: 120 }, mastery: 1 },
+      effect: {
+        resources: { lingli: 120 },
+        mastery: 1,
+        combatPowerMult: 1.08,
+        combatTempAttrs: { spirit: 1 }
+      },
       mark: "\u6C14"
     },
     {
       id: "pill_bone",
       name: "\u953B\u9AA8\u4E39",
-      description: "\u4E39\u529B\u5165\u9AA8\uFF0C\u4F53\u672F\u5927\u6DA8\uFF0C\u52A9\u63A8\u70BC\u5668\u5883\u754C\u3002",
+      description: "\u4E39\u529B\u5165\u9AA8\uFF1B\u7B51\u57FA\u7834\u5883\u5FC5\u5907\u3002\u6218\u524D\u53EF\u58EE\u9AA8\u3002",
       minRealm: 1,
       herbs: { herb_blood_root: 2, herb_spirit_grass: 1 },
       costs: { jingshen: 20, tishu: 30 },
-      effect: { resources: { tishu: 200 }, mastery: 1 },
+      effect: {
+        resources: { tishu: 200 },
+        mastery: 1,
+        combatPowerMult: 1.14,
+        combatTempAttrs: { bone: 2, def: 1 }
+      },
       mark: "\u9AA8"
     },
     {
       id: "pill_mind",
       name: "\u51DD\u795E\u4E39",
-      description: "\u6E05\u5FC3\u51DD\u795E\uFF0C\u7CBE\u795E\u529B\u66B4\u6DA8\u3002",
+      description: "\u6E05\u5FC3\u51DD\u795E\uFF1B\u7ED3\u4E39\u7834\u5883\u5FC5\u5907\u3002\u6218\u524D\u53EF\u51DD\u795E\u8BC6\u3002",
       minRealm: 2,
       herbs: { herb_soul_petal: 2 },
       costs: { jingshen: 40, lingli: 60 },
-      effect: { resources: { jingshen: 220 }, attrs: { spirit: 1 }, mastery: 2 },
+      effect: {
+        resources: { jingshen: 220 },
+        attrs: { spirit: 1 },
+        mastery: 2,
+        combatPowerMult: 1.18,
+        combatTempAttrs: { spirit: 3, luck: 1 }
+      },
       mark: "\u795E"
     },
     {
       id: "pill_battle",
       name: "\u7834\u519B\u4E39",
-      description: "\u77ED\u671F\u6FC0\u53D1\u6C14\u8840\uFF0C\u653B\u4F10\u5927\u589E\u3002",
+      description: "\u6FC0\u53D1\u6C14\u8840\uFF0C\u8D8A\u754C\u5BF9\u6218\u5229\u5668\uFF1B\u5143\u5A74/\u5316\u795E\u7834\u5883\u6240\u9700\u3002",
       minRealm: 3,
       herbs: { herb_flame_fruit: 1, herb_blood_root: 2 },
       costs: { jingshen: 80, tishu: 50, lingli: 100 },
-      effect: { attrs: { atk: 2, bone: 1 }, mastery: 2 },
+      effect: {
+        attrs: { atk: 1, bone: 1 },
+        mastery: 2,
+        combatPowerMult: 1.35,
+        combatTempAttrs: { atk: 4, bone: 2, spd: 2 }
+      },
       mark: "\u519B"
     },
     {
       id: "pill_dao",
       name: "\u95EE\u9053\u4E39",
-      description: "\u4E39\u6210\u609F\u9053\uFF0C\u4E09\u624D\u9F50\u589E\u3002",
+      description: "\u4E39\u6210\u609F\u9053\uFF1B\u9AD8\u9636\u7834\u5883\u6838\u5FC3\u3002\u8D8A\u754C\u6218\u65F6\u6709\u5947\u6548\u3002",
       minRealm: 5,
       herbs: { herb_void_dew: 1, herb_soul_petal: 2, herb_flame_fruit: 1 },
       costs: { jingshen: 400, lingli: 800, tishu: 200 },
       effect: {
         resources: { lingli: 5e3, tishu: 2e3, jingshen: 3e3 },
-        attrs: { spirit: 2, luck: 1 },
-        mastery: 4
+        attrs: { spirit: 1, luck: 1 },
+        mastery: 4,
+        combatPowerMult: 1.55,
+        combatTempAttrs: { atk: 5, spirit: 4, bone: 3, luck: 2 }
       },
       mark: "\u9053"
     }
   ];
+  var BREAKTHROUGH_PILL_NEED = {
+    0: { pillId: "pill_qi", count: 1 },
+    1: { pillId: "pill_bone", count: 1 },
+    2: { pillId: "pill_mind", count: 1 },
+    3: { pillId: "pill_battle", count: 1 },
+    4: { pillId: "pill_battle", count: 2 },
+    5: { pillId: "pill_dao", count: 1 },
+    6: { pillId: "pill_dao", count: 1 },
+    7: { pillId: "pill_dao", count: 2 },
+    8: { pillId: "pill_dao", count: 2 },
+    9: { pillId: "pill_dao", count: 3 },
+    10: { pillId: "pill_dao", count: 3 }
+  };
+  function breakthroughPillNeed(realmIndex) {
+    return BREAKTHROUGH_PILL_NEED[realmIndex] || null;
+  }
+  function sellHerbValue(herbId) {
+    const h = getHerb(herbId);
+    if (!h || h.cost <= 0) return 0;
+    return Math.max(1, Math.floor(h.cost * 0.62));
+  }
+  function pillCraftCostEstimate(recipe) {
+    let herbCost = 0;
+    for (const [hid, n] of Object.entries(recipe.herbs)) {
+      const h = getHerb(hid);
+      herbCost += (h?.cost || 40) * n;
+    }
+    const res = (recipe.costs.lingli || 0) + (recipe.costs.tishu || 0) * 0.85 + (recipe.costs.jingshen || 0) * 0.9;
+    return herbCost + res;
+  }
+  function sellPillValue(pillId) {
+    const recipe = getPillRecipe(pillId);
+    if (!recipe) return 0;
+    const cost = pillCraftCostEstimate(recipe);
+    return Math.max(20, Math.floor(cost * 1.55));
+  }
   function getHerb(id) {
     return HERBS.find((h) => h.id === id);
   }
@@ -249,7 +308,8 @@
     prey: "\u5F31\u654C",
     fair: "\u5747\u52BF",
     threat: "\u5F3A\u654C",
-    deadly: "\u7EDD\u5883"
+    deadly: "\u7EDD\u5883",
+    overreach: "\u8D8A\u754C"
   };
 
   // xian/src/game/loot.ts
@@ -1346,8 +1406,8 @@
   // xian/src/game/data.ts
   var MAX_OFFLINE_MS = 8 * 60 * 60 * 1e3;
   var QIYUN_BONUS_PER = 0.08;
-  var SAVE_VERSION = 10;
-  var STORAGE_KEY = "xian-save-v10";
+  var SAVE_VERSION = 11;
+  var STORAGE_KEY = "xian-save-v11";
   var MAX_STAR = 9;
   var MAX_CHRONICLE = 28;
   var MAX_MILESTONES = 40;
@@ -3338,9 +3398,16 @@
     prey: 0.55,
     fair: 0.98,
     threat: 1.4,
-    deadly: 1.9
+    deadly: 1.9,
+    overreach: 2.45
   };
-  var COMBAT_DIFFICULTIES = ["prey", "fair", "threat", "deadly"];
+  var COMBAT_DIFFICULTIES = [
+    "prey",
+    "fair",
+    "threat",
+    "deadly",
+    "overreach"
+  ];
   function emptyOwned() {
     const owned = {};
     for (const a of ARTS) owned[a.id] = 0;
@@ -4364,7 +4431,15 @@
     const breakCost = breakthroughCost(state);
     const playing = state.phase === "playing" && !state.endingId;
     const canRaiseStar = playing && nextStarCost != null && state.lingqi >= nextStarCost;
-    const canBreakthrough = playing && breakCost != null && state.lingqi >= breakCost;
+    const pillNeed = breakCost != null ? breakthroughPillNeed(state.realmIndex) : null;
+    const breakthroughPill = pillNeed ? {
+      pillId: pillNeed.pillId,
+      pillName: getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId,
+      count: pillNeed.count,
+      owned: state.pills[pillNeed.pillId] || 0
+    } : null;
+    const hasBreakPill = !breakthroughPill || breakthroughPill.owned >= breakthroughPill.count;
+    const canBreakthrough = playing && breakCost != null && state.lingqi >= breakCost && hasBreakPill;
     const peakRealm = getRealm(state.peakRealmIndex);
     const qiyunGain = calcQiyunGain(state);
     const canReincarnate = state.phase === "playing" && (qiyunGain > 0 && state.realmIndex >= 2 || !!state.endingId);
@@ -4388,6 +4463,7 @@
       breakCost,
       canRaiseStar,
       canBreakthrough,
+      breakthroughPill,
       qiyunGain,
       canReincarnate,
       pendingEvent: findPendingEvent(state),
@@ -4752,17 +4828,37 @@
       return { ok: false, state: ticked, reason: "\u65E0\u6CD5\u7834\u5883\uFF08\u9700\u4E5D\u5C42\u4E14\u672A\u81F3\u5927\u9053\uFF09" };
     }
     if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: "\u7075\u529B\u4E0D\u8DB3" };
+    const pillNeed = breakthroughPillNeed(ticked.realmIndex);
+    if (pillNeed) {
+      const owned = ticked.pills[pillNeed.pillId] || 0;
+      if (owned < pillNeed.count) {
+        const name = getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId;
+        return {
+          ok: false,
+          state: ticked,
+          reason: `\u7834\u5883\u9700\u300C${name}\u300D\xD7${pillNeed.count}\uFF08\u80CC\u5305 ${owned}\uFF09`
+        };
+      }
+    }
     const nextIndex = ticked.realmIndex + 1;
     const nextRealm = getRealm(nextIndex);
+    const pills = { ...ticked.pills };
+    let pillTxt = "";
+    if (pillNeed) {
+      pills[pillNeed.pillId] = Math.max(0, (pills[pillNeed.pillId] || 0) - pillNeed.count);
+      const name = getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId;
+      pillTxt = ` \xB7 \u670D\u300C${name}\u300D\xD7${pillNeed.count}`;
+    }
     let next = updatePeak({
       ...ticked,
       lingqi: ticked.lingqi - cost,
+      pills,
       realmIndex: nextIndex,
       star: 1
     });
     next = grantFromFreePoints(next, 2);
     next = syncEquipCapacity(next);
-    next = pushChronicle(next, `\u7834\u5883\u6210\u529F\uFF1A${nextRealm.name}\u3002${nextRealm.blurb}`);
+    next = pushChronicle(next, `\u7834\u5883\u6210\u529F\uFF1A${nextRealm.name}${pillTxt}\u3002${nextRealm.blurb}`);
     if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
       next = pushMilestone(
         next,
@@ -4803,18 +4899,37 @@
     }
     return { ok: true, state: next, message: `\u7834\u5883\u81F3\u300C${nextRealm.name}\u300D` };
   }
-  function startCombat(state, enemyId, now = Date.now()) {
+  function startCombat(state, enemyId, now = Date.now(), opts) {
     const blocked = ensurePlaying(state);
     if (blocked) return blocked;
-    const ticked = syncEquipCapacity(tick(state, now).state);
+    let ticked = syncEquipCapacity(tick(state, now).state);
     const enemy = resolveCombatEncounter(ticked, enemyId);
     if (!enemy) return { ok: false, state, reason: "\u672A\u77E5\u5BF9\u624B" };
-    const basePower = calcCombatPower(ticked);
-    const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
-    const luck = totalAttrs(ticked).luck;
-    const edges = gatherCombatEdges(ticked);
     const edgeEvents = [];
     const diffLabel = COMBAT_DIFFICULTY_LABELS[enemy.difficulty] || "";
+    let pillBoost = 1;
+    let fightAttrs = totalAttrs(ticked);
+    if (opts?.pillId) {
+      const recipe = getPillRecipe(opts.pillId);
+      const owned = ticked.pills[opts.pillId] || 0;
+      if (!recipe || owned < 1) {
+        return { ok: false, state: ticked, reason: "\u4E39\u836F\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u6218\u524D\u670D\u7528" };
+      }
+      const pills = {
+        ...ticked.pills,
+        [opts.pillId]: owned - 1
+      };
+      ticked = { ...ticked, pills };
+      pillBoost = recipe.effect.combatPowerMult || 1.12;
+      if (recipe.effect.combatTempAttrs) {
+        fightAttrs = addAttrs(fightAttrs, recipe.effect.combatTempAttrs);
+      }
+      edgeEvents.push(`\u670D\u300C${recipe.name}\u300D\xB7\u6218\u529B\xD7${pillBoost.toFixed(2)}`);
+    }
+    const basePower = calcCombatPower(ticked, fightAttrs) * pillBoost;
+    const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
+    const luck = fightAttrs.luck;
+    const edges = gatherCombatEdges(ticked);
     let pPower = basePower;
     if (Math.random() < edges.firstStrikeChance) {
       pPower *= 1 + edges.firstStrikeBonus;
@@ -4999,8 +5114,11 @@
     if (!templates.length) templates = ENEMIES.slice();
     const shuffled = shuffleWith(templates, rng);
     const tiers = ["prey", "fair", "threat"];
-    if (state.realmIndex >= 2 || playerPower >= 80 || state.combatWins >= 3) {
+    if (state.realmIndex >= 1 || playerPower >= 40 || state.combatWins >= 1) {
       tiers.push("deadly");
+    }
+    if (state.realmIndex >= 2 || playerPower >= 80 || state.combatWins >= 2) {
+      tiers.push("overreach");
     }
     const used = /* @__PURE__ */ new Set();
     const out = [];
@@ -5312,11 +5430,29 @@
     for (const [hid, need] of Object.entries(recipe.herbs)) {
       herbs[hid] = Math.max(0, (herbs[hid] || 0) - need);
     }
+    const pills = { ...spent.pills, [recipeId]: (spent.pills[recipeId] || 0) + 1 };
     let next = {
       ...spent,
       herbs,
+      pills,
       alchemyMastery: spent.alchemyMastery + (recipe.effect.mastery || 0)
     };
+    next = pushChronicle(
+      next,
+      `\u70BC\u6210\u300C${recipe.name}\u300D\u5165\u5E93\u3002\u4E39\u9053\u7CBE\u901A ${next.alchemyMastery}\u3002\u53EF\u670D\u4E0B\u3001\u6218\u524D\u670D\u7528\u6216\u7834\u5883\u6D88\u8017\uFF0C\u4EA6\u53EF\u9AD8\u4EF7\u51FA\u552E\u3002`
+    );
+    return { ok: true, state: next, message: `\u70BC\u6210\u300C${recipe.name}\u300D\xB7\u5DF2\u5165\u5E93` };
+  }
+  function usePill(state, pillId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const recipe = getPillRecipe(pillId);
+    if (!recipe) return { ok: false, state, reason: "\u672A\u77E5\u4E39\u836F" };
+    const ticked = tick(state, now).state;
+    const owned = ticked.pills[pillId] || 0;
+    if (owned < 1) return { ok: false, state: ticked, reason: "\u80CC\u5305\u4E2D\u65E0\u6B64\u4E39\u836F" };
+    const pills = { ...ticked.pills, [pillId]: owned - 1 };
+    let next = { ...ticked, pills };
     if (recipe.effect.resources) {
       for (const key of RESOURCE_KEYS) {
         const amt = recipe.effect.resources[key] || 0;
@@ -5326,10 +5462,42 @@
     if (recipe.effect.attrs) {
       next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
     }
-    const pills = { ...next.pills, [recipeId]: (next.pills[recipeId] || 0) + 1 };
-    next = { ...next, pills };
-    next = pushChronicle(next, `\u70BC\u6210\u300C${recipe.name}\u300D\u5E76\u670D\u4E0B\u3002\u4E39\u9053\u7CBE\u901A ${next.alchemyMastery}\u3002`);
-    return { ok: true, state: next, message: `\u70BC\u6210\u300C${recipe.name}\u300D` };
+    next = pushChronicle(next, `\u670D\u4E0B\u300C${recipe.name}\u300D\uFF0C\u836F\u529B\u878D\u5165\u5DF1\u8EAB\u3002`);
+    return { ok: true, state: next, message: `\u670D\u4E0B\u300C${recipe.name}\u300D` };
+  }
+  function sellHerb(state, herbId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const def = getHerb(herbId);
+    if (!def) return { ok: false, state, reason: "\u672A\u77E5\u836F\u6750" };
+    const ticked = tick(state, now).state;
+    const owned = ticked.herbs[herbId] || 0;
+    if (owned < 1) return { ok: false, state: ticked, reason: "\u80CC\u5305\u4E2D\u65E0\u6B64\u836F\u6750" };
+    const price = sellHerbValue(herbId);
+    if (price <= 0) return { ok: false, state: ticked, reason: "\u6B64\u836F\u4E0D\u53EF\u51FA\u552E" };
+    const herbs = { ...ticked.herbs, [herbId]: owned - 1 };
+    let next = { ...ticked, herbs };
+    next = grantLingqi(next, price);
+    next = pushChronicle(next, `\u51FA\u552E\u836F\u6750\u300C${def.name}\u300D\uFF0C\u5F97\u7075\u529B ${Math.floor(price)}\u3002`);
+    return { ok: true, state: next, message: `\u552E\u51FA\u300C${def.name}\u300D+${Math.floor(price)}\u7075\u529B` };
+  }
+  function sellPill(state, pillId, now = Date.now()) {
+    const blocked = ensurePlaying(state);
+    if (blocked) return blocked;
+    const recipe = getPillRecipe(pillId);
+    if (!recipe) return { ok: false, state, reason: "\u672A\u77E5\u4E39\u836F" };
+    const ticked = tick(state, now).state;
+    const owned = ticked.pills[pillId] || 0;
+    if (owned < 1) return { ok: false, state: ticked, reason: "\u80CC\u5305\u4E2D\u65E0\u6B64\u4E39\u836F" };
+    const price = sellPillValue(pillId);
+    const pills = { ...ticked.pills, [pillId]: owned - 1 };
+    let next = { ...ticked, pills };
+    next = grantLingqi(next, price);
+    next = pushChronicle(
+      next,
+      `\u51FA\u552E\u4E39\u836F\u300C${recipe.name}\u300D\uFF0C\u5F97\u7075\u529B ${Math.floor(price)}\uFF08\u70BC\u4E39\u5012\u5356\uFF09\u3002`
+    );
+    return { ok: true, state: next, message: `\u552E\u51FA\u300C${recipe.name}\u300D+${Math.floor(price)}\u7075\u529B` };
   }
   function temperBody(state, _now = Date.now()) {
     return {
@@ -5424,6 +5592,7 @@
 
   // xian/src/game/browser.ts
   var LEGACY_SAVE_KEYS = [
+    "xian-save-v10",
     "xian-save-v9",
     "xian-save-v8",
     "xian-save-v7",
@@ -5511,6 +5680,7 @@
     beginReincarnation,
     breakthrough,
     breakthroughCost,
+    breakthroughPillNeed,
     buyArt,
     buyHerb,
     buyTreasure,
@@ -5548,6 +5718,10 @@
     resourceCaps,
     saveToStorage,
     clearStorage,
+    sellHerb,
+    sellHerbValue,
+    sellPill,
+    sellPillValue,
     sellTreasure,
     sellValue,
     startCombat,
@@ -5563,7 +5737,8 @@
     enemyPower,
     treasureEffectiveTier,
     currentForgeRealm,
-    currentForgeRealmIndex
+    currentForgeRealmIndex,
+    usePill
   };
   window.Xian = Xian;
 })();

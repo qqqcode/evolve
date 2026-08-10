@@ -93,7 +93,13 @@
           <p class="realm-hint" id="bodyHint"></p>
 
           <h2 class="pane-title">随机对战</h2>
-          <p class="realm-hint">随战力与修为刷新；越强敌赏金越高，弱敌赏金更薄</p>
+          <p class="realm-hint">含高于己身的绝境/越界战；可先换装，或选丹药战前服用</p>
+          <label class="combat-pill-label">
+            战前丹药
+            <select id="combatPillSelect" class="combat-pill-select" aria-label="战前服用丹药">
+              <option value="">不使用</option>
+            </select>
+          </label>
           <div id="combatList" class="combat-list"></div>
         </aside>
 
@@ -180,8 +186,11 @@
 
             <div id="tabAlchemy" class="tab-pane">
               <h2 class="pane-title">丹方 <span class="inline-hint" id="alchemyHint"></span></h2>
+              <p class="realm-hint">炼成入库；服下得资源、战前强化、破境消耗；售价高于药材成本</p>
               <div id="pillList" class="shop-list"></div>
-              <h2 class="pane-title">药材</h2>
+              <h2 class="pane-title">丹药背包</h2>
+              <div id="pillOwned" class="shop-list"></div>
+              <h2 class="pane-title">药材背包</h2>
               <div id="herbOwned" class="shop-list"></div>
               <h2 class="pane-title">购药</h2>
               <div id="herbShop" class="shop-list"></div>

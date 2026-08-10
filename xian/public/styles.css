@@ -1241,6 +1241,27 @@ body {
   overflow: auto;
 }
 
+.combat-pill-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.4rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.combat-pill-select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--paper);
+  background: rgba(7, 11, 18, 0.75);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  padding: 0.25rem 0.4rem;
+}
+
 .combat-row {
   text-align: left;
   border: 1px solid rgba(201, 162, 39, 0.18);
@@ -1283,6 +1304,10 @@ body {
 
 .combat-row .combat-diff-deadly {
   color: var(--cinnabar);
+}
+
+.combat-row .combat-diff-overreach {
+  color: #e07070;
 }
 
 .combat-row span {

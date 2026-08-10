@@ -13,6 +13,7 @@ import type {
 } from './types';
 import {
   BODY_STAGES,
+  BREAKTHROUGH_PILL_NEED,
   FORGE_REALMS,
   HERBS,
   MAX_TEMPER_LEVEL,
@@ -21,6 +22,7 @@ import {
   TIER_RANK,
   bodyAttrsBonus,
   bodyMultipliers,
+  breakthroughPillNeed,
   emptyHerbs,
   emptyPills,
   forgeAttrsBonus,
@@ -30,6 +32,9 @@ import {
   getForgeRealm,
   getHerb,
   getPillRecipe,
+  pillCraftCostEstimate,
+  sellHerbValue,
+  sellPillValue,
   tierAllowed,
 } from './craft';
 import { MAIN_STORY, NATURALS, TREASURES, emptyEquipped, getNatural, listEquippedIds, slotCapacity } from './loot';
@@ -43,6 +48,7 @@ export {
   listEquippedIds,
   slotCapacity,
   BODY_STAGES,
+  BREAKTHROUGH_PILL_NEED,
   FORGE_REALMS,
   HERBS,
   MAX_TEMPER_LEVEL,
@@ -51,6 +57,7 @@ export {
   TIER_RANK,
   bodyAttrsBonus,
   bodyMultipliers,
+  breakthroughPillNeed,
   emptyHerbs,
   emptyPills,
   forgeAttrsBonus,
@@ -60,13 +67,16 @@ export {
   getForgeRealm,
   getHerb,
   getPillRecipe,
+  pillCraftCostEstimate,
+  sellHerbValue,
+  sellPillValue,
   tierAllowed,
 };
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 10;
-export const STORAGE_KEY = 'xian-save-v10';
+export const SAVE_VERSION = 11;
+export const STORAGE_KEY = 'xian-save-v11';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_MILESTONES = 40;

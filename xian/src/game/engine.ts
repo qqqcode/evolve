@@ -29,6 +29,7 @@ import {
   TRIAD_INTERFERE_CAP,
   addAttrs,
   artChannel,
+  breakthroughPillNeed,
   emptyEquipped,
   emptyHerbs,
   emptyPills,
@@ -47,6 +48,8 @@ import {
   getTreasure,
   listEquippedIds,
   scaleAttrs,
+  sellHerbValue,
+  sellPillValue,
   slotCapacity,
   tierAllowed,
   zeroAttrs,
@@ -94,9 +97,16 @@ const COMBAT_TIER_RATIOS: Record<CombatDifficulty, number> = {
   fair: 0.98,
   threat: 1.4,
   deadly: 1.9,
+  overreach: 2.45,
 };
 
-const COMBAT_DIFFICULTIES: CombatDifficulty[] = ['prey', 'fair', 'threat', 'deadly'];
+const COMBAT_DIFFICULTIES: CombatDifficulty[] = [
+  'prey',
+  'fair',
+  'threat',
+  'deadly',
+  'overreach',
+];
 
 function emptyOwned(): Record<string, number> {
   const owned: Record<string, number> = {};
@@ -1395,7 +1405,19 @@ export function derive(state: GameState): DerivedStats {
   const breakCost = breakthroughCost(state);
   const playing = state.phase === 'playing' && !state.endingId;
   const canRaiseStar = playing && nextStarCost != null && state.lingqi >= nextStarCost;
-  const canBreakthrough = playing && breakCost != null && state.lingqi >= breakCost;
+  const pillNeed = breakCost != null ? breakthroughPillNeed(state.realmIndex) : null;
+  const breakthroughPill = pillNeed
+    ? {
+        pillId: pillNeed.pillId,
+        pillName: getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId,
+        count: pillNeed.count,
+        owned: state.pills[pillNeed.pillId] || 0,
+      }
+    : null;
+  const hasBreakPill =
+    !breakthroughPill || breakthroughPill.owned >= breakthroughPill.count;
+  const canBreakthrough =
+    playing && breakCost != null && state.lingqi >= breakCost && hasBreakPill;
 
   const peakRealm = getRealm(state.peakRealmIndex);
   const qiyunGain = calcQiyunGain(state);
@@ -1424,6 +1446,7 @@ export function derive(state: GameState): DerivedStats {
     breakCost,
     canRaiseStar,
     canBreakthrough,
+    breakthroughPill,
     qiyunGain,
     canReincarnate,
     pendingEvent: findPendingEvent(state),
@@ -1817,17 +1840,38 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
   }
   if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: '灵力不足' };
 
+  const pillNeed = breakthroughPillNeed(ticked.realmIndex);
+  if (pillNeed) {
+    const owned = ticked.pills[pillNeed.pillId] || 0;
+    if (owned < pillNeed.count) {
+      const name = getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId;
+      return {
+        ok: false,
+        state: ticked,
+        reason: `破境需「${name}」×${pillNeed.count}（背包 ${owned}）`,
+      };
+    }
+  }
+
   const nextIndex = ticked.realmIndex + 1;
   const nextRealm = getRealm(nextIndex);
+  const pills = { ...ticked.pills };
+  let pillTxt = '';
+  if (pillNeed) {
+    pills[pillNeed.pillId] = Math.max(0, (pills[pillNeed.pillId] || 0) - pillNeed.count);
+    const name = getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId;
+    pillTxt = ` · 服「${name}」×${pillNeed.count}`;
+  }
   let next: GameState = updatePeak({
     ...ticked,
     lingqi: ticked.lingqi - cost,
+    pills,
     realmIndex: nextIndex,
     star: 1,
   });
   next = grantFromFreePoints(next, 2);
   next = syncEquipCapacity(next);
-  next = pushChronicle(next, `破境成功：${nextRealm.name}。${nextRealm.blurb}`);
+  next = pushChronicle(next, `破境成功：${nextRealm.name}${pillTxt}。${nextRealm.blurb}`);
   if (nextIndex === 1 || nextIndex === 3 || nextIndex === 6 || nextIndex >= 8) {
     next = pushMilestone(
       next,
@@ -1873,18 +1917,45 @@ export function breakthrough(state: GameState, now = Date.now()): ActionResult {
   return { ok: true, state: next, message: `破境至「${nextRealm.name}」` };
 }
 
-export function startCombat(state: GameState, enemyId: string, now = Date.now()): CombatResult {
+export function startCombat(
+  state: GameState,
+  enemyId: string,
+  now = Date.now(),
+  opts?: { pillId?: string },
+): CombatResult {
   const blocked = ensurePlaying(state);
   if (blocked) return blocked;
-  const ticked = syncEquipCapacity(tick(state, now).state);
+  let ticked = syncEquipCapacity(tick(state, now).state);
   const enemy = resolveCombatEncounter(ticked, enemyId);
   if (!enemy) return { ok: false, state, reason: '未知对手' };
-  const basePower = calcCombatPower(ticked);
-  const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
-  const luck = totalAttrs(ticked).luck;
-  const edges = gatherCombatEdges(ticked);
+
   const edgeEvents: string[] = [];
   const diffLabel = COMBAT_DIFFICULTY_LABELS[enemy.difficulty] || '';
+  let pillBoost = 1;
+  let fightAttrs = totalAttrs(ticked);
+
+  if (opts?.pillId) {
+    const recipe = getPillRecipe(opts.pillId);
+    const owned = ticked.pills[opts.pillId] || 0;
+    if (!recipe || owned < 1) {
+      return { ok: false, state: ticked, reason: '丹药不足，无法战前服用' };
+    }
+    const pills = {
+      ...ticked.pills,
+      [opts.pillId]: owned - 1,
+    };
+    ticked = { ...ticked, pills };
+    pillBoost = recipe.effect.combatPowerMult || 1.12;
+    if (recipe.effect.combatTempAttrs) {
+      fightAttrs = addAttrs(fightAttrs, recipe.effect.combatTempAttrs);
+    }
+    edgeEvents.push(`服「${recipe.name}」·战力×${pillBoost.toFixed(2)}`);
+  }
+
+  const basePower = calcCombatPower(ticked, fightAttrs) * pillBoost;
+  const ePower = enemyPower(enemy.attrs, ticked.realmIndex);
+  const luck = fightAttrs.luck;
+  const edges = gatherCombatEdges(ticked);
 
   let pPower = basePower;
   if (Math.random() < edges.firstStrikeChance) {
@@ -2091,9 +2162,13 @@ export function listCombatEnemies(state: GameState): CombatEncounter[] {
   if (!templates.length) templates = ENEMIES.slice();
 
   const shuffled = shuffleWith(templates, rng);
+  // 始终含弱/均/强；高等难度（绝境/越界）战力高于自己，可用丹药或换装取胜
   const tiers: CombatDifficulty[] = ['prey', 'fair', 'threat'];
-  if (state.realmIndex >= 2 || playerPower >= 80 || state.combatWins >= 3) {
+  if (state.realmIndex >= 1 || playerPower >= 40 || state.combatWins >= 1) {
     tiers.push('deadly');
+  }
+  if (state.realmIndex >= 2 || playerPower >= 80 || state.combatWins >= 2) {
+    tiers.push('overreach');
   }
 
   const used = new Set<string>();
@@ -2464,11 +2539,32 @@ export function craftPill(state: GameState, recipeId: string, now = Date.now()):
   for (const [hid, need] of Object.entries(recipe.herbs)) {
     herbs[hid] = Math.max(0, (herbs[hid] || 0) - need);
   }
+  const pills = { ...spent.pills, [recipeId]: (spent.pills[recipeId] || 0) + 1 };
   let next: GameState = {
     ...spent,
     herbs,
+    pills,
     alchemyMastery: spent.alchemyMastery + (recipe.effect.mastery || 0),
   };
+  next = pushChronicle(
+    next,
+    `炼成「${recipe.name}」入库。丹道精通 ${next.alchemyMastery}。可服下、战前服用或破境消耗，亦可高价出售。`,
+  );
+  return { ok: true, state: next, message: `炼成「${recipe.name}」·已入库` };
+}
+
+/** 服下丹药：永久资源/属性（非战前、非破境） */
+export function usePill(state: GameState, pillId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const recipe = getPillRecipe(pillId);
+  if (!recipe) return { ok: false, state, reason: '未知丹药' };
+  const ticked = tick(state, now).state;
+  const owned = ticked.pills[pillId] || 0;
+  if (owned < 1) return { ok: false, state: ticked, reason: '背包中无此丹药' };
+
+  const pills = { ...ticked.pills, [pillId]: owned - 1 };
+  let next: GameState = { ...ticked, pills };
   if (recipe.effect.resources) {
     for (const key of RESOURCE_KEYS) {
       const amt = recipe.effect.resources[key] || 0;
@@ -2478,11 +2574,44 @@ export function craftPill(state: GameState, recipeId: string, now = Date.now()):
   if (recipe.effect.attrs) {
     next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
   }
-  // 丹成即食
-  const pills = { ...next.pills, [recipeId]: (next.pills[recipeId] || 0) + 1 };
-  next = { ...next, pills };
-  next = pushChronicle(next, `炼成「${recipe.name}」并服下。丹道精通 ${next.alchemyMastery}。`);
-  return { ok: true, state: next, message: `炼成「${recipe.name}」` };
+  next = pushChronicle(next, `服下「${recipe.name}」，药力融入己身。`);
+  return { ok: true, state: next, message: `服下「${recipe.name}」` };
+}
+
+export function sellHerb(state: GameState, herbId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const def = getHerb(herbId);
+  if (!def) return { ok: false, state, reason: '未知药材' };
+  const ticked = tick(state, now).state;
+  const owned = ticked.herbs[herbId] || 0;
+  if (owned < 1) return { ok: false, state: ticked, reason: '背包中无此药材' };
+  const price = sellHerbValue(herbId);
+  if (price <= 0) return { ok: false, state: ticked, reason: '此药不可出售' };
+  const herbs = { ...ticked.herbs, [herbId]: owned - 1 };
+  let next: GameState = { ...ticked, herbs };
+  next = grantLingqi(next, price);
+  next = pushChronicle(next, `出售药材「${def.name}」，得灵力 ${Math.floor(price)}。`);
+  return { ok: true, state: next, message: `售出「${def.name}」+${Math.floor(price)}灵力` };
+}
+
+export function sellPill(state: GameState, pillId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const recipe = getPillRecipe(pillId);
+  if (!recipe) return { ok: false, state, reason: '未知丹药' };
+  const ticked = tick(state, now).state;
+  const owned = ticked.pills[pillId] || 0;
+  if (owned < 1) return { ok: false, state: ticked, reason: '背包中无此丹药' };
+  const price = sellPillValue(pillId);
+  const pills = { ...ticked.pills, [pillId]: owned - 1 };
+  let next: GameState = { ...ticked, pills };
+  next = grantLingqi(next, price);
+  next = pushChronicle(
+    next,
+    `出售丹药「${recipe.name}」，得灵力 ${Math.floor(price)}（炼丹倒卖）。`,
+  );
+  return { ok: true, state: next, message: `售出「${recipe.name}」+${Math.floor(price)}灵力` };
 }
 
 /** @deprecated 炼体已移除；保留空实现以免旧前端崩溃 */

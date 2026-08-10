@@ -58,8 +58,10 @@
     shopTishu: document.getElementById('shopTishu'),
     shopJingshen: document.getElementById('shopJingshen'),
     pillList: document.getElementById('pillList'),
+    pillOwned: document.getElementById('pillOwned'),
     herbOwned: document.getElementById('herbOwned'),
     herbShop: document.getElementById('herbShop'),
+    combatPillSelect: document.getElementById('combatPillSelect'),
     alchemyHint: document.getElementById('alchemyHint'),
     forgeStatus: document.getElementById('forgeStatus'),
     forgeRealmList: document.getElementById('forgeRealmList'),
@@ -498,9 +500,29 @@
       });
   }
 
+  function refreshCombatPillSelect() {
+    if (!els.combatPillSelect) return;
+    const prev = els.combatPillSelect.value;
+    els.combatPillSelect.innerHTML = '<option value="">不使用</option>';
+    (X.PILL_RECIPES || []).forEach((p) => {
+      const n = (state.pills && state.pills[p.id]) || 0;
+      if (n <= 0) return;
+      const mult = (p.effect && p.effect.combatPowerMult) || 1.12;
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent =
+        p.name + ' ×' + n + '（战力×' + Number(mult).toFixed(2) + '）';
+      els.combatPillSelect.appendChild(opt);
+    });
+    if (prev && [...els.combatPillSelect.options].some((o) => o.value === prev)) {
+      els.combatPillSelect.value = prev;
+    }
+  }
+
   function buildCraftPanels() {
     if (!els.pillList) return;
     els.pillList.innerHTML = '';
+    if (els.pillOwned) els.pillOwned.innerHTML = '';
     els.herbOwned.innerHTML = '';
     els.herbShop.innerHTML = '';
     X.PILL_RECIPES.forEach((p) => {
@@ -508,12 +530,14 @@
       btn.type = 'button';
       btn.className = 'art-row';
       btn.dataset.pillId = p.id;
+      btn.dataset.action = 'craft';
       const herbNeed = Object.entries(p.herbs)
         .map(([id, n]) => {
           const h = X.getHerb(id);
           return (h ? h.name : id) + '×' + n;
         })
         .join('、');
+      const sell = X.sellPillValue ? X.sellPillValue(p.id) : 0;
       btn.innerHTML =
         '<span class="art-mark">' +
         p.mark +
@@ -523,24 +547,65 @@
         p.description +
         ' · 需 ' +
         herbNeed +
+        (sell ? ' · 售 ' + X.formatNumber(sell) : '') +
         '</p></span><span class="art-meta">炼丹</span>';
       els.pillList.appendChild(btn);
     });
+    X.PILL_RECIPES.forEach((p) => {
+      const owned = (state.pills && state.pills[p.id]) || 0;
+      if (owned <= 0 || !els.pillOwned) return;
+      const row = document.createElement('div');
+      row.className = 'art-row treasure-row';
+      row.dataset.pillId = p.id;
+      const sell = X.sellPillValue ? X.sellPillValue(p.id) : 0;
+      const mult = (p.effect && p.effect.combatPowerMult) || 1.12;
+      row.innerHTML =
+        '<span class="art-mark">' +
+        p.mark +
+        '</span><span class="treasure-main"><p class="art-name">' +
+        p.name +
+        ' ×' +
+        owned +
+        '</p><p class="art-desc">战力×' +
+        Number(mult).toFixed(2) +
+        ' · 售 ' +
+        X.formatNumber(sell) +
+        '</p><div class="treasure-actions">' +
+        '<button type="button" class="mini-btn" data-pill-id="' +
+        p.id +
+        '" data-action="use">服下</button>' +
+        '<button type="button" class="mini-btn" data-pill-id="' +
+        p.id +
+        '" data-action="sell">出售</button>' +
+        '</div></span><span class="art-meta">背包</span>';
+      els.pillOwned.appendChild(row);
+    });
+    if (els.pillOwned && !els.pillOwned.childElementCount) {
+      els.pillOwned.innerHTML = '<p class="realm-hint">丹药背包空空 · 炼丹后入库</p>';
+    }
     X.HERBS.forEach((h) => {
       const owned = (state.herbs && state.herbs[h.id]) || 0;
       if (owned > 0) {
         const row = document.createElement('div');
-        row.className = 'art-row';
+        row.className = 'art-row treasure-row';
+        row.dataset.herbId = h.id;
+        const sell = X.sellHerbValue ? X.sellHerbValue(h.id) : Math.floor(h.cost * 0.62);
         row.innerHTML =
           '<span class="art-mark">' +
           h.mark +
-          '</span><span><p class="art-name">' +
+          '</span><span class="treasure-main"><p class="art-name">' +
           h.name +
+          ' ×' +
+          owned +
           '</p><p class="art-desc">' +
           h.description +
-          '</p></span><span class="art-meta">×' +
-          owned +
-          '</span>';
+          ' · 售 ' +
+          X.formatNumber(sell) +
+          '</p><div class="treasure-actions">' +
+          '<button type="button" class="mini-btn" data-herb-id="' +
+          h.id +
+          '" data-action="sell">出售</button>' +
+          '</div></span><span class="art-meta">背包</span>';
         els.herbOwned.appendChild(row);
       }
       if (h.cost > 0) {
@@ -548,6 +613,7 @@
         btn.type = 'button';
         btn.className = 'art-row';
         btn.dataset.herbId = h.id;
+        btn.dataset.action = 'buy';
         btn.innerHTML =
           '<span class="art-mark">' +
           h.mark +
@@ -564,11 +630,13 @@
     if (!els.herbOwned.childElementCount) {
       els.herbOwned.innerHTML = '<p class="realm-hint">暂无药材 · 可购药或战后拾取</p>';
     }
+    refreshCombatPillSelect();
     craftBuilt = true;
   }
 
   function softUpdateCraft(stats) {
     if (!craftBuilt) buildCraftPanels();
+    else refreshCombatPillSelect();
     if (els.alchemyHint) {
       els.alchemyHint.textContent = '精通 ' + state.alchemyMastery;
     }
@@ -1386,12 +1454,25 @@
     }
 
     if (stats.breakCost != null) {
-      els.btnBreak.textContent = '破境（' + X.formatNumber(stats.breakCost) + '灵力）';
+      const pill = stats.breakthroughPill;
+      const pillTxt = pill
+        ? ' + ' + pill.pillName + '×' + pill.count + '（有' + pill.owned + '）'
+        : '';
+      els.btnBreak.textContent =
+        '破境（' + X.formatNumber(stats.breakCost) + '灵力' + pillTxt + '）';
       els.btnBreak.classList.toggle(
         'is-locked',
         !stats.canBreakthrough || !!stats.pendingEvent,
       );
-      els.realmHint.textContent = '九层圆满，可破入下一境。破境赠三资源。';
+      els.realmHint.textContent = pill
+        ? '九层圆满。破境需灵力与丹药「' +
+          pill.pillName +
+          '」×' +
+          pill.count +
+          '（背包 ' +
+          pill.owned +
+          '）。'
+        : '九层圆满，可破入下一境。破境赠三资源。';
     } else if (state.realmIndex >= X.REALMS.length - 1) {
       els.btnBreak.textContent = '已至大道';
       els.btnBreak.classList.add('is-locked');
@@ -1399,7 +1480,7 @@
     } else {
       els.btnBreak.textContent = '破境（需九层）';
       els.btnBreak.classList.add('is-locked');
-      els.realmHint.textContent = '先升至九层再破境。';
+      els.realmHint.textContent = '先升至九层再破境；各大境界破境另需对应丹药。';
     }
 
     softUpdateShops(stats);
@@ -1570,10 +1651,27 @@
   els.combatList.addEventListener('click', (e) => {
     const btn = e.target.closest('.combat-row[data-enemy-id]');
     if (!btn) return;
-    const enemy = X.getEnemy(btn.dataset.enemyId);
-    if (!enemy) return;
-    if (!window.confirm('与「' + enemy.name + '」对战？败可能只是丢脸，剧情战败或会死。')) return;
-    const res = X.startCombat(state, enemy.id);
+    const encounterId = btn.dataset.enemyId;
+    const encounter = X.resolveCombatEncounter
+      ? X.resolveCombatEncounter(state, encounterId)
+      : X.getEnemy(encounterId);
+    if (!encounter) return;
+    const diff =
+      (X.COMBAT_DIFFICULTY_LABELS && encounter.difficulty
+        ? X.COMBAT_DIFFICULTY_LABELS[encounter.difficulty]
+        : '') || '';
+    const pillId = (els.combatPillSelect && els.combatPillSelect.value) || '';
+    const pillName = pillId && X.getPillRecipe ? (X.getPillRecipe(pillId) || {}).name : '';
+    const tip =
+      '与「' +
+      encounter.name +
+      '」' +
+      (diff ? '（' + diff + '）' : '') +
+      '对战？' +
+      (pillName ? '将服「' + pillName + '」强化。' : '可先换装或选战前丹药。') +
+      '败可能掉段或身死。';
+    if (!window.confirm(tip)) return;
+    const res = X.startCombat(state, encounterId, Date.now(), pillId ? { pillId: pillId } : undefined);
     if (!res.ok) {
       showToast(res.reason || '无法对战');
       setState(res.state, { soft: true });
@@ -1628,6 +1726,65 @@
   });
 
   function onShopClick(e) {
+    const pillMini = e.target.closest('.mini-btn[data-pill-id]');
+    if (pillMini) {
+      if (pillMini.classList.contains('is-locked') || pillMini.disabled) return;
+      const id = pillMini.dataset.pillId;
+      const action = pillMini.dataset.action;
+      if (action === 'use') {
+        const res = X.usePill(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法服用');
+          setState(res.state, { soft: true });
+          return;
+        }
+        craftBuilt = false;
+        showToast(res.message || '已服下');
+        setState(res.state);
+        return;
+      }
+      if (action === 'sell') {
+        const p = X.getPillRecipe(id);
+        const price = X.sellPillValue ? X.sellPillValue(id) : 0;
+        if (!window.confirm('出售「' + (p ? p.name : id) + '」得灵力 ' + X.formatNumber(price) + '？')) {
+          return;
+        }
+        const res = X.sellPill(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法出售');
+          setState(res.state, { soft: true });
+          return;
+        }
+        craftBuilt = false;
+        showToast(res.message || '已出售');
+        setState(res.state);
+        return;
+      }
+      return;
+    }
+    const herbMini = e.target.closest('.mini-btn[data-herb-id]');
+    if (herbMini) {
+      if (herbMini.classList.contains('is-locked') || herbMini.disabled) return;
+      const id = herbMini.dataset.herbId;
+      if (herbMini.dataset.action === 'sell') {
+        const h = X.getHerb(id);
+        const price = X.sellHerbValue ? X.sellHerbValue(id) : 0;
+        if (!window.confirm('出售「' + (h ? h.name : id) + '」得灵力 ' + X.formatNumber(price) + '？')) {
+          return;
+        }
+        const res = X.sellHerb(state, id);
+        if (!res.ok) {
+          showToast(res.reason || '无法出售');
+          setState(res.state, { soft: true });
+          return;
+        }
+        craftBuilt = false;
+        showToast(res.message || '已出售');
+        setState(res.state);
+        return;
+      }
+      return;
+    }
     const mini = e.target.closest('.mini-btn[data-treasure-id]');
     if (mini) {
       if (mini.classList.contains('is-locked') || mini.disabled) return;
@@ -1713,7 +1870,7 @@
       showEquipTip(btn, treasureTipHtml(id, true), { treasureId: id, pinned: true });
       return;
     }
-    if (btn.dataset.pillId) {
+    if (btn.dataset.pillId && btn.dataset.action === 'craft') {
       const res = X.craftPill(state, btn.dataset.pillId);
       if (!res.ok) {
         showToast(res.reason || '炼丹失败');
@@ -1721,11 +1878,11 @@
         return;
       }
       craftBuilt = false;
-      showToast(res.message || '丹成');
+      showToast(res.message || '丹成入库');
       setState(res.state);
       return;
     }
-    if (btn.dataset.herbId) {
+    if (btn.dataset.herbId && (btn.dataset.action === 'buy' || btn.tagName === 'BUTTON')) {
       const res = X.buyHerb(state, btn.dataset.herbId);
       if (!res.ok) {
         showToast(res.reason || '无法购药');
@@ -1834,6 +1991,8 @@
   els.shopTishu.addEventListener('click', onShopClick);
   els.shopJingshen.addEventListener('click', onShopClick);
   if (els.pillList) els.pillList.addEventListener('click', onShopClick);
+  if (els.pillOwned) els.pillOwned.addEventListener('click', onShopClick);
+  if (els.herbOwned) els.herbOwned.addEventListener('click', onShopClick);
   if (els.herbShop) els.herbShop.addEventListener('click', onShopClick);
   els.ownedTreasures.addEventListener('click', onShopClick);
   els.shopTreasures.addEventListener('click', onShopClick);

@@ -1,6 +1,7 @@
 /**
  * 炼丹 / 炼器 体系
  * 炼器境界由累计体术决定：低阶仅能炼凡品，高阶可炼灵/仙并可升品
+ * 丹药炼成入库：可服下、战前强化、破境消耗，亦可出售
  */
 import type { AttrMap, ResourceKey, ResourceMap, TreasureTier } from './types';
 
@@ -23,12 +24,21 @@ export interface PillRecipeDef {
   herbs: Record<string, number>;
   /** 消耗修炼资源 */
   costs: Partial<ResourceMap>;
-  /** 炼成后立即生效 */
+  /**
+   * 炼成后效果：
+   * - mastery 在炼成时获得
+   * - resources/attrs 在「服下」时生效
+   * - combat* 在战前吞服时生效（仅本场）
+   */
   effect: {
     resources?: Partial<ResourceMap>;
     attrs?: Partial<AttrMap>;
-    /** 永久炼丹精通 */
+    /** 永久炼丹精通（炼成时） */
     mastery?: number;
+    /** 战前服用：战力倍率 */
+    combatPowerMult?: number;
+    /** 战前临时属性（仅本场） */
+    combatTempAttrs?: Partial<AttrMap>;
   };
   mark: string;
 }
@@ -143,7 +153,7 @@ export const HERBS: HerbDef[] = [
   {
     id: 'herb_spirit_grass',
     name: '百年灵草',
-    description: '最基础的药引，凡人药园常见。',
+    description: '最基础的灵药，坊市随处可见。',
     cost: 40,
     minRealm: 0,
     mark: '草',
@@ -186,58 +196,134 @@ export const PILL_RECIPES: PillRecipeDef[] = [
   {
     id: 'pill_qi',
     name: '聚气丹',
-    description: '炼化灵力，稳固气海。',
+    description: '炼化灵力；炼气破境必备。亦可战前小补。',
     minRealm: 0,
     herbs: { herb_spirit_grass: 2 },
     costs: { jingshen: 8, lingli: 20 },
-    effect: { resources: { lingli: 120 }, mastery: 1 },
+    effect: {
+      resources: { lingli: 120 },
+      mastery: 1,
+      combatPowerMult: 1.08,
+      combatTempAttrs: { spirit: 1 },
+    },
     mark: '气',
   },
   {
     id: 'pill_bone',
     name: '锻骨丹',
-    description: '丹力入骨，体术大涨，助推炼器境界。',
+    description: '丹力入骨；筑基破境必备。战前可壮骨。',
     minRealm: 1,
     herbs: { herb_blood_root: 2, herb_spirit_grass: 1 },
     costs: { jingshen: 20, tishu: 30 },
-    effect: { resources: { tishu: 200 }, mastery: 1 },
+    effect: {
+      resources: { tishu: 200 },
+      mastery: 1,
+      combatPowerMult: 1.14,
+      combatTempAttrs: { bone: 2, def: 1 },
+    },
     mark: '骨',
   },
   {
     id: 'pill_mind',
     name: '凝神丹',
-    description: '清心凝神，精神力暴涨。',
+    description: '清心凝神；结丹破境必备。战前可凝神识。',
     minRealm: 2,
     herbs: { herb_soul_petal: 2 },
     costs: { jingshen: 40, lingli: 60 },
-    effect: { resources: { jingshen: 220 }, attrs: { spirit: 1 }, mastery: 2 },
+    effect: {
+      resources: { jingshen: 220 },
+      attrs: { spirit: 1 },
+      mastery: 2,
+      combatPowerMult: 1.18,
+      combatTempAttrs: { spirit: 3, luck: 1 },
+    },
     mark: '神',
   },
   {
     id: 'pill_battle',
     name: '破军丹',
-    description: '短期激发气血，攻伐大增。',
+    description: '激发气血，越界对战利器；元婴/化神破境所需。',
     minRealm: 3,
     herbs: { herb_flame_fruit: 1, herb_blood_root: 2 },
     costs: { jingshen: 80, tishu: 50, lingli: 100 },
-    effect: { attrs: { atk: 2, bone: 1 }, mastery: 2 },
+    effect: {
+      attrs: { atk: 1, bone: 1 },
+      mastery: 2,
+      combatPowerMult: 1.35,
+      combatTempAttrs: { atk: 4, bone: 2, spd: 2 },
+    },
     mark: '军',
   },
   {
     id: 'pill_dao',
     name: '问道丹',
-    description: '丹成悟道，三才齐增。',
+    description: '丹成悟道；高阶破境核心。越界战时有奇效。',
     minRealm: 5,
     herbs: { herb_void_dew: 1, herb_soul_petal: 2, herb_flame_fruit: 1 },
     costs: { jingshen: 400, lingli: 800, tishu: 200 },
     effect: {
       resources: { lingli: 5_000, tishu: 2_000, jingshen: 3_000 },
-      attrs: { spirit: 2, luck: 1 },
+      attrs: { spirit: 1, luck: 1 },
       mastery: 4,
+      combatPowerMult: 1.55,
+      combatTempAttrs: { atk: 5, spirit: 4, bone: 3, luck: 2 },
     },
     mark: '道',
   },
 ];
+
+/**
+ * 各大境界破境所需丹药（从当前境破入下一境）
+ * key = 当前 realmIndex
+ */
+export const BREAKTHROUGH_PILL_NEED: Record<number, { pillId: string; count: number }> = {
+  0: { pillId: 'pill_qi', count: 1 },
+  1: { pillId: 'pill_bone', count: 1 },
+  2: { pillId: 'pill_mind', count: 1 },
+  3: { pillId: 'pill_battle', count: 1 },
+  4: { pillId: 'pill_battle', count: 2 },
+  5: { pillId: 'pill_dao', count: 1 },
+  6: { pillId: 'pill_dao', count: 1 },
+  7: { pillId: 'pill_dao', count: 2 },
+  8: { pillId: 'pill_dao', count: 2 },
+  9: { pillId: 'pill_dao', count: 3 },
+  10: { pillId: 'pill_dao', count: 3 },
+};
+
+export function breakthroughPillNeed(
+  realmIndex: number,
+): { pillId: string; count: number } | null {
+  return BREAKTHROUGH_PILL_NEED[realmIndex] || null;
+}
+
+/** 药材回收价（低于买入，鼓励炼丹） */
+export function sellHerbValue(herbId: string): number {
+  const h = getHerb(herbId);
+  if (!h || h.cost <= 0) return 0;
+  return Math.max(1, Math.floor(h.cost * 0.62));
+}
+
+/** 估算炼丹物料成本（灵力当量） */
+export function pillCraftCostEstimate(recipe: PillRecipeDef): number {
+  let herbCost = 0;
+  for (const [hid, n] of Object.entries(recipe.herbs)) {
+    const h = getHerb(hid);
+    herbCost += (h?.cost || 40) * n;
+  }
+  const res =
+    (recipe.costs.lingli || 0) +
+    (recipe.costs.tishu || 0) * 0.85 +
+    (recipe.costs.jingshen || 0) * 0.9;
+  return herbCost + res;
+}
+
+/** 丹药售价：高于物料成本，买草炼丹再卖可赚灵力 */
+export function sellPillValue(pillId: string): number {
+  const recipe = getPillRecipe(pillId);
+  if (!recipe) return 0;
+  const cost = pillCraftCostEstimate(recipe);
+  return Math.max(20, Math.floor(cost * 1.55));
+}
 
 export function getHerb(id: string): HerbDef | undefined {
   return HERBS.find((h) => h.id === id);
@@ -308,6 +394,10 @@ export const BODY_STAGES = FORGE_REALMS;
 /** @deprecated */
 export function getBodyStage(index: number): ForgeRealmDef | undefined {
   return FORGE_REALMS[index];
+}
+/** @deprecated */
+export function bodyStageIndexFromTotal(total: number): number {
+  return forgeRealmIndexFromTotal(total);
 }
 /** @deprecated */
 export const bodyMultipliers = forgeMultipliers;

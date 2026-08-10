@@ -232,13 +232,14 @@ export interface EnemyDef {
 }
 
 /** 随机对战难度档：相对玩家战力 */
-export type CombatDifficulty = 'prey' | 'fair' | 'threat' | 'deadly';
+export type CombatDifficulty = 'prey' | 'fair' | 'threat' | 'deadly' | 'overreach';
 
 export const COMBAT_DIFFICULTY_LABELS: Record<CombatDifficulty, string> = {
   prey: '弱敌',
   fair: '均势',
   threat: '强敌',
   deadly: '绝境',
+  overreach: '越界',
 };
 
 /**
@@ -413,9 +414,9 @@ export interface GameState {
   lastRandomAt: number;
   /** 炼丹精通 */
   alchemyMastery: number;
-  /** 持有药材 */
+  /** 持有药材（背包） */
   herbs: Record<string, number>;
-  /** 持有丹药（库存；当前丹成即食，保留字段） */
+  /** 持有丹药（背包；炼成入库，服下/战前/破境时消耗） */
   pills: Record<string, number>;
   /**
    * 旧炼体阶数；已废弃，炼器境界改由累计体术决定
@@ -458,6 +459,13 @@ export interface DerivedStats {
   breakCost: number | null;
   canRaiseStar: boolean;
   canBreakthrough: boolean;
+  /** 破境所需丹药；无需则为 null */
+  breakthroughPill: {
+    pillId: string;
+    pillName: string;
+    count: number;
+    owned: number;
+  } | null;
   qiyunGain: number;
   canReincarnate: boolean;
   pendingEvent: StoryEventDef | null;

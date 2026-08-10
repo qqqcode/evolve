@@ -26,6 +26,7 @@ import {
   TREASURES,
   TIER_RANK,
   artChannel,
+  breakthroughPillNeed,
   getEnding,
   getEnemy,
   getHerb,
@@ -34,6 +35,8 @@ import {
   getRealm,
   getTreasure,
   listEquippedIds,
+  sellHerbValue,
+  sellPillValue,
   slotCapacity,
 } from './data';
 import {
@@ -73,6 +76,8 @@ import {
   resolveEvent,
   resourceAttrsFromTotals,
   resourceCaps,
+  sellHerb,
+  sellPill,
   startCombat,
   syncEquipCapacity,
   temperBody,
@@ -93,6 +98,7 @@ import {
   totalAttrs,
   tryRandomEvent,
   enemyPower,
+  usePill,
 } from './engine';
 import type { GameState } from './types';
 import {
@@ -107,6 +113,7 @@ import {
 } from './types';
 
 const LEGACY_SAVE_KEYS = [
+  'xian-save-v10',
   'xian-save-v9',
   'xian-save-v8',
   'xian-save-v7',
@@ -200,6 +207,7 @@ const Xian = {
   beginReincarnation,
   breakthrough,
   breakthroughCost,
+  breakthroughPillNeed,
   buyArt,
   buyHerb,
   buyTreasure,
@@ -237,6 +245,10 @@ const Xian = {
   resourceCaps,
   saveToStorage,
   clearStorage,
+  sellHerb,
+  sellHerbValue,
+  sellPill,
+  sellPillValue,
   sellTreasure,
   sellValue,
   startCombat,
@@ -253,6 +265,7 @@ const Xian = {
   treasureEffectiveTier,
   currentForgeRealm,
   currentForgeRealmIndex,
+  usePill,
 };
 
 declare global {
