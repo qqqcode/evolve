@@ -93,9 +93,9 @@
           <p class="realm-hint" id="bodyHint"></p>
 
           <h2 class="pane-title">随机对战</h2>
-          <p class="realm-hint">含高于己身的绝境/越界战；可先换装，或选丹药战前服用</p>
+          <p class="realm-hint">含绝境/越界高难；开战弹框可选战前丹（仅本场），亦可先换装</p>
           <label class="combat-pill-label">
-            战前丹药
+            战前丹（一回合）
             <select id="combatPillSelect" class="combat-pill-select" aria-label="战前服用丹药">
               <option value="">不使用</option>
             </select>
@@ -186,8 +186,10 @@
 
             <div id="tabAlchemy" class="tab-pane">
               <h2 class="pane-title">丹方 <span class="inline-hint" id="alchemyHint"></span></h2>
-              <p class="realm-hint">炼成入库；服下得资源、战前强化、破境消耗；售价高于药材成本</p>
+              <p class="realm-hint">每层升层/破境耗丹；炼丹成本偏高。进阶丹可买；永久战丹服下加战力；战前丹仅开战弹框使用</p>
               <div id="pillList" class="shop-list"></div>
+              <h2 class="pane-title">购丹</h2>
+              <div id="pillShop" class="shop-list"></div>
               <h2 class="pane-title">丹药背包</h2>
               <div id="pillOwned" class="shop-list"></div>
               <h2 class="pane-title">药材背包</h2>

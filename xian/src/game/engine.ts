@@ -46,7 +46,9 @@ import {
   getPillRecipe,
   getRealm,
   getTreasure,
+  isBattlePill,
   listEquippedIds,
+  raiseStarPillNeed,
   scaleAttrs,
   sellHerbValue,
   sellPillValue,
@@ -268,6 +270,7 @@ export function createMetaState(now = Date.now()): GameState {
     alchemyMastery: 0,
     herbs: emptyHerbs(),
     pills: emptyPills(),
+    pillCombatBonus: 0,
     bodyStage: 0,
     bodyProgress: 0,
   };
@@ -424,6 +427,7 @@ export function loadState(raw: unknown, now = Date.now()): GameState {
     alchemyMastery: Math.max(0, Math.floor(Number(data.alchemyMastery) || 0)),
     herbs,
     pills,
+    pillCombatBonus: Math.max(0, Number(data.pillCombatBonus) || 0),
     bodyStage: clampInt(data.bodyStage, 0, BODY_STAGES.length),
     bodyProgress: Math.max(0, Number(data.bodyProgress) || 0),
   };
@@ -724,7 +728,7 @@ export function totalAttrs(state: GameState): AttrMap {
   return addAttrs(withBody, resourceAttrsFromTotals(state));
 }
 
-/** 战斗力：属性加权 × 法宝乘区 × 境界系数 × 炼器境 */
+/** 战斗力：属性加权 × 法宝乘区 × 境界系数 × 炼器境 + 永久丹药战力 */
 export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
   const a = attrs || totalAttrs(state);
   const weighted =
@@ -736,7 +740,8 @@ export function calcCombatPower(state: GameState, attrs?: AttrMap): number {
   }
   const realmMult = 1 + state.realmIndex * 0.08 + state.star * 0.01;
   const forgeMult = forgeMultipliers(currentForgeRealmIndex(state)).combatMult;
-  return Math.max(1, weighted * mult * realmMult * forgeMult);
+  const pillFlat = Math.max(0, state.pillCombatBonus || 0);
+  return Math.max(1, weighted * mult * realmMult * forgeMult + pillFlat);
 }
 
 /** 汇总已装备法宝的越界特效概率（可叠加，上限封顶） */
@@ -1404,7 +1409,18 @@ export function derive(state: GameState): DerivedStats {
   const nextStarCost = raiseStarCost(state);
   const breakCost = breakthroughCost(state);
   const playing = state.phase === 'playing' && !state.endingId;
-  const canRaiseStar = playing && nextStarCost != null && state.lingqi >= nextStarCost;
+  const starPillNeed = nextStarCost != null ? raiseStarPillNeed(state) : null;
+  const raiseStarPill = starPillNeed
+    ? {
+        pillId: starPillNeed.pillId,
+        pillName: getPillRecipe(starPillNeed.pillId)?.name || starPillNeed.pillId,
+        count: starPillNeed.count,
+        owned: state.pills[starPillNeed.pillId] || 0,
+      }
+    : null;
+  const hasStarPill = !raiseStarPill || raiseStarPill.owned >= raiseStarPill.count;
+  const canRaiseStar =
+    playing && nextStarCost != null && state.lingqi >= nextStarCost && hasStarPill;
   const pillNeed = breakCost != null ? breakthroughPillNeed(state.realmIndex) : null;
   const breakthroughPill = pillNeed
     ? {
@@ -1446,6 +1462,7 @@ export function derive(state: GameState): DerivedStats {
     breakCost,
     canRaiseStar,
     canBreakthrough,
+    raiseStarPill,
     breakthroughPill,
     qiyunGain,
     canReincarnate,
@@ -1811,17 +1828,42 @@ export function raiseStar(state: GameState, now = Date.now()): ActionResult {
   const cost = raiseStarCost(ticked);
   if (cost == null) return { ok: false, state: ticked, reason: '已满九层，可尝试破境' };
   if (ticked.lingqi < cost) return { ok: false, state: ticked, reason: '灵力不足' };
+
+  const pillNeed = raiseStarPillNeed(ticked);
+  if (pillNeed) {
+    const owned = ticked.pills[pillNeed.pillId] || 0;
+    if (owned < pillNeed.count) {
+      const name = getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId;
+      return {
+        ok: false,
+        state: ticked,
+        reason: `升层需「${name}」×${pillNeed.count}（背包 ${owned}）`,
+      };
+    }
+  }
+
   const nextStar = ticked.star + 1;
+  const pills = { ...ticked.pills };
+  let pillTxt = '';
+  if (pillNeed) {
+    pills[pillNeed.pillId] = Math.max(0, (pills[pillNeed.pillId] || 0) - pillNeed.count);
+    const name = getPillRecipe(pillNeed.pillId)?.name || pillNeed.pillId;
+    pillTxt = ` · 服「${name}」×${pillNeed.count}`;
+  }
   let next = updatePeak({
     ...ticked,
     lingqi: ticked.lingqi - cost,
+    pills,
     star: nextStar,
   });
   // 每升 3 层赠三资源
   if (nextStar % 3 === 0) {
     next = grantFromFreePoints(next, 1);
   }
-  next = pushChronicle(next, `${getRealm(next.realmIndex).name}${nextStar}层。`);
+  next = pushChronicle(
+    next,
+    `${getRealm(next.realmIndex).name}${nextStar}层${pillTxt}。`,
+  );
   const rnd = tryRandomEvent(next, 'level', now);
   if (rnd.ok) next = rnd.state;
   return { ok: true, state: next, message: `升至 ${nextStar} 层` };
@@ -1940,6 +1982,9 @@ export function startCombat(
     if (!recipe || owned < 1) {
       return { ok: false, state: ticked, reason: '丹药不足，无法战前服用' };
     }
+    if (!isBattlePill(recipe)) {
+      return { ok: false, state: ticked, reason: '此丹非战前丹，请在背包服下或用于升层破境' };
+    }
     const pills = {
       ...ticked.pills,
       [opts.pillId]: owned - 1,
@@ -1949,7 +1994,7 @@ export function startCombat(
     if (recipe.effect.combatTempAttrs) {
       fightAttrs = addAttrs(fightAttrs, recipe.effect.combatTempAttrs);
     }
-    edgeEvents.push(`服「${recipe.name}」·战力×${pillBoost.toFixed(2)}`);
+    edgeEvents.push(`本场服「${recipe.name}」·战力×${pillBoost.toFixed(2)}`);
   }
 
   const basePower = calcCombatPower(ticked, fightAttrs) * pillBoost;
@@ -2339,6 +2384,7 @@ export function chooseBirth(
     alchemyMastery: 0,
     herbs: emptyHerbs(),
     pills: emptyPills(),
+    pillCombatBonus: 0,
     bodyStage: 0,
     bodyProgress: 0,
   };
@@ -2518,6 +2564,29 @@ export function buyHerb(state: GameState, herbId: string, now = Date.now()): Act
   };
 }
 
+/** 坊市直购丹药（炼丹更贵，买药卡准升层节奏） */
+export function buyPill(state: GameState, pillId: string, now = Date.now()): ActionResult {
+  const blocked = ensurePlaying(state);
+  if (blocked) return blocked;
+  const recipe = getPillRecipe(pillId);
+  if (!recipe || recipe.shopCost <= 0) {
+    return { ok: false, state, reason: '此丹不可购买' };
+  }
+  const ticked = tick(state, now).state;
+  if (ticked.realmIndex < recipe.minRealm) {
+    return { ok: false, state: ticked, reason: '境界不足，坊市不卖给你' };
+  }
+  if (ticked.lingqi < recipe.shopCost) {
+    return { ok: false, state: ticked, reason: '灵力不足' };
+  }
+  const pills = { ...ticked.pills, [pillId]: (ticked.pills[pillId] || 0) + 1 };
+  return {
+    ok: true,
+    state: { ...ticked, lingqi: ticked.lingqi - recipe.shopCost, pills },
+    message: `购得「${recipe.name}」·已入库`,
+  };
+}
+
 export function craftPill(state: GameState, recipeId: string, now = Date.now()): ActionResult {
   const blocked = ensurePlaying(state);
   if (blocked) return blocked;
@@ -2548,17 +2617,20 @@ export function craftPill(state: GameState, recipeId: string, now = Date.now()):
   };
   next = pushChronicle(
     next,
-    `炼成「${recipe.name}」入库。丹道精通 ${next.alchemyMastery}。可服下、战前服用或破境消耗，亦可高价出售。`,
+    `炼成「${recipe.name}」入库。丹道精通 ${next.alchemyMastery}。`,
   );
   return { ok: true, state: next, message: `炼成「${recipe.name}」·已入库` };
 }
 
-/** 服下丹药：永久资源/属性（非战前、非破境） */
+/** 服下丹药：永久资源/属性/战力（战前丹请在开战弹框使用） */
 export function usePill(state: GameState, pillId: string, now = Date.now()): ActionResult {
   const blocked = ensurePlaying(state);
   if (blocked) return blocked;
   const recipe = getPillRecipe(pillId);
   if (!recipe) return { ok: false, state, reason: '未知丹药' };
+  if (recipe.kind === 'battle') {
+    return { ok: false, state, reason: '战前丹请在对战弹框中选择使用（仅本场）' };
+  }
   const ticked = tick(state, now).state;
   const owned = ticked.pills[pillId] || 0;
   if (owned < 1) return { ok: false, state: ticked, reason: '背包中无此丹药' };
@@ -2574,8 +2646,17 @@ export function usePill(state: GameState, pillId: string, now = Date.now()): Act
   if (recipe.effect.attrs) {
     next = { ...next, attrs: addAttrs(next.attrs, recipe.effect.attrs) };
   }
-  next = pushChronicle(next, `服下「${recipe.name}」，药力融入己身。`);
-  return { ok: true, state: next, message: `服下「${recipe.name}」` };
+  if (recipe.effect.combatPowerFlat) {
+    next = {
+      ...next,
+      pillCombatBonus: (next.pillCombatBonus || 0) + recipe.effect.combatPowerFlat,
+    };
+  }
+  const flatTxt = recipe.effect.combatPowerFlat
+    ? ` · 永久战力+${recipe.effect.combatPowerFlat}`
+    : '';
+  next = pushChronicle(next, `服下「${recipe.name}」，药力融入己身${flatTxt}。`);
+  return { ok: true, state: next, message: `服下「${recipe.name}」${flatTxt}` };
 }
 
 export function sellHerb(state: GameState, herbId: string, now = Date.now()): ActionResult {

@@ -34,7 +34,10 @@ import {
   getPillRecipe,
   getRealm,
   getTreasure,
+  isBattlePill,
   listEquippedIds,
+  PILL_KIND_LABELS,
+  raiseStarPillNeed,
   sellHerbValue,
   sellPillValue,
   slotCapacity,
@@ -48,6 +51,7 @@ import {
   breakthroughCost,
   buyArt,
   buyHerb,
+  buyPill,
   buyTreasure,
   calcCombatPower,
   calcQiyunGain,
@@ -113,6 +117,7 @@ import {
 } from './types';
 
 const LEGACY_SAVE_KEYS = [
+  'xian-save-v11',
   'xian-save-v10',
   'xian-save-v9',
   'xian-save-v8',
@@ -210,7 +215,11 @@ const Xian = {
   breakthroughPillNeed,
   buyArt,
   buyHerb,
+  buyPill,
   buyTreasure,
+  isBattlePill,
+  PILL_KIND_LABELS,
+  raiseStarPillNeed,
   buildCombatEncounter,
   calcCombatPower,
   calcQiyunGain,

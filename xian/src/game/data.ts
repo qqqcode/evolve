@@ -17,6 +17,7 @@ import {
   FORGE_REALMS,
   HERBS,
   MAX_TEMPER_LEVEL,
+  PILL_KIND_LABELS,
   PILL_RECIPES,
   TIER_PROMOTE_TARGET,
   TIER_RANK,
@@ -32,7 +33,9 @@ import {
   getForgeRealm,
   getHerb,
   getPillRecipe,
+  isBattlePill,
   pillCraftCostEstimate,
+  raiseStarPillNeed,
   sellHerbValue,
   sellPillValue,
   tierAllowed,
@@ -52,6 +55,7 @@ export {
   FORGE_REALMS,
   HERBS,
   MAX_TEMPER_LEVEL,
+  PILL_KIND_LABELS,
   PILL_RECIPES,
   TIER_PROMOTE_TARGET,
   TIER_RANK,
@@ -67,7 +71,9 @@ export {
   getForgeRealm,
   getHerb,
   getPillRecipe,
+  isBattlePill,
   pillCraftCostEstimate,
+  raiseStarPillNeed,
   sellHerbValue,
   sellPillValue,
   tierAllowed,
@@ -75,8 +81,8 @@ export {
 
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000;
 export const QIYUN_BONUS_PER = 0.08;
-export const SAVE_VERSION = 11;
-export const STORAGE_KEY = 'xian-save-v11';
+export const SAVE_VERSION = 12;
+export const STORAGE_KEY = 'xian-save-v12';
 export const MAX_STAR = 9;
 export const MAX_CHRONICLE = 28;
 export const MAX_MILESTONES = 40;
